@@ -470,6 +470,11 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="regPass" placeholder="Минимум 6 символов"><button type="button" class="pw-eye" onclick="togglePw('regPass', this)">👁</button></div></div>
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
+    <div id="regCodeBox" style="display:none">
+      <div class="auth-field"><label>Код из письма</label><input type="text" id="regCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"></div>
+      <button class="auth-btn" onclick="confirmRegCode()">Подтвердить</button>
+      <button class="auth-btn" style="background:transparent;color:inherit;margin-top:8px;border:1px solid rgba(127,127,127,.4)" onclick="resendRegCode()">Отправить код ещё раз</button>
+    </div>
     <div class="auth-error" id="authError"></div>
     <div style="text-align:center;margin:14px 0 8px;opacity:.6;font-size:13px">или</div>
     <button type="button" class="auth-btn" style="background:#fff;color:#111" onclick="oauthLogin('google')">Войти через Google</button>
@@ -707,6 +712,7 @@ function switchTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
   document.getElementById('loginForm').style.display = tab==='login'?'':'none';
   document.getElementById('registerForm').style.display = tab==='register'?'':'none';
+  document.getElementById('regCodeBox').style.display = 'none';
   document.getElementById('authError').style.display = 'none';
 }
 function authErr(msg) {
@@ -752,9 +758,33 @@ async function register() {
     await loadMe(data.user.id);
     showApp();
   } else {
-    switchTab('login');
-    authErr('Аккаунт создан. Подтверди почту (если письмо пришло) и войди.');
+    // Нужно подтверждение почты кодом из письма
+    pendingReg = { email, pass };
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('regCodeBox').style.display = '';
+    document.getElementById('authError').style.display = 'none';
+    setTimeout(() => document.getElementById('regCode').focus(), 100);
   }
+}
+let pendingReg = null;
+async function confirmRegCode() {
+  const token = document.getElementById('regCode').value.replace(/\s/g, '');
+  if (!/^\d{6,8}$/.test(token)) return authErr('Введи код из письма');
+  if (!pendingReg) return authErr('Начни регистрацию заново');
+  const { data, error } = await sb.auth.verifyOtp({ email: pendingReg.email, token, type: 'signup' });
+  if (error || !data?.user) return authErr('Неверный или просроченный код');
+  const pass = pendingReg.pass;
+  pendingReg = null;
+  if (!(await ensureProfile(data.user))) return;
+  try { await setupKeys(data.user, pass); }
+  catch (e) { return authErr('Ошибка ключей: ' + (e?.message || e)); }
+  await loadMe(data.user.id);
+  showApp();
+}
+async function resendRegCode() {
+  if (!pendingReg) return authErr('Начни регистрацию заново');
+  const { error } = await sb.auth.resend({ type: 'signup', email: pendingReg.email });
+  authErr(error ? 'Не удалось отправить: ' + error.message : 'Код отправлен ещё раз');
 }
 // Вход через Google/Apple: после возврата со страницы провайдера init() создаст профиль и попросит пароль шифрования
 async function oauthLogin(provider) {
