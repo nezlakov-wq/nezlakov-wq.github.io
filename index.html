@@ -1538,6 +1538,23 @@ function subscribeRealtime() {
       }
       await loadConversations();
     })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, async () => {
+      await loadConversations();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, async (payload) => {
+      const id = payload.new?.id;
+      if (me && id === me.id) await loadMe(me.id);
+      if (activeOther && id === activeOther.id) {
+        activeOther = { ...activeOther, ...payload.new };
+        const name = activeOther.display_name || '';
+        document.getElementById('hName').textContent = name;
+        document.getElementById('hStatus').textContent = '@' + (activeOther.username || '');
+        const hAv = document.getElementById('hAv');
+        hAv.textContent = avText(activeOther, name);
+        hAv.style.cssText = 'width:36px;height:36px;font-size:14px;' + avStyle(activeOther, activeChatId);
+      }
+      await loadConversations();
+    })
     .subscribe();
   setupTyping();
 }
