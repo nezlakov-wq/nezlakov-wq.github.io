@@ -434,6 +434,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .quote{border-left:3px solid #5b7fff;padding:4px 8px;margin-bottom:4px;font-size:12px;opacity:.85;border-radius:4px;background:rgba(127,127,127,.15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .tick.read{color:#5b7fff}
 .h-status.typing{color:#5b7fff}
+.file-box{min-width:120px;font-size:14px}
 </style>
 </head>
 <body>
@@ -520,6 +521,8 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="msgs" id="msgsArea"></div>
       <div class="reply-bar" id="replyBar"><div class="rb-text" id="replyText"></div><button onclick="clearReply()" title="Отменить">✕</button></div>
       <div class="input-area">
+        <button class="ico-btn" title="Файл" onclick="document.getElementById('fileInput').click()">📎</button>
+        <input type="file" id="fileInput" style="display:none" onchange="sendFile(this.files[0]); this.value=''">
         <button class="ico-btn" title="Подарок" onclick="openGifts()">🎁</button>
         <div class="input-wrap">
           <textarea class="msg-ta" id="msgInput" rows="1" placeholder="Сообщение…"></textarea>
@@ -1059,6 +1062,74 @@ function reactionsHtml(msg) {
     `<button class="react-chip" onclick="toggleReaction('${msg.id}','${k}')">${k} ${r[k].length}</button>`).join('') + '</div>';
 }
 
+// ── FILES AND PHOTOS ──
+// Файл шифруется ключом чата и кладётся в приватный bucket.
+// В сообщение кладётся зашифрованная метаданная: путь, имя, тип, IV.
+const MAX_FILE = 10 * 1024 * 1024;
+function isFileMsg(plain) { return typeof plain === 'string' && plain.startsWith('{"__file":'); }
+function bodyHtml(msg) {
+  const p = msg.plain ?? msg.text;
+  if (isFileMsg(p)) {
+    try {
+      const m = JSON.parse(p);
+      const img = (m.m || '').startsWith('image/');
+      return `<div class="file-box" data-fid="${msg.id}" data-img="${img ? 1 : 0}">📎 ${esc(m.n)}</div>`;
+    } catch (e) { return '📎 Файл'; }
+  }
+  return msgContent(p);
+}
+const fileCache = new Map();
+async function fileUrl(m) {
+  if (fileCache.has(m.p)) return fileCache.get(m.p);
+  const key = await sharedKeyWith(activeOther?.pub_key);
+  if (!key) throw new Error('no key');
+  const { data, error } = await sb.storage.from('chat-media').download(m.p);
+  if (error || !data) throw new Error('download');
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(m.i) }, key, await data.arrayBuffer());
+  const url = URL.createObjectURL(new Blob([pt], { type: m.m }));
+  fileCache.set(m.p, url);
+  return url;
+}
+function hydrateFiles(area, msgs) {
+  area.querySelectorAll('.file-box').forEach(async el => {
+    const msg = msgs.find(x => x.id === el.dataset.fid);
+    if (!msg) return;
+    let m;
+    try { m = JSON.parse(msg.plain ?? msg.text); } catch (e) { return; }
+    try {
+      const url = await fileUrl(m);
+      if (el.dataset.img === '1') {
+        el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
+      } else {
+        el.innerHTML = `<a href="${url}" download="${esc(m.n)}" style="color:inherit">📎 ${esc(m.n)}</a>`;
+      }
+    } catch (e) {
+      el.textContent = '🔒 Не удалось открыть файл';
+    }
+  });
+}
+async function sendFile(file) {
+  if (!file || !activeChatId) return;
+  if (file.size > MAX_FILE) return toast('Файл больше 10 МБ');
+  const key = await sharedKeyWith(activeOther?.pub_key).catch(() => null);
+  if (!key) return toast('Нет ключа шифрования, введи пароль');
+  toast('Отправляем…');
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, await file.arrayBuffer());
+  const path = `${activeChatId}/${crypto.randomUUID()}`;
+  const { error: upErr } = await sb.storage.from('chat-media').upload(path, new Blob([ct]), { contentType: 'application/octet-stream' });
+  if (upErr) return toast('Ошибка загрузки: ' + upErr.message);
+  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv) });
+  let payload;
+  try { payload = await encryptFor(activeOther?.pub_key, meta); }
+  catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
+  const { error } = await sb.from('messages').insert({ conversation_id: activeChatId, sender_id: me.id, text: payload, reply_to: replyTo?.id || null });
+  if (error) return toast('Ошибка: ' + error.message);
+  clearReply();
+  await loadMessages(activeChatId);
+  await loadConversations();
+}
+
 // ── REPLY / FORWARD / READ / TYPING / NOTIFICATIONS ──
 let replyTo = null;
 let forwardMsg = null;
@@ -1066,6 +1137,7 @@ function msgPreview(m) {
   if (m.deleted_by?.includes(me.id)) return 'Сообщение удалено';
   const t = m.plain ?? m.text;
   if (t.startsWith('[gift:')) return '🎁 Подарок';
+  if (isFileMsg(t)) return '📎 Файл';
   return t.length > 120 ? t.slice(0, 120) + '…' : t;
 }
 function setReply(msg) {
@@ -1103,7 +1175,7 @@ async function forwardTo(convId) {
   closeMsgMenu();
   if (!msg || !conv) return;
   const plain = msg.plain ?? msg.text;
-  if (plain.startsWith('🔒') || plain.startsWith('[gift:')) return toast('Это сообщение нельзя переслать');
+  if (plain.startsWith('🔒') || plain.startsWith('[gift:') || isFileMsg(plain)) return toast('Это сообщение нельзя переслать');
   let payload;
   try { payload = await encryptFor(conv.other?.pub_key, plain); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
@@ -1405,12 +1477,13 @@ function renderMessages(msgs, area) {
       const delBtn = '';
       bub.innerHTML = isDeleted
         ? `🗑 Сообщение удалено &nbsp;${delBtn}${isLast?`<div class="bubble-foot">${timeStr(msg.created_at)}</div>`:''}`
-        : `${quoteFor(msg, byId)}${msgContent(msg.plain ?? msg.text)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?tickHtml(msg):''}</div>`:''}`;
+        : `${quoteFor(msg, byId)}${bodyHtml(msg)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?tickHtml(msg):''}</div>`:''}`;
       attachLongPress(bub, msg);
       gEl.appendChild(bub);
     });
     area.appendChild(gEl);
   }
+  hydrateFiles(area, msgs);
   area.scrollTop = area.scrollHeight;
 }
 
