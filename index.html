@@ -661,9 +661,11 @@ let searchTimer = null;
 
 // ── INIT ──
 async function init() {
+  // Проверяем до getSession: Supabase убирает параметры из адреса при разборе ссылки
+  const isRecovery = location.hash.includes('type=recovery');
   const { data: { session } } = await sb.auth.getSession();
   document.getElementById('loading').style.display = 'none';
-  if (session && location.hash.includes('type=recovery')) {
+  if (session && isRecovery) {
     await newPasswordFlow();
     return;
   }
