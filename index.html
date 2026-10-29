@@ -1101,7 +1101,7 @@ function hydrateFiles(area, msgs) {
       if (el.dataset.img === '1') {
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else {
-        el.innerHTML = `<a href="${url}" download="${esc(m.n)}" style="color:inherit">📎 ${esc(m.n)}</a>`;
+        el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
     } catch (e) {
       el.textContent = '🔒 Не удалось открыть файл';
