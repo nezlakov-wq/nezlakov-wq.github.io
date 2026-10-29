@@ -509,8 +509,8 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
     <div id="chatView" style="display:none;flex:1;min-height:0;flex-direction:column;display:none">
       <div class="chat-header">
         <button class="back-btn" onclick="goBack()">‹</button>
-        <div class="av"><div class="av-img" id="hAv" style="width:36px;height:36px;font-size:14px;"></div></div>
-        <div class="h-info">
+        <div class="av" onclick="openProfile()" style="cursor:pointer"><div class="av-img" id="hAv" style="width:36px;height:36px;font-size:14px;"></div></div>
+        <div class="h-info" onclick="openProfile()" style="cursor:pointer">
           <div class="h-name" id="hName"></div>
           <div class="h-status" id="hStatus"></div>
         </div>
@@ -582,6 +582,18 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
     <div class="modal-title">Подарки</div>
     <div class="set-label" id="giftBalance" style="margin-bottom:12px"></div>
     <div id="giftList"></div>
+  </div>
+</div>
+
+<!-- PROFILE OF INTERLOCUTOR -->
+<div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfile()">
+  <div class="modal" style="position:relative;text-align:center">
+    <button class="modal-close" onclick="closeProfile()">✕</button>
+    <div class="av-img" id="pfAv" style="margin:12px auto"></div>
+    <div class="modal-title" id="pfName"></div>
+    <div class="set-label" id="pfUsername"></div>
+    <div class="set-label" style="margin:18px 0 8px;text-align:left">Подарки в этом чате</div>
+    <div id="pfGifts" style="text-align:left"></div>
   </div>
 </div>
 
@@ -1060,6 +1072,44 @@ function reactionsHtml(msg) {
   if (!keys.length) return '';
   return '<div class="reacts">' + keys.map(k =>
     `<button class="react-chip" onclick="toggleReaction('${msg.id}','${k}')">${k} ${r[k].length}</button>`).join('') + '</div>';
+}
+
+// ── PROFILE OF INTERLOCUTOR ──
+function closeProfile() { document.getElementById('profileModal').style.display = 'none'; }
+async function openProfile() {
+  if (!activeOther || !activeChatId) return;
+  const p = activeOther;
+  const name = p.display_name || '';
+  const av = document.getElementById('pfAv');
+  av.textContent = avText(p, name);
+  av.style.cssText = 'width:80px;height:80px;font-size:28px;margin:12px auto;' + avStyle(p, activeChatId);
+  document.getElementById('pfName').textContent = name;
+  document.getElementById('pfUsername').textContent = '@' + (p.username || '');
+  const list = document.getElementById('pfGifts');
+  list.innerHTML = '<div style="opacity:.6;font-size:13px">Загрузка…</div>';
+  document.getElementById('profileModal').style.display = 'flex';
+  const convId = activeChatId;
+  const { data } = await sb.from('messages')
+    .select('text')
+    .eq('conversation_id', convId)
+    .eq('sender_id', p.id)
+    .like('text', '[gift:%');
+  if (convId !== activeChatId) return;
+  const counts = {};
+  (data || []).forEach(m => {
+    const id = m.text.slice(6, -1);
+    counts[id] = (counts[id] || 0) + 1;
+  });
+  const ids = Object.keys(counts);
+  if (!ids.length) {
+    list.innerHTML = '<div style="opacity:.6;font-size:13px">Подарков в этом чате пока нет</div>';
+    return;
+  }
+  list.innerHTML = ids.map(id => {
+    const g = giftList.find(x => x.id === id);
+    const label = g ? `${g.emoji} ${esc(g.name)}` : esc(id);
+    return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>${label}</span><span>× ${counts[id]}</span></div>`;
+  }).join('');
 }
 
 // ── FILES AND PHOTOS ──
