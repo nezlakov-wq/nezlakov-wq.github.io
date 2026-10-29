@@ -574,6 +574,11 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
+      <div class="set-row"><div class="set-label">Конфиденциальность</div>
+        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
+      </div>
       <div class="set-row"><div class="set-label">Сменить пароль</div><div style="font-size:13px;opacity:.7;margin:4px 0">Ключ шифрования переоборачивается автоматически, история сохраняется.</div><input type="password" id="newPw" placeholder="Новый пароль (минимум 6)" style="width:100%;box-sizing:border-box;margin-bottom:6px"><button class="set-logout" style="color:inherit" onclick="changePassword()">Сменить пароль</button></div>
       <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
     </div>
@@ -1224,6 +1229,10 @@ async function openProfile() {
   list.innerHTML = '<div style="opacity:.6;font-size:13px">Загрузка…</div>';
   document.getElementById('profileModal').style.display = 'flex';
   const convId = activeChatId;
+  if (p.hide_gifts) {
+    list.innerHTML = '<div style="opacity:.6;font-size:13px">Собеседник скрыл подарки</div>';
+    return;
+  }
   const { data } = await sb.from('messages')
     .select('text')
     .eq('conversation_id', convId)
@@ -1245,6 +1254,23 @@ async function openProfile() {
     const label = g ? `${g.emoji} ${esc(g.name)}` : esc(id);
     return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>${label}</span><span>× ${counts[id]}</span></div>`;
   }).join('');
+}
+
+// ── PRIVACY ──
+// Скрытие аватара применяем на стороне приложения: чужой аватар не подставляем
+function maskProfile(p) {
+  if (!p) return null;
+  return p.hide_avatar ? { ...p, avatar_url: null } : p;
+}
+async function savePrivacy(field, val) {
+  const { error } = await sb.from('profiles').update({ [field]: val }).eq('id', me.id);
+  if (error) return toast('Ошибка: ' + error.message);
+  me[field] = val;
+  if (field === 'hide_online' && presenceCh) {
+    if (val) await presenceCh.untrack();
+    else await presenceCh.track({ uid: me.id });
+  }
+  toast('Сохранено');
 }
 
 // ── CHAT SEARCH ──
@@ -1306,7 +1332,7 @@ function setupPresence() {
       refreshStatusLine();
     })
     .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') await presenceCh.track({ uid: me.id });
+      if (status === 'SUBSCRIBED' && !me.hide_online) await presenceCh.track({ uid: me.id });
     });
 }
 
@@ -1569,6 +1595,9 @@ async function openSettings() {
   renderMyAvatar();
   renderAccounts();
   updateNotifBtn();
+  document.getElementById('prAvatar').checked = !!me.hide_avatar;
+  document.getElementById('prOnline').checked = !!me.hide_online;
+  document.getElementById('prGifts').checked = !!me.hide_gifts;
   switchSettingsTab('data');
   document.getElementById('settingsModal').style.display = 'flex';
 }
@@ -1609,7 +1638,7 @@ async function loadConversations() {
   conversations = [];
   for(const conv of (convs||[])) {
     const { data: members } = await sb.from('conversation_members')
-      .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,pub_key)')
+      .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,pub_key,hide_avatar,hide_online,hide_gifts)')
       .eq('conversation_id', conv.id);
     const { data: lastMsgs } = await sb.from('messages')
       .select('*').eq('conversation_id', conv.id)
@@ -1618,7 +1647,7 @@ async function loadConversations() {
     conversations.push({
       ...conv,
       members: members||[],
-      other: other?.profiles || null,
+      other: maskProfile(other?.profiles),
       lastMsg: lastMsgs?.[0] || null,
     });
   }
@@ -1820,7 +1849,7 @@ function subscribeRealtime() {
       const id = payload.new?.id;
       if (me && id === me.id) await loadMe(me.id);
       if (activeOther && id === activeOther.id) {
-        activeOther = { ...activeOther, ...payload.new };
+        activeOther = maskProfile({ ...activeOther, ...payload.new });
         const name = activeOther.display_name || '';
         document.getElementById('hName').textContent = name;
         document.getElementById('hStatus').textContent = '@' + (activeOther.username || '');
