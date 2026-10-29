@@ -971,9 +971,31 @@ function showRecoveryCode(code) {
       <div class="modal-title">Резервный код</div>
       <p style="font-size:14px;line-height:1.5;text-align:left">Этим кодом можно открыть переписку, если забудешь пароль шифрования. Запиши его и храни отдельно. Показываем один раз.</p>
       <div style="font-family:monospace;font-size:18px;letter-spacing:1px;padding:14px;background:var(--bubble-in);border-radius:12px;user-select:all;word-break:break-all">${code}</div>
-      <button class="auth-btn" style="margin-top:16px">Я записал(а)</button>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="auth-btn" id="rcCopy" style="background:transparent;color:inherit;border:1px solid rgba(127,127,127,.4)">Скопировать</button>
+        <button class="auth-btn" id="rcShare" style="background:transparent;color:inherit;border:1px solid rgba(127,127,127,.4)">Поделиться</button>
+      </div>
+      <p style="font-size:13px;line-height:1.5;text-align:left;margin-top:16px">Чтобы убедиться, что код сохранён, введите его последние 4 символа:</p>
+      <input type="text" id="rcCheck" autocomplete="off" placeholder="Последние 4 символа" style="width:100%;box-sizing:border-box;text-transform:uppercase">
+      <div id="rcErr" style="color:#e85d75;font-size:13px;min-height:18px;margin-top:4px"></div>
+      <button class="auth-btn" id="rcDone" style="margin-top:6px">Готово</button>
     </div>`;
-    ov.querySelector('button').onclick = () => { ov.remove(); resolve(); };
+    const last4 = code.replace(/-/g, '').slice(-4);
+    const flash = msg => { ov.querySelector('#rcErr').textContent = msg; };
+    ov.querySelector('#rcCopy').onclick = async () => {
+      try { await navigator.clipboard.writeText(code); flash('Скопировано'); }
+      catch (e) { flash('Не получилось скопировать, выдели код вручную'); }
+    };
+    ov.querySelector('#rcShare').onclick = async () => {
+      if (!navigator.share) return flash('Здесь не работает, используй «Скопировать»');
+      try { await navigator.share({ title: 'Резервный код Moonlit', text: code }); } catch (e) {}
+    };
+    ov.querySelector('#rcDone').onclick = () => {
+      const v = ov.querySelector('#rcCheck').value.replace(/[\s-]/g, '').toUpperCase();
+      if (v !== last4) return flash('Не совпадает, проверь последние 4 символа');
+      ov.remove();
+      resolve();
+    };
     document.body.appendChild(ov);
   });
 }
