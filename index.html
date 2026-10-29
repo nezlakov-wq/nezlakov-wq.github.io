@@ -462,6 +462,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@email.com"></div>
       <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="loginPass" placeholder="••••••••"><button type="button" class="pw-eye" onclick="togglePw('loginPass', this)">👁</button></div></div>
       <button class="auth-btn" onclick="login()">Войти</button>
+      <button type="button" onclick="forgotPassword()" style="background:none;border:0;color:#5b7fff;margin-top:10px;font-size:14px;cursor:pointer;width:100%">Забыли пароль?</button>
     </div>
     <div id="registerForm" style="display:none">
       <div class="auth-field"><label>Имя</label><input type="text" id="regName" placeholder="Иван Иванов"></div>
@@ -573,7 +574,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
-      <div class="set-row"><div class="set-label">Резервный код шифрования</div><div style="font-size:13px;opacity:.7;margin:4px 0">Нужен, если забудешь пароль шифрования. Сохрани его отдельно.</div><button class="set-logout" style="color:inherit" onclick="makeRecoveryForMe()">Показать резервный код</button></div>
+      <div class="set-row"><div class="set-label">Сменить пароль</div><div style="font-size:13px;opacity:.7;margin:4px 0">Ключ шифрования переоборачивается автоматически, история сохраняется.</div><input type="password" id="newPw" placeholder="Новый пароль (минимум 6)" style="width:100%;box-sizing:border-box;margin-bottom:6px"><button class="set-logout" style="color:inherit" onclick="changePassword()">Сменить пароль</button></div>
       <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
     </div>
     <div id="setDevices" style="display:none">
@@ -662,6 +663,10 @@ let searchTimer = null;
 async function init() {
   const { data: { session } } = await sb.auth.getSession();
   document.getElementById('loading').style.display = 'none';
+  if (session && location.hash.includes('type=recovery')) {
+    await newPasswordFlow();
+    return;
+  }
   if (session) {
     if (!(await ensureProfile(session.user))) { document.getElementById('authScreen').style.display = 'flex'; return; }
     if (!sessionStorage.getItem('moonlit-priv-' + session.user.id)) await askUnlock(session.user);
@@ -730,7 +735,15 @@ async function login() {
   if(error) return authErr(error.message);
   if (!(await ensureProfile(data.user))) return;
   try { await setupKeys(data.user, pass); }
-  catch (e) { return authErr('Ошибка ключей: ' + (e?.message || e)); }
+  catch (e) {
+    if (e.message !== 'bad_password') return authErr('Ошибка ключей: ' + (e?.message || e));
+    if (!confirm('Ключ шифрования не открывается этим паролем. Если пароль меняли или забыли, можно создать новые ключи. Старые сообщения станут нечитаемыми. Создать новые ключи?')) {
+      await sb.auth.signOut();
+      return authErr('Вход отменён');
+    }
+    try { await resetKeys(data.user, pass); }
+    catch (e2) { return authErr('Ошибка ключей: ' + (e2?.message || e2)); }
+  }
   await loadMe(data.user.id);
   showApp();
 }
@@ -1009,32 +1022,84 @@ async function makeRecoveryForMe() {
   await showRecoveryCode(code);
 }
 
-// Создаёт ключи для аккаунта без них, либо открывает существующие паролем или резервным кодом
+// Ключ шифрования привязан к паролю входа. Создаёт ключи при первом входе или открывает существующие.
 async function setupKeys(user, password) {
   const { data: prof } = await sb.from('profiles').select('pub_key').eq('id', user.id).single();
-  let privJwk;
   if (!prof?.pub_key) {
     const b = await createKeyBundle(password);
-    const code = makeRecoveryCode();
-    const recEnc = await wrapPriv(b.privJwk, normCode(code));
-    const { error: e1 } = await sb.from('user_keys').upsert({ user_id: user.id, enc_priv: b.enc, enc_recovery: recEnc });
+    const { error: e1 } = await sb.from('user_keys').upsert({ user_id: user.id, enc_priv: b.enc });
     if (e1) throw e1;
     const { error: e2 } = await sb.from('profiles').update({ pub_key: b.pub }).eq('id', user.id);
     if (e2) throw e2;
     sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
-    await showRecoveryCode(code);
     return;
   }
-  const { data: k, error } = await sb.from('user_keys').select('enc_priv, enc_recovery').eq('user_id', user.id).single();
+  const { data: k, error } = await sb.from('user_keys').select('enc_priv').eq('user_id', user.id).single();
   if (error || !k) throw new Error('ключ не найден');
-  try {
-    privJwk = await unlockPrivate(password, k.enc_priv);
-  } catch (e) {
-    if (!k.enc_recovery) throw new Error('неверный пароль');
-    try { privJwk = await unlockPrivate(normCode(password), k.enc_recovery); }
-    catch (e2) { throw new Error('неверный пароль'); }
-  }
+  let privJwk;
+  try { privJwk = await unlockPrivate(password, k.enc_priv); }
+  catch (e) { throw new Error('bad_password'); }
   sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(privJwk));
+}
+// Создаёт новые ключи. Старые сообщения после этого не откроются.
+async function resetKeys(user, password) {
+  const b = await createKeyBundle(password);
+  const { error: e1 } = await sb.from('user_keys').upsert({ user_id: user.id, enc_priv: b.enc });
+  if (e1) throw e1;
+  const { error: e2 } = await sb.from('profiles').update({ pub_key: b.pub }).eq('id', user.id);
+  if (e2) throw e2;
+  sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
+  sharedCache.clear();
+}
+// Смена пароля входа: переоборачиваем ключ новым паролем, история сохраняется
+async function changePassword() {
+  const pw = document.getElementById('newPw').value;
+  if (pw.length < 6) return toast('Пароль минимум 6 символов');
+  const priv = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  if (!priv) return toast('Сначала открой переписку');
+  const { error: pErr } = await sb.auth.updateUser({ password: pw });
+  if (pErr) return toast('Ошибка: ' + pErr.message);
+  const enc = await wrapPriv(priv, pw);
+  const { error } = await sb.from('user_keys').update({ enc_priv: enc }).eq('user_id', me.id);
+  if (error) return toast('Ошибка ключа: ' + error.message);
+  document.getElementById('newPw').value = '';
+  toast('Пароль изменён');
+}
+// Письмо для сброса пароля (ссылка приходит на почту)
+async function forgotPassword() {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) return authErr('Сначала введи email выше');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  authErr(error ? 'Ошибка: ' + error.message : 'Письмо для сброса пароля отправлено');
+}
+// После перехода по ссылке из письма: задаём новый пароль входа
+function newPasswordFlow() {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.style.display = 'flex';
+    ov.style.zIndex = '300';
+    ov.innerHTML = `<div class="modal" style="position:relative">
+      <div class="modal-title">Новый пароль</div>
+      <p style="font-size:13px;line-height:1.5;opacity:.8">После смены войдите с новым паролем. Если ключ шифрования не откроется, приложение предложит создать новые ключи.</p>
+      <input type="password" id="__npw" placeholder="Новый пароль (минимум 6)" style="width:100%;box-sizing:border-box;margin-top:8px">
+      <div id="__nerr" style="color:#e85d75;font-size:13px;min-height:18px;margin-top:6px"></div>
+      <button class="auth-btn" id="__nbtn" style="margin-top:8px">Сохранить</button>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#__nbtn').onclick = async () => {
+      const pw = ov.querySelector('#__npw').value;
+      if (pw.length < 6) { ov.querySelector('#__nerr').textContent = 'Минимум 6 символов'; return; }
+      const { error } = await sb.auth.updateUser({ password: pw });
+      if (error) { ov.querySelector('#__nerr').textContent = error.message; return; }
+      await sb.auth.signOut();
+      history.replaceState(null, '', location.pathname);
+      ov.remove();
+      document.getElementById('authScreen').style.display = 'flex';
+      authErr('Пароль изменён. Войдите с новым паролем.');
+      resolve();
+    };
+  });
 }
 // Окно ввода пароля шифрования или резервного кода, если ключ для этой вкладки ещё не открыт
 function askUnlock(user) {
