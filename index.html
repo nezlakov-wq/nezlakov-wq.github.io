@@ -435,6 +435,10 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .tick.read{color:#5b7fff}
 .h-status.typing{color:#5b7fff}
 .file-box{min-width:120px;font-size:14px}
+.file-box audio{width:220px;max-width:100%}
+#micBtn.rec{color:#e85d75}
+.bubble.flash{outline:2px solid #5b7fff;outline-offset:2px}
+.h-status.online{color:#34c78a}
 </style>
 </head>
 <body>
@@ -515,6 +519,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
           <div class="h-status" id="hStatus"></div>
         </div>
         <div class="h-actions">
+          <button class="act-btn" title="Поиск в чате" onclick="openChatSearch()">🔍</button>
           <button class="act-btn" title="Позвонить">📞</button>
         </div>
       </div>
@@ -523,6 +528,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="input-area">
         <button class="ico-btn" title="Файл" onclick="document.getElementById('fileInput').click()">📎</button>
         <input type="file" id="fileInput" style="display:none" onchange="sendFile(this.files[0]); this.value=''">
+        <button class="ico-btn" id="micBtn" title="Голосовое" onclick="toggleVoice()">🎤</button>
         <button class="ico-btn" title="Подарок" onclick="openGifts()">🎁</button>
         <div class="input-wrap">
           <textarea class="msg-ta" id="msgInput" rows="1" placeholder="Сообщение…"></textarea>
@@ -582,6 +588,16 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
     <div class="modal-title">Подарки</div>
     <div class="set-label" id="giftBalance" style="margin-bottom:12px"></div>
     <div id="giftList"></div>
+  </div>
+</div>
+
+<!-- CHAT SEARCH -->
+<div class="modal-overlay" id="chatSearchModal" onclick="if(event.target===this)closeChatSearch()">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeChatSearch()">✕</button>
+    <div class="modal-title">Поиск в чате</div>
+    <input type="text" id="chatSearchInput" placeholder="Текст сообщения…" oninput="runChatSearch(this.value)">
+    <div id="chatSearchResults" style="margin-top:10px;max-height:50vh;overflow:auto"></div>
   </div>
 </div>
 
@@ -1112,6 +1128,94 @@ async function openProfile() {
   }).join('');
 }
 
+// ── CHAT SEARCH ──
+let lastMsgs = [];
+function openChatSearch() {
+  document.getElementById('chatSearchModal').style.display = 'flex';
+  const inp = document.getElementById('chatSearchInput');
+  inp.value = '';
+  document.getElementById('chatSearchResults').innerHTML = '';
+  setTimeout(() => inp.focus(), 100);
+}
+function closeChatSearch() { document.getElementById('chatSearchModal').style.display = 'none'; }
+function runChatSearch(val) {
+  const res = document.getElementById('chatSearchResults');
+  const q = val.trim().toLowerCase();
+  if (!q) { res.innerHTML = ''; return; }
+  const hits = lastMsgs.filter(m => {
+    if (m.deleted_by?.includes(me.id)) return false;
+    const p = m.plain ?? m.text;
+    if (!p || p.startsWith('🔒') || p.startsWith('[gift:') || isFileMsg(p)) return false;
+    return p.toLowerCase().includes(q);
+  }).reverse();
+  if (!hits.length) { res.innerHTML = '<div style="padding:12px;text-align:center;opacity:.6;font-size:13px">Ничего не найдено</div>'; return; }
+  res.innerHTML = '';
+  hits.slice(0, 50).forEach(m => {
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:8px 6px;border-bottom:1px solid rgba(127,127,127,.2);cursor:pointer;font-size:14px';
+    const d = new Date(m.created_at);
+    el.innerHTML = `<div style="opacity:.6;font-size:12px">${d.toLocaleDateString('ru-RU')} ${timeStr(m.created_at)}</div><div>${esc(m.plain ?? m.text)}</div>`;
+    el.addEventListener('click', () => jumpToMsg(m.id));
+    res.appendChild(el);
+  });
+}
+function jumpToMsg(id) {
+  closeChatSearch();
+  const el = document.querySelector(`[data-msg-id="${id}"]`);
+  if (!el) return toast('Сообщение не загружено');
+  el.scrollIntoView({ block: 'center' });
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1800);
+}
+
+// ── ONLINE STATUS ──
+let onlineIds = new Set();
+let presenceCh = null;
+let typingNow = false;
+function refreshStatusLine() {
+  const st = document.getElementById('hStatus');
+  if (!st || !activeOther) return;
+  const online = onlineIds.has(activeOther.id);
+  st.textContent = online ? 'в сети' : '@' + (activeOther.username || '');
+  st.className = 'h-status' + (online ? ' online' : '');
+}
+function setupPresence() {
+  if (presenceCh || !me) return;
+  presenceCh = sb.channel('online', { config: { presence: { key: me.id } } })
+    .on('presence', { event: 'sync' }, () => {
+      onlineIds = new Set(Object.keys(presenceCh.presenceState()));
+      refreshStatusLine();
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') await presenceCh.track({ uid: me.id });
+    });
+}
+
+// ── VOICE MESSAGES ──
+let rec = null, recChunks = [];
+async function toggleVoice() {
+  if (rec) { rec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) return toast('Запись не поддерживается в этом браузере');
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { return toast('Нет доступа к микрофону'); }
+  const mime = ['audio/webm', 'audio/mp4'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+  rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  recChunks = [];
+  rec.ondataavailable = e => { if (e.data.size) recChunks.push(e.data); };
+  rec.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    const type = rec.mimeType || 'audio/webm';
+    rec = null;
+    document.getElementById('micBtn').classList.remove('rec');
+    const blob = new Blob(recChunks, { type });
+    if (blob.size) await sendFile(new File([blob], 'voice.' + (type.includes('mp4') ? 'm4a' : 'webm'), { type }));
+  };
+  rec.start();
+  document.getElementById('micBtn').classList.add('rec');
+  toast('Запись… нажми 🎤 ещё раз, чтобы отправить');
+}
+
 // ── FILES AND PHOTOS ──
 // Файл шифруется ключом чата и кладётся в приватный bucket.
 // В сообщение кладётся зашифрованная метаданная: путь, имя, тип, IV.
@@ -1122,8 +1226,8 @@ function bodyHtml(msg) {
   if (isFileMsg(p)) {
     try {
       const m = JSON.parse(p);
-      const img = (m.m || '').startsWith('image/');
-      return `<div class="file-box" data-fid="${msg.id}" data-img="${img ? 1 : 0}">📎 ${esc(m.n)}</div>`;
+      const kind = (m.m || '').startsWith('image/') ? 'img' : (m.m || '').startsWith('audio/') ? 'audio' : 'file';
+      return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${kind === 'audio' ? '🎤 Голосовое' : '📎 ' + esc(m.n)}</div>`;
     } catch (e) { return '📎 Файл'; }
   }
   return msgContent(p);
@@ -1148,8 +1252,10 @@ function hydrateFiles(area, msgs) {
     try { m = JSON.parse(msg.plain ?? msg.text); } catch (e) { return; }
     try {
       const url = await fileUrl(m);
-      if (el.dataset.img === '1') {
+      if (el.dataset.kind === 'img') {
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
+      } else if (el.dataset.kind === 'audio') {
+        el.innerHTML = `<audio controls preload="metadata" src="${url}"></audio>`;
       } else {
         el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
@@ -1247,8 +1353,7 @@ function setupTyping() {
       st.className = 'h-status typing';
       clearTimeout(typingTimer);
       typingTimer = setTimeout(() => {
-        st.textContent = '@' + (activeOther?.username || '');
-        st.className = 'h-status';
+        refreshStatusLine();
       }, 2500);
     })
     .subscribe();
@@ -1458,7 +1563,7 @@ async function openChat(convId) {
   document.getElementById('hAv').textContent = avText(activeOther, name);
   document.getElementById('hAv').style.cssText = 'width:36px;height:36px;font-size:14px;' + avStyle(activeOther, convId);
   document.getElementById('hName').textContent = name;
-  document.getElementById('hStatus').textContent = '@' + (activeOther?.username || '');
+  refreshStatusLine();
   document.getElementById('hStatus').className = 'h-status';
   document.getElementById('welcome').style.display = 'none';
   const cv = document.getElementById('chatView');
@@ -1533,6 +1638,7 @@ function renderMessages(msgs, area) {
     });
     area.appendChild(gEl);
   }
+  lastMsgs = msgs;
   hydrateFiles(area, msgs);
   area.scrollTop = area.scrollHeight;
 }
@@ -1607,6 +1713,7 @@ function subscribeRealtime() {
     })
     .subscribe();
   setupTyping();
+  setupPresence();
 }
 
 // ── NEW CHAT ──
