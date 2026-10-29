@@ -452,6 +452,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
     <div class="auth-error" id="authError"></div>
+    <div style="text-align:center;margin:14px 0 8px;opacity:.6;font-size:13px">или</div>
+    <button type="button" class="auth-btn" style="background:#fff;color:#111" onclick="oauthLogin('google')">Войти через Google</button>
+    <button type="button" class="auth-btn" style="background:#111;color:#fff;margin-top:8px" onclick="oauthLogin('apple')">Войти через Apple</button>
   </div>
 </div>
 
@@ -705,6 +708,14 @@ async function register() {
     authErr('Аккаунт создан. Подтверди почту (если письмо пришло) и войди.');
   }
 }
+// Вход через Google/Apple: после возврата со страницы провайдера init() создаст профиль и попросит пароль шифрования
+async function oauthLogin(provider) {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: location.origin + location.pathname }
+  });
+  if (error) authErr(error.message);
+}
 // Создаёт профиль при первом входе, если его ещё нет
 async function ensureProfile(user) {
   const { data: existing } = await sb.from('profiles').select('id').eq('id', user.id).maybeSingle();
@@ -876,7 +887,7 @@ async function setupKeys(user, password) {
 // Просит пароль, если ключ для этой вкладки ещё не открыт
 async function askUnlock(user) {
   for (let t = 0; t < 3; t++) {
-    const pw = prompt('Введи пароль, чтобы открыть переписку на этом устройстве');
+    const pw = prompt('Пароль шифрования переписки. Если заходишь впервые, придумай его и запомни: без него старые сообщения не открыть');
     if (pw === null) return false;
     try { await setupKeys(user, pw); return true; }
     catch (e) { toast('Неверный пароль'); }
