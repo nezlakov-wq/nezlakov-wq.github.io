@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Moonlit</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Moonlit">
+<meta name="theme-color" content="#111111">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <style>
 :root {
@@ -421,6 +426,15 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .pw-wrap input{width:100%;padding-right:44px;box-sizing:border-box}
 .pw-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;color:inherit;padding:4px}
 </style>
+<style>
+.reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
+.reply-bar.show{display:flex}
+.reply-bar .rb-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reply-bar button{background:none;border:0;color:inherit;font-size:18px;cursor:pointer}
+.quote{border-left:3px solid #5b7fff;padding:4px 8px;margin-bottom:4px;font-size:12px;opacity:.85;border-radius:4px;background:rgba(127,127,127,.15);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tick.read{color:#5b7fff}
+.h-status.typing{color:#5b7fff}
+</style>
 </head>
 <body>
 
@@ -504,6 +518,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
         </div>
       </div>
       <div class="msgs" id="msgsArea"></div>
+      <div class="reply-bar" id="replyBar"><div class="rb-text" id="replyText"></div><button onclick="clearReply()" title="Отменить">✕</button></div>
       <div class="input-area">
         <button class="ico-btn" title="Подарок" onclick="openGifts()">🎁</button>
         <div class="input-wrap">
@@ -544,6 +559,8 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
+      <div class="set-row"><div class="set-label">Резервный код шифрования</div><div style="font-size:13px;opacity:.7;margin:4px 0">Нужен, если забудешь пароль шифрования. Сохрани его отдельно.</div><button class="set-logout" style="color:inherit" onclick="makeRecoveryForMe()">Показать резервный код</button></div>
+      <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
     </div>
     <div id="setDevices" style="display:none">
       <div class="set-row"><div class="set-label">Текущее устройство</div><div id="setDevice"></div></div>
@@ -867,32 +884,110 @@ async function decryptFrom(otherPubJson, text) {
   }
 }
 // Создаёт ключи для аккаунта без них, либо открывает существующие паролем
+// ── RECOVERY CODE ──
+const RC_ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function makeRecoveryCode() {
+  const r = crypto.getRandomValues(new Uint8Array(24));
+  let s = '';
+  for (const x of r) s += RC_ALPHA[x % RC_ALPHA.length];
+  return s.match(/.{1,4}/g).join('-');
+}
+const normCode = s => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function wrapPriv(privJwk, secret) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const wrap = await deriveWrapKey(secret, salt);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrap, cenc.encode(JSON.stringify(privJwk)));
+  return JSON.stringify({ s: b64(salt), i: b64(iv), d: b64(ct) });
+}
+function showRecoveryCode(code) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.style.display = 'flex';
+    ov.style.zIndex = '300';
+    ov.innerHTML = `<div class="modal" style="position:relative;text-align:center">
+      <div class="modal-title">Резервный код</div>
+      <p style="font-size:14px;line-height:1.5;text-align:left">Этим кодом можно открыть переписку, если забудешь пароль шифрования. Запиши его и храни отдельно. Показываем один раз.</p>
+      <div style="font-family:monospace;font-size:18px;letter-spacing:1px;padding:14px;background:var(--bubble-in);border-radius:12px;user-select:all;word-break:break-all">${code}</div>
+      <button class="auth-btn" style="margin-top:16px">Я записал(а)</button>
+    </div>`;
+    ov.querySelector('button').onclick = () => { ov.remove(); resolve(); };
+    document.body.appendChild(ov);
+  });
+}
+async function makeRecoveryForMe() {
+  const priv = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  if (!priv) return toast('Сначала открой переписку: введи пароль шифрования');
+  const code = makeRecoveryCode();
+  const enc = await wrapPriv(priv, normCode(code));
+  const { error } = await sb.from('user_keys').update({ enc_recovery: enc }).eq('user_id', me.id);
+  if (error) return toast('Ошибка: ' + error.message);
+  await showRecoveryCode(code);
+}
+
+// Создаёт ключи для аккаунта без них, либо открывает существующие паролем или резервным кодом
 async function setupKeys(user, password) {
   const { data: prof } = await sb.from('profiles').select('pub_key').eq('id', user.id).single();
   let privJwk;
   if (!prof?.pub_key) {
     const b = await createKeyBundle(password);
-    const { error: e1 } = await sb.from('user_keys').upsert({ user_id: user.id, enc_priv: b.enc });
+    const code = makeRecoveryCode();
+    const recEnc = await wrapPriv(b.privJwk, normCode(code));
+    const { error: e1 } = await sb.from('user_keys').upsert({ user_id: user.id, enc_priv: b.enc, enc_recovery: recEnc });
     if (e1) throw e1;
     const { error: e2 } = await sb.from('profiles').update({ pub_key: b.pub }).eq('id', user.id);
     if (e2) throw e2;
-    privJwk = b.privJwk;
-  } else {
-    const { data: k, error } = await sb.from('user_keys').select('enc_priv').eq('user_id', user.id).single();
-    if (error || !k) throw new Error('ключ не найден');
+    sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
+    await showRecoveryCode(code);
+    return;
+  }
+  const { data: k, error } = await sb.from('user_keys').select('enc_priv, enc_recovery').eq('user_id', user.id).single();
+  if (error || !k) throw new Error('ключ не найден');
+  try {
     privJwk = await unlockPrivate(password, k.enc_priv);
+  } catch (e) {
+    if (!k.enc_recovery) throw new Error('неверный пароль');
+    try { privJwk = await unlockPrivate(normCode(password), k.enc_recovery); }
+    catch (e2) { throw new Error('неверный пароль'); }
   }
   sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(privJwk));
 }
-// Просит пароль, если ключ для этой вкладки ещё не открыт
-async function askUnlock(user) {
-  for (let t = 0; t < 3; t++) {
-    const pw = prompt('Пароль шифрования переписки. Если заходишь впервые, придумай его и запомни: без него старые сообщения не открыть');
-    if (pw === null) return false;
-    try { await setupKeys(user, pw); return true; }
-    catch (e) { toast('Неверный пароль'); }
-  }
-  return false;
+// Окно ввода пароля шифрования или резервного кода, если ключ для этой вкладки ещё не открыт
+function askUnlock(user) {
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.style.display = 'flex';
+    ov.style.zIndex = '300';
+    ov.innerHTML = `<div class="modal" style="position:relative">
+      <div class="modal-title">Открыть переписку</div>
+      <p style="font-size:13px;line-height:1.5;opacity:.8">Введи пароль шифрования или резервный код. Без них старые сообщения не открыть.</p>
+      <input type="password" id="__unlockInp" placeholder="Пароль или резервный код" style="width:100%;box-sizing:border-box;margin-top:8px">
+      <div id="__unlockErr" style="color:#e85d75;font-size:13px;min-height:18px;margin-top:6px"></div>
+      <button class="auth-btn" id="__unlockBtn" style="margin-top:8px">Открыть</button>
+      <button class="auth-btn" id="__unlockOut" style="margin-top:8px;background:transparent;color:inherit;border:1px solid rgba(127,127,127,.4)">Выйти</button>
+    </div>`;
+    document.body.appendChild(ov);
+    const inp = ov.querySelector('#__unlockInp');
+    const err = ov.querySelector('#__unlockErr');
+    const go = async () => {
+      if (!inp.value) return;
+      try {
+        await setupKeys(user, inp.value);
+        ov.remove();
+        resolve(true);
+      } catch (e) {
+        err.textContent = 'Неверный пароль или код';
+        inp.value = '';
+        inp.focus();
+      }
+    };
+    ov.querySelector('#__unlockBtn').onclick = go;
+    ov.querySelector('#__unlockOut').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    setTimeout(() => inp.focus(), 100);
+  });
 }
 
 // ── AVATAR HELPERS ──
@@ -925,6 +1020,7 @@ function openMsgMenu(msg) {
   const isGift = msg.text.startsWith('[gift:');
   const reacts = ['👍','❤️','😂','😮','😢'].map(e => `<button onclick="reactFromMenu('${e}')">${e}</button>`).join('');
   let actions = '';
+  if (!isDeleted && !isGift) actions += `<button class="act" onclick="replyFromMenu()">↩️ Ответить</button><button class="act" onclick="showForwardList()">↪️ Переслать</button>`;
   if (!isDeleted && isOut && !isGift) actions += `<button class="act" onclick="editFromMenu()">✏️ Изменить</button>`;
   actions += isDeleted
     ? `<button class="act" onclick="menuAct('restore')">↩️ Восстановить</button>`
@@ -962,6 +1058,115 @@ function reactionsHtml(msg) {
   return '<div class="reacts">' + keys.map(k =>
     `<button class="react-chip" onclick="toggleReaction('${msg.id}','${k}')">${k} ${r[k].length}</button>`).join('') + '</div>';
 }
+
+// ── REPLY / FORWARD / READ / TYPING / NOTIFICATIONS ──
+let replyTo = null;
+let forwardMsg = null;
+function msgPreview(m) {
+  if (m.deleted_by?.includes(me.id)) return 'Сообщение удалено';
+  const t = m.plain ?? m.text;
+  if (t.startsWith('[gift:')) return '🎁 Подарок';
+  return t.length > 120 ? t.slice(0, 120) + '…' : t;
+}
+function setReply(msg) {
+  replyTo = msg;
+  document.getElementById('replyText').textContent = msgPreview(msg);
+  document.getElementById('replyBar').classList.add('show');
+  document.getElementById('msgInput').focus();
+}
+function clearReply() {
+  replyTo = null;
+  document.getElementById('replyBar').classList.remove('show');
+}
+function replyFromMenu() { const m = menuMsg; closeMsgMenu(); setReply(m); }
+function quoteFor(msg, byId) {
+  if (!msg.reply_to) return '';
+  const p = byId[msg.reply_to];
+  return `<div class="quote">${esc(p ? msgPreview(p) : 'Сообщение')}</div>`;
+}
+function tickHtml(msg) {
+  const read = (msg.read_by || []).some(id => id !== me.id);
+  return `<span class="tick${read ? ' read' : ''}">✓✓</span>`;
+}
+function showForwardList() {
+  forwardMsg = menuMsg;
+  const items = conversations.filter(c => c.id !== activeChatId).map(c => {
+    const name = c.other?.display_name || c.name || 'Чат';
+    return `<button class="act" onclick="forwardTo('${c.id}')">${esc(name)}</button>`;
+  }).join('') || '<div style="padding:12px;text-align:center">Нет других чатов</div>';
+  document.getElementById('msgMenuBody').innerHTML =
+    `<div class="set-label" style="padding:8px 12px">Переслать в чат</div>${items}<button class="act" onclick="closeMsgMenu()">Отмена</button>`;
+}
+async function forwardTo(convId) {
+  const msg = forwardMsg; forwardMsg = null;
+  const conv = conversations.find(c => c.id === convId);
+  closeMsgMenu();
+  if (!msg || !conv) return;
+  const plain = msg.plain ?? msg.text;
+  if (plain.startsWith('🔒') || plain.startsWith('[gift:')) return toast('Это сообщение нельзя переслать');
+  let payload;
+  try { payload = await encryptFor(conv.other?.pub_key, plain); }
+  catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
+  const { error } = await sb.from('messages').insert({ conversation_id: convId, sender_id: me.id, text: payload });
+  if (error) return toast('Ошибка: ' + error.message);
+  toast('Переслано');
+  await loadConversations();
+}
+
+// Индикатор «печатает…»: отправляем событие собеседнику, не записывая в базу
+let typingCh = null, typingTimer = null, lastTypingSent = 0;
+function setupTyping() {
+  if (typingCh) return;
+  typingCh = sb.channel('typing', { config: { broadcast: { self: false } } })
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (payload.conv !== activeChatId) return;
+      const st = document.getElementById('hStatus');
+      st.textContent = 'печатает…';
+      st.className = 'h-status typing';
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        st.textContent = '@' + (activeOther?.username || '');
+        st.className = 'h-status';
+      }, 2500);
+    })
+    .subscribe();
+  document.getElementById('msgInput').addEventListener('input', () => {
+    if (!activeChatId) return;
+    const now = Date.now();
+    if (now - lastTypingSent < 2000) return;
+    lastTypingSent = now;
+    typingCh.send({ type: 'broadcast', event: 'typing', payload: { conv: activeChatId } });
+  });
+}
+
+// Прочитано: отмечаем, когда пользователь реально смотрит на чат
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && activeChatId) sb.rpc('mark_read', { conv: activeChatId }).catch(() => {});
+});
+
+// Уведомления. На iPhone работают только для приложения, добавленного на экран «Домой».
+function notifyNew() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body: 'Новое сообщение', icon: 'icon-192.png', tag: 'moonlit' };
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.ready.then(reg => reg.showNotification('Moonlit', opts)).catch(() => {});
+  } else {
+    try { new Notification('Moonlit', opts); } catch (e) {}
+  }
+}
+async function enableNotifications() {
+  if (!('Notification' in window)) return toast('Открой Moonlit с экрана «Домой», чтобы включить уведомления');
+  const p = await Notification.requestPermission();
+  toast(p === 'granted' ? 'Уведомления включены' : 'Уведомления не разрешены');
+  updateNotifBtn();
+}
+function updateNotifBtn() {
+  const b = document.getElementById('notifBtn');
+  if (!b) return;
+  if (!('Notification' in window)) { b.textContent = 'Недоступно'; b.disabled = true; return; }
+  b.textContent = Notification.permission === 'granted' ? 'Включены' : 'Включить';
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 // ── ACCOUNTS ON DEVICE ──
 function getAccounts() { try { return JSON.parse(localStorage.getItem('moonlit-accounts') || '[]'); } catch(e) { return []; } }
@@ -1017,6 +1222,7 @@ async function openSettings() {
   document.getElementById('setSignedIn').textContent = user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('ru-RU') : '—';
   renderMyAvatar();
   renderAccounts();
+  updateNotifBtn();
   switchSettingsTab('data');
   document.getElementById('settingsModal').style.display = 'flex';
 }
@@ -1142,6 +1348,8 @@ async function openChat(convId) {
   } else {
     document.getElementById('mainPane').classList.remove('hidden');
   }
+  clearReply();
+  await sb.rpc('mark_read', { conv: convId }).catch(() => {});
   await loadMessages(convId);
 }
 
@@ -1161,6 +1369,7 @@ async function loadMessages(convId) {
 function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
   area.innerHTML = '';
+  const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
   let lastDate = '';
   let i = 0;
   while(i < msgs.length) {
@@ -1196,7 +1405,7 @@ function renderMessages(msgs, area) {
       const delBtn = '';
       bub.innerHTML = isDeleted
         ? `🗑 Сообщение удалено &nbsp;${delBtn}${isLast?`<div class="bubble-foot">${timeStr(msg.created_at)}</div>`:''}`
-        : `${msgContent(msg.plain ?? msg.text)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?'<span class="tick">✓✓</span>':''}</div>`:''}`;
+        : `${quoteFor(msg, byId)}${msgContent(msg.plain ?? msg.text)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?tickHtml(msg):''}</div>`:''}`;
       attachLongPress(bub, msg);
       gEl.appendChild(bub);
     });
@@ -1231,10 +1440,12 @@ async function sendMsg() {
   const { error } = await sb.from('messages').insert({
     conversation_id: activeChatId,
     sender_id: me.id,
-    text: payload
+    text: payload,
+    reply_to: replyTo?.id || null
   });
   document.getElementById('sendBtn').disabled = false;
   if(error) { toast('Ошибка отправки'); return; }
+  clearReply();
   await loadMe(me.id);
   await loadMessages(activeChatId);
   await loadConversations();
@@ -1245,12 +1456,17 @@ function subscribeRealtime() {
   if(realtimeSub) sb.removeChannel(realtimeSub);
   realtimeSub = sb.channel('msgs')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload) => {
+      const isNew = payload.eventType === 'INSERT' && payload.new?.sender_id !== me?.id;
+      const inActive = payload.new?.conversation_id === activeChatId;
+      if (isNew && (document.hidden || !inActive)) notifyNew();
+      if (isNew && inActive && !document.hidden) sb.rpc('mark_read', { conv: activeChatId }).catch(() => {});
       if(payload.new?.conversation_id === activeChatId || payload.old?.conversation_id === activeChatId) {
         await loadMessages(activeChatId);
       }
       await loadConversations();
     })
     .subscribe();
+  setupTyping();
 }
 
 // ── NEW CHAT ──
