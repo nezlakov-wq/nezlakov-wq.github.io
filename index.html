@@ -543,6 +543,14 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Группы ── */
+.sender-name { font-size: 12px; font-weight: 600; color: #7aa7ff; margin: 6px 0 2px 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px;
+  border-radius: 14px; background: rgba(255, 255, 255, 0.1); font-size: 13px; margin: 4px 4px 0 0;
+}
+.chip button { background: none; border: none; color: inherit; cursor: pointer; font-size: 12px; padding: 0; }
+
 /* ── Экран настроек в стиле Telegram ── */
 #settingsModal { padding: 0; align-items: stretch; }
 #settingsModal .modal.set-page {
@@ -702,8 +710,37 @@ body::before {
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="closeNewChat()">✕</button>
     <div class="modal-title">Новый чат</div>
+    <button class="set-logout" style="margin:0 0 12px;background:#34c78a;color:#fff" onclick="openNewGroup()">+ Создать группу</button>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
+  </div>
+</div>
+
+<!-- GROUP: создание -->
+<div class="modal-overlay" id="groupModal" onclick="if(event.target===this)closeNewGroup()">
+  <div class="modal" style="position:relative;overflow-y:auto">
+    <button class="modal-close" onclick="closeNewGroup()">✕</button>
+    <div class="modal-title">Новая группа</div>
+    <input type="text" id="groupName" placeholder="Название группы" maxlength="60">
+    <div class="set-label" style="margin:4px 0 6px">Участники</div>
+    <div id="groupMembers" style="margin-bottom:8px"></div>
+    <input type="text" id="groupSearch" placeholder="Найти по @username или имени…" oninput="searchGroupUsers(this.value)">
+    <div class="user-results" id="groupResults" style="max-height:30vh"></div>
+    <button class="set-logout" style="background:#34c78a" onclick="createGroup()">Создать группу</button>
+  </div>
+</div>
+
+<!-- GROUP: информация и участники -->
+<div class="modal-overlay" id="groupInfoModal" onclick="if(event.target===this)closeGroupInfo()">
+  <div class="modal" style="position:relative;overflow-y:auto">
+    <button class="modal-close" onclick="closeGroupInfo()">✕</button>
+    <div class="modal-title" id="giTitle"></div>
+    <div class="set-label" style="margin-bottom:6px">Участники</div>
+    <div id="giMembers"></div>
+    <div class="set-label" style="margin:12px 0 6px">Добавить участника</div>
+    <input type="text" id="giSearch" placeholder="Найти по @username или имени…" oninput="searchAddMember(this.value)">
+    <div class="user-results" id="giResults" style="max-height:25vh"></div>
+    <button class="set-logout" style="background:#e85d75" onclick="leaveGroup()">Выйти из группы</button>
   </div>
 </div>
 
@@ -1068,6 +1105,7 @@ function msgContent(text) {
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
+  if (currentConv()?.is_group) return toast('Подарки в группах пока недоступны');
   await loadGifts();
   renderGiftList();
   document.getElementById('giftModal').style.display = 'flex';
@@ -1397,7 +1435,7 @@ async function editFromMenu() {
   const text = prompt('Изменить сообщение', current);
   if (text === null || !text.trim() || text.trim() === current) return;
   let payload;
-  try { payload = await encryptFor(activeOther?.pub_key, text.trim()); }
+  try { payload = (await encryptForConv(currentConv(), text.trim(), msg.key_version || 0)).payload; }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
   const { error } = await sb.rpc('edit_message', { msg: msg.id, new_text: payload });
   if (error) return toast('Ошибка: ' + error.message);
@@ -1415,6 +1453,7 @@ function reactionsHtml(msg) {
 // ── PROFILE OF INTERLOCUTOR ──
 function closeProfile() { document.getElementById('profileModal').style.display = 'none'; }
 async function openProfile() {
+  if (currentConv()?.is_group) return openGroupInfo();
   if (!activeOther || !activeChatId) return;
   const p = activeOther;
   const name = p.display_name || '';
@@ -1517,7 +1556,13 @@ let presenceCh = null;
 let typingNow = false;
 function refreshStatusLine() {
   const st = document.getElementById('hStatus');
-  if (!st || !activeOther) return;
+  if (!st) return;
+  if (!activeOther) {
+    const c = currentConv();
+    st.textContent = c ? (c.members?.length || 0) + ' участн.' : '';
+    st.className = 'h-status';
+    return;
+  }
   const online = onlineIds.has(activeOther.id);
   st.textContent = online ? 'в сети' : '@' + (activeOther.username || '');
   st.className = 'h-status' + (online ? ' online' : '');
@@ -1576,9 +1621,11 @@ function bodyHtml(msg) {
   return msgContent(p);
 }
 const fileCache = new Map();
-async function fileUrl(m) {
+async function fileUrl(m, keyVersion = 0) {
   if (fileCache.has(m.p)) return fileCache.get(m.p);
-  const key = await sharedKeyWith(activeOther?.pub_key);
+  const key = keyVersion > 0
+    ? (await loadGroupKeys(activeChatId)).keys.get(keyVersion)
+    : await sharedKeyWith(activeOther?.pub_key);
   if (!key) throw new Error('no key');
   const { data, error } = await sb.storage.from('chat-media').download(m.p);
   if (error || !data) throw new Error('download');
@@ -1594,7 +1641,7 @@ function hydrateFiles(area, msgs) {
     let m;
     try { m = JSON.parse(msg.plain ?? msg.text); } catch (e) { return; }
     try {
-      const url = await fileUrl(m);
+      const url = await fileUrl(m, msg.key_version || 0);
       if (el.dataset.kind === 'img') {
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'audio') {
@@ -1610,7 +1657,15 @@ function hydrateFiles(area, msgs) {
 async function sendFile(file) {
   if (!file || !activeChatId) return;
   if (file.size > MAX_FILE) return toast('Файл больше 10 МБ');
-  const key = await sharedKeyWith(activeOther?.pub_key).catch(() => null);
+  const conv = currentConv();
+  let key, fileKv = 0;
+  if (conv?.is_group) {
+    const entry = await loadGroupKeys(conv.id);
+    fileKv = entry.latest;
+    key = entry.keys.get(fileKv);
+  } else {
+    key = await sharedKeyWith(activeOther?.pub_key).catch(() => null);
+  }
   if (!key) return toast('Нет ключа шифрования, введи пароль');
   toast('Отправляем…');
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -1619,10 +1674,10 @@ async function sendFile(file) {
   const { error: upErr } = await sb.storage.from('chat-media').upload(path, new Blob([ct]), { contentType: 'application/octet-stream' });
   if (upErr) return toast('Ошибка загрузки: ' + upErr.message);
   const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv) });
-  let payload;
-  try { payload = await encryptFor(activeOther?.pub_key, meta); }
+  let enc;
+  try { enc = await encryptForConv(conv, meta, fileKv); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
-  const { error } = await sb.from('messages').insert({ conversation_id: activeChatId, sender_id: me.id, text: payload, reply_to: replyTo?.id || null });
+  const { error } = await sb.from('messages').insert({ conversation_id: activeChatId, sender_id: me.id, text: enc.payload, key_version: enc.key_version, reply_to: replyTo?.id || null });
   if (error) return toast('Ошибка: ' + error.message);
   clearReply();
   await loadMessages(activeChatId);
@@ -1675,10 +1730,10 @@ async function forwardTo(convId) {
   if (!msg || !conv) return;
   const plain = msg.plain ?? msg.text;
   if (plain.startsWith('🔒') || plain.startsWith('[gift:') || isFileMsg(plain)) return toast('Это сообщение нельзя переслать');
-  let payload;
-  try { payload = await encryptFor(conv.other?.pub_key, plain); }
+  let enc;
+  try { enc = await encryptForConv(conv, plain); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
-  const { error } = await sb.from('messages').insert({ conversation_id: convId, sender_id: me.id, text: payload });
+  const { error } = await sb.from('messages').insert({ conversation_id: convId, sender_id: me.id, text: enc.payload, key_version: enc.key_version });
   if (error) return toast('Ошибка: ' + error.message);
   toast('Переслано');
   await loadConversations();
@@ -1839,6 +1894,236 @@ async function uploadAvatar(file) {
   toast('Аватарка обновлена');
 }
 
+// ── GROUPS (сообщения шифруются групповым ключом, он хранится в group_keys отдельно для каждого участника) ──
+const groupKeyCache = new Map(); // convId -> { keys: Map(version -> CryptoKey), raw: Map(version -> b64), latest }
+function currentConv() { return conversations.find(c => c.id === activeChatId) || null; }
+
+// Групповой ключ шифруется для участника его публичным ключом (ECIES): отправитель не нужен
+async function wrapGroupKey(memberPubJson, rawB64) {
+  const memPub = await crypto.subtle.importKey('jwk', JSON.parse(memberPubJson), ECDH_ALG, false, []);
+  const eph = await crypto.subtle.generateKey(ECDH_ALG, true, ['deriveKey']);
+  const k = await crypto.subtle.deriveKey({ name: 'ECDH', public: memPub }, eph.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, cenc.encode(rawB64));
+  const ephJwk = await crypto.subtle.exportKey('jwk', eph.publicKey);
+  return 'g1:' + b64(cenc.encode(JSON.stringify({ e: ephJwk, i: b64(iv), c: b64(ct) })));
+}
+async function unwrapGroupKey(wrapped) {
+  const privJwk = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  if (!privJwk) return null;
+  const obj = JSON.parse(cdec.decode(unb64(wrapped.slice(3))));
+  const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
+  const eph = await crypto.subtle.importKey('jwk', obj.e, ECDH_ALG, false, []);
+  const k = await crypto.subtle.deriveKey({ name: 'ECDH', public: eph }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.i) }, k, unb64(obj.c));
+  return cdec.decode(pt);
+}
+async function loadGroupKeys(convId) {
+  let entry = groupKeyCache.get(convId);
+  if (!entry) { entry = { keys: new Map(), raw: new Map(), latest: 0 }; groupKeyCache.set(convId, entry); }
+  const { data } = await sb.from('group_keys').select('key_version, wrapped')
+    .eq('conversation_id', convId).eq('user_id', me.id);
+  for (const row of data || []) {
+    if (entry.keys.has(row.key_version)) continue;
+    try {
+      const rawB64 = await unwrapGroupKey(row.wrapped);
+      if (!rawB64) continue;
+      entry.keys.set(row.key_version, await crypto.subtle.importKey('raw', unb64(rawB64), { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']));
+      entry.raw.set(row.key_version, rawB64);
+    } catch (e) { /* ключ этой версии не открылся: старые сообщения останутся закрытыми */ }
+  }
+  entry.latest = Math.max(0, ...entry.keys.keys());
+  return entry;
+}
+async function decryptWith(key, text) {
+  if (!text || !text.startsWith('e1:')) return text;
+  if (!key) return '🔒 Нет ключа группы';
+  try {
+    const [, i, d] = text.split(':');
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(i) }, key, unb64(d));
+    return cdec.decode(pt);
+  } catch (e) { return '🔒 Не удалось расшифровать'; }
+}
+// Единая точка шифрования: личный чат или группа. Возвращает payload и номер ключа.
+async function encryptForConv(conv, text, version) {
+  if (conv?.is_group) {
+    const entry = await loadGroupKeys(conv.id);
+    const v = version || entry.latest;
+    const key = entry.keys.get(v);
+    if (!key) throw new Error('no group key');
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, cenc.encode(text));
+    return { payload: 'e1:' + b64(iv) + ':' + b64(ct), key_version: v };
+  }
+  return { payload: await encryptFor(conv?.other?.pub_key, text), key_version: 0 };
+}
+
+// Создание группы
+let groupMembers = [];
+let groupSearchTimer = null;
+function openNewGroup() {
+  closeNewChat();
+  groupMembers = [];
+  document.getElementById('groupName').value = '';
+  document.getElementById('groupSearch').value = '';
+  document.getElementById('groupResults').innerHTML = '';
+  renderGroupMembers();
+  document.getElementById('groupModal').style.display = 'flex';
+}
+function closeNewGroup() { document.getElementById('groupModal').style.display = 'none'; }
+function renderGroupMembers() {
+  document.getElementById('groupMembers').innerHTML = groupMembers.length
+    ? groupMembers.map(u => `<span class="chip">${esc(u.display_name)} <button onclick="removeDraft('${u.id}')">✕</button></span>`).join('')
+    : '<span style="color:var(--fg2);font-size:13px">Участники не выбраны</span>';
+}
+function removeDraft(id) { groupMembers = groupMembers.filter(u => u.id !== id); renderGroupMembers(); }
+function addDraft(u) {
+  if (!u.pub_key) return toast('У этого пользователя ещё нет ключа: пусть войдёт в приложение');
+  if (groupMembers.find(x => x.id === u.id)) return;
+  groupMembers.push(u);
+  renderGroupMembers();
+}
+function searchUsersInto(val, resId, onPick) {
+  clearTimeout(groupSearchTimer);
+  const res = document.getElementById(resId);
+  if (!val.trim()) { res.innerHTML = ''; return; }
+  groupSearchTimer = setTimeout(async () => {
+    const q = val.replace('@', '').toLowerCase();
+    const { data } = await sb.from('profiles')
+      .select('id,display_name,username,pub_key')
+      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+      .neq('id', me.id).limit(10);
+    res.innerHTML = '';
+    if (!data?.length) {
+      res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
+      return;
+    }
+    data.forEach(u => {
+      const el = document.createElement('div');
+      el.className = 'user-result-item';
+      el.innerHTML = `<div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div><div><div class="u-name">${esc(u.display_name)}</div><div class="u-un">@${esc(u.username)}${u.pub_key ? '' : ' · нет ключа'}</div></div>`;
+      el.addEventListener('click', () => onPick(u));
+      res.appendChild(el);
+    });
+  }, 300);
+}
+function searchGroupUsers(val) { searchUsersInto(val, 'groupResults', addDraft); }
+function searchAddMember(val) { searchUsersInto(val, 'giResults', addToGroup); }
+
+async function createGroup() {
+  const name = document.getElementById('groupName').value.trim();
+  if (!name) return toast('Введи название группы');
+  if (!groupMembers.length) return toast('Добавь хотя бы одного участника');
+  if (!me.pub_key) return toast('Нет ключа шифрования: войдите в аккаунт ещё раз');
+  const convId = crypto.randomUUID();
+  const raw = b64(crypto.getRandomValues(new Uint8Array(32)));
+  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, name, created_by: me.id, key_version: 1 });
+  if (e1) return toast('Ошибка: ' + e1.message);
+  const { error: e2 } = await sb.from('conversation_members').insert([
+    { conversation_id: convId, user_id: me.id },
+    ...groupMembers.map(u => ({ conversation_id: convId, user_id: u.id }))
+  ]);
+  if (e2) return toast('Ошибка: ' + e2.message);
+  try {
+    const rows = [{ conversation_id: convId, user_id: me.id, key_version: 1, wrapped: await wrapGroupKey(me.pub_key, raw) }];
+    for (const u of groupMembers) rows.push({ conversation_id: convId, user_id: u.id, key_version: 1, wrapped: await wrapGroupKey(u.pub_key, raw) });
+    const { error: e3 } = await sb.from('group_keys').insert(rows);
+    if (e3) return toast('Ошибка: ' + e3.message);
+  } catch (e) { return toast('Ошибка шифрования: ' + e.message); }
+  closeNewGroup();
+  await loadConversations();
+  await openChat(convId);
+}
+
+// Участники группы
+async function openGroupInfo() {
+  if (!currentConv()) return;
+  await loadConversations();
+  renderGroupInfo(currentConv());
+  document.getElementById('giSearch').value = '';
+  document.getElementById('giResults').innerHTML = '';
+  document.getElementById('groupInfoModal').style.display = 'flex';
+}
+function closeGroupInfo() { document.getElementById('groupInfoModal').style.display = 'none'; }
+function renderGroupInfo(c) {
+  if (!c) return;
+  document.getElementById('giTitle').textContent = c.name || 'Группа';
+  const isCreator = c.created_by === me.id;
+  document.getElementById('giMembers').innerHTML = (c.members || []).map(m => {
+    const p = m.profiles || {};
+    const role = m.user_id === c.created_by ? ' · создатель' : '';
+    const rm = isCreator && m.user_id !== me.id
+      ? `<button class="set-logout" style="width:auto;margin:0;padding:6px 10px;background:#e85d75" onclick="removeFromGroup('${m.user_id}')">Удалить</button>`
+      : '';
+    return `<div class="set-row" style="flex-direction:row;align-items:center;justify-content:space-between">
+      <div><div>${esc(p.display_name || '')}${m.user_id === me.id ? ' (вы)' : ''}</div><div style="font-size:12px;opacity:.6">@${esc(p.username || '')}${role}</div></div>${rm}</div>`;
+  }).join('');
+}
+async function addToGroup(u) {
+  const conv = currentConv();
+  if (!conv) return;
+  if (!u.pub_key) return toast('У этого пользователя ещё нет ключа');
+  if ((conv.members || []).find(m => m.user_id === u.id)) return toast('Уже в группе');
+  const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
+  if (error) return toast('Ошибка: ' + error.message);
+  try {
+    const entry = await loadGroupKeys(conv.id);
+    const raw = entry.raw.get(entry.latest);
+    if (!raw) throw new Error('нет ключа группы');
+    const wrapped = await wrapGroupKey(u.pub_key, raw);
+    const { error: e2 } = await sb.from('group_keys').insert({ conversation_id: conv.id, user_id: u.id, key_version: entry.latest, wrapped });
+    if (e2) throw new Error(e2.message);
+  } catch (e) { return toast('Ошибка: ' + e.message); }
+  document.getElementById('giSearch').value = '';
+  document.getElementById('giResults').innerHTML = '';
+  toast('Участник добавлен');
+  await loadConversations();
+  renderGroupInfo(currentConv());
+}
+async function removeFromGroup(uid) {
+  const conv = currentConv();
+  if (!conv || conv.created_by !== me.id) return;
+  if (!confirm('Удалить участника из группы?')) return;
+  const { error } = await sb.from('conversation_members').delete().eq('conversation_id', conv.id).eq('user_id', uid);
+  if (error) return toast('Ошибка: ' + error.message);
+  await sb.from('group_keys').delete().eq('conversation_id', conv.id).eq('user_id', uid);
+  // Смена ключа: новый ключ получают только оставшиеся участники
+  try {
+    const newVer = (await loadGroupKeys(conv.id)).latest + 1;
+    const raw = b64(crypto.getRandomValues(new Uint8Array(32)));
+    const rows = [];
+    for (const m of (conv.members || []).filter(x => x.user_id !== uid)) {
+      const pub = m.user_id === me.id ? me.pub_key : m.profiles?.pub_key;
+      if (!pub) continue;
+      rows.push({ conversation_id: conv.id, user_id: m.user_id, key_version: newVer, wrapped: await wrapGroupKey(pub, raw) });
+    }
+    if (rows.length) {
+      const { error: e2 } = await sb.from('group_keys').insert(rows);
+      if (e2) throw new Error(e2.message);
+    }
+  } catch (e) { return toast('Ошибка смены ключа: ' + e.message); }
+  groupKeyCache.delete(conv.id);
+  toast('Участник удалён');
+  await loadConversations();
+  renderGroupInfo(currentConv());
+}
+async function leaveGroup() {
+  const conv = currentConv();
+  if (!conv) return;
+  if (!confirm('Выйти из группы?')) return;
+  await sb.from('group_keys').delete().eq('conversation_id', conv.id).eq('user_id', me.id);
+  const { error } = await sb.from('conversation_members').delete().eq('conversation_id', conv.id).eq('user_id', me.id);
+  if (error) return toast('Ошибка: ' + error.message);
+  groupKeyCache.delete(conv.id);
+  closeGroupInfo();
+  activeChatId = null;
+  document.getElementById('chatView').style.display = 'none';
+  document.getElementById('welcome').style.display = '';
+  goBack();
+  await loadConversations();
+  toast('Вы вышли из группы');
+}
+
 // ── APPEARANCE (обои по чатам и шрифт, хранятся на устройстве) ──
 const FONTS = {
   system:  { name: 'Системный', css: "-apple-system,'Inter',system-ui,sans-serif" },
@@ -1936,7 +2221,7 @@ async function loadConversations() {
     conversations.push({
       ...conv,
       members: members||[],
-      other: maskProfile(other?.profiles),
+      other: conv.is_group ? null : maskProfile(other?.profiles),
       lastMsg: lastMsgs?.[0] || null,
     });
   }
@@ -2032,13 +2317,20 @@ async function loadMessages(convId) {
     return;
   }
   if (convId !== activeChatId) return; // пользователь уже открыл другой чат
-  const otherPub = activeOther?.pub_key;
-  for (const m of (msgs || [])) m.plain = await decryptFrom(otherPub, m.text);
+  const conv = conversations.find(c => c.id === convId);
+  if (conv?.is_group) {
+    const entry = await loadGroupKeys(convId);
+    for (const m of (msgs || [])) m.plain = await decryptWith(entry.keys.get(m.key_version || 0), m.text);
+  } else {
+    const otherPub = activeOther?.pub_key;
+    for (const m of (msgs || [])) m.plain = await decryptFrom(otherPub, m.text);
+  }
   renderMessages(msgs||[], area);
 }
 
 function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
+  const isGroupChat = !!currentConv()?.is_group;
   area.innerHTML = '';
   const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
   let lastDate = '';
@@ -2067,6 +2359,12 @@ function renderMessages(msgs, area) {
     i = j;
     const gEl = document.createElement('div');
     gEl.className = 'msg-group '+(isOut?'out':'in');
+    if (isGroupChat && !isOut) {
+      const sn = document.createElement('div');
+      sn.className = 'sender-name';
+      sn.textContent = m.profiles?.display_name || '';
+      gEl.appendChild(sn);
+    }
     group.forEach((msg, gi) => {
       const isLast = gi===group.length-1;
       const isDeleted = msg.deleted_by?.includes(me.id);
@@ -2103,8 +2401,8 @@ async function sendMsg() {
   if(!text || !activeChatId) return;
   input.value = ''; input.style.height = '';
   document.getElementById('sendBtn').disabled = true;
-  let payload = null;
-  try { payload = await encryptFor(activeOther?.pub_key, text); } catch (e) { payload = null; }
+  let payload = null, keyVer = 0;
+  try { const enc = await encryptForConv(currentConv(), text); payload = enc.payload; keyVer = enc.key_version; } catch (e) { payload = null; }
   if (!payload) {
     input.value = text;
     document.getElementById('sendBtn').disabled = false;
@@ -2114,6 +2412,7 @@ async function sendMsg() {
     conversation_id: activeChatId,
     sender_id: me.id,
     text: payload,
+    key_version: keyVer,
     reply_to: replyTo?.id || null
   });
   document.getElementById('sendBtn').disabled = false;
