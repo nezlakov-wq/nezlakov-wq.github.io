@@ -2840,7 +2840,7 @@ function renderChatList(filter='') {
     return name.toLowerCase().includes(filter.toLowerCase());
   });
   if(!filtered.length) {
-    list.innerHTML = '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);font-size:13px">Нет чатов</div>';
+    list.insertAdjacentHTML('beforeend', '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);font-size:13px">Нет чатов</div>');
     return;
   }
   filtered.forEach(conv => {
