@@ -543,6 +543,16 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Панель смайликов ── */
+#emojiPanel {
+  display: none; grid-template-columns: repeat(8, 1fr); gap: 2px;
+  padding: 8px 12px; max-height: 200px; overflow-y: auto;
+  background: var(--bg); border-top: 1px solid var(--border);
+}
+#emojiPanel button {
+  background: none; border: none; font-size: 24px; padding: 4px 0; cursor: pointer;
+}
+
 /* ── Шапка и строка ввода: выравнивание ── */
 .act-btn svg {
   width: 20px; height: 20px; fill: none; stroke: currentColor;
@@ -712,13 +722,14 @@ body::before {
       </div>
       <div class="msgs" id="msgsArea"></div>
       <div class="reply-bar" id="replyBar"><div class="rb-text" id="replyText"></div><button onclick="clearReply()" title="Отменить">✕</button></div>
+      <div id="emojiPanel"></div>
       <div class="input-area">
         <button class="ico-btn" title="Файл" onclick="document.getElementById('fileInput').click()"><svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2L9.9 17.6a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg></button>
         <input type="file" id="fileInput" style="display:none" onchange="sendFile(this.files[0]); this.value=''">
         <div class="input-wrap">
           <textarea class="msg-ta" id="msgInput" rows="1" placeholder="Сообщение…"></textarea>
           <button class="ico-btn in-btn" title="Подарок" onclick="openGifts()"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8a3 3 0 1 1-3-3c2 0 3 3 3 3zM12 8a3 3 0 1 0 3-3c-2 0-3 3-3 3z"/></svg></button>
-          <button class="ico-btn in-btn" title="Смайлики"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01"/></svg></button>
+          <button class="ico-btn in-btn" title="Смайлики" onclick="toggleEmoji()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9.5h.01M15 9.5h.01"/></svg></button>
         </div>
         <button class="ico-btn" id="micBtn" title="Голосовое" onclick="toggleVoice()"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
         <button class="send-btn" id="sendBtn" onclick="sendMsg()"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
@@ -2144,6 +2155,26 @@ async function leaveGroup() {
   goBack();
   await loadConversations();
   toast('Вы вышли из группы');
+}
+
+// ── EMOJI (панель смайликов в строке ввода) ──
+const EMOJIS = ['😀','😂','😍','🥰','😎','🤔','😢','😡','👍','👎','👏','🙏','🔥','❤️','💯','🎉','😘','😉','🤣','😅','😇','🤗','😴','🙄','😱','🥳','👋','💪','🤝','✅','❌','⭐','🌙','☀️','🍕','☕','🎁','🐱','🐶','🌹','💔','😋','🤩','😏','🫶'];
+function toggleEmoji() {
+  const p = document.getElementById('emojiPanel');
+  if (!p.childElementCount) {
+    p.innerHTML = EMOJIS.map(e => `<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+  }
+  p.style.display = p.style.display === 'grid' ? 'none' : 'grid';
+}
+function insertEmoji(e) {
+  const ta = document.getElementById('msgInput');
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? start;
+  ta.value = ta.value.slice(0, start) + e + ta.value.slice(end);
+  const pos = start + e.length;
+  ta.focus();
+  ta.setSelectionRange(pos, pos);
+  ta.dispatchEvent(new Event('input'));
 }
 
 // ── APPEARANCE (обои по чатам и шрифт, хранятся на устройстве) ──
