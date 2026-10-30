@@ -2841,11 +2841,17 @@ function renderChatList(filter='') {
 }
 // Долгое нажатие на чат: уведомления и архив
 function attachChatLong(el, conv) {
-  let t = null;
-  el.addEventListener('touchstart', () => { t = setTimeout(() => { t = null; el.dataset.lp = '1'; openChatSheet(conv); }, 500); }, { passive: true });
-  const stop = () => { clearTimeout(t); t = null; };
-  el.addEventListener('touchmove', stop, { passive: true });
-  el.addEventListener('touchend', stop);
+  let t = null, sx = 0, sy = 0;
+  el.addEventListener('touchstart', e => {
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    clearTimeout(t);
+    t = setTimeout(() => { t = null; el.dataset.lp = '1'; openChatSheet(conv); }, 450);
+  }, { passive: true });
+  // Небольшое движение пальца не отменяет долгое нажатие, отменяет только заметный свайп
+  el.addEventListener('touchmove', e => {
+    if (Math.abs(e.touches[0].clientX - sx) > 12 || Math.abs(e.touches[0].clientY - sy) > 12) { clearTimeout(t); t = null; }
+  }, { passive: true });
+  el.addEventListener('touchend', () => { clearTimeout(t); t = null; });
   el.addEventListener('contextmenu', e => { e.preventDefault(); openChatSheet(conv); });
 }
 function openChatSheet(conv) {
