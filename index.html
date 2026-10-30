@@ -2834,6 +2834,7 @@ function renderChatList(filter='') {
   }
   const filtered = conversations.filter(c => {
     const name = c.other?.display_name || c.name || '';
+    if (c.name === SAVED_NAME) return false; // «Избранное» открывается кнопкой наверху списка
     if (!!c.archived !== showArchive) return false;
     if (chatFolder === 'direct' && c.is_group) return false;
     if (chatFolder === 'groups' && !c.is_group) return false;
