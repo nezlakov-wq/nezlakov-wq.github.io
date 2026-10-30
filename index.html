@@ -1801,8 +1801,11 @@ async function toggleVoice() {
 // ── CALLS (WebRTC: звук и видео напрямую между телефонами, сигналы через Realtime) ──
 // TURN-ретранслятор нужен, когда мобильная сеть не пропускает прямое соединение между телефонами
 const RTC_CONFIG = { iceServers: [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  { urls: 'turn:global.relay.metered.ca:80', username: 'ef6141c7fbf38e62bcee7cf6', credential: 'kYf3j8UdMXVQeurc' },
+  { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'ef6141c7fbf38e62bcee7cf6', credential: 'kYf3j8UdMXVQeurc' },
+  { urls: 'turn:global.relay.metered.ca:443', username: 'ef6141c7fbf38e62bcee7cf6', credential: 'kYf3j8UdMXVQeurc' },
+  { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: 'ef6141c7fbf38e62bcee7cf6', credential: 'kYf3j8UdMXVQeurc' }
 ] };
 let callState = null;   // активный звонок
 let pendingCall = null; // входящий звонок, ещё не принятый
