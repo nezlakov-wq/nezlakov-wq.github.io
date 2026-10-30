@@ -1799,7 +1799,11 @@ async function toggleVoice() {
 }
 
 // ── CALLS (WebRTC: звук и видео напрямую между телефонами, сигналы через Realtime) ──
-const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+// TURN-ретранслятор нужен, когда мобильная сеть не пропускает прямое соединение между телефонами
+const RTC_CONFIG = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' }
+] };
 let callState = null;   // активный звонок
 let pendingCall = null; // входящий звонок, ещё не принятый
 let callPC = null, callLocal = null, callRingTimer = null, callInChan = null;
