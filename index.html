@@ -2773,7 +2773,7 @@ async function loadConversations() {
     built.push({
       ...conv,
       members: members||[],
-      other: conv.is_group ? null : maskProfile(other?.profiles),
+      other: conv.is_group ? null : (conv.name === SAVED_NAME ? savedProfile() : maskProfile(other?.profiles)),
       lastMsg: lastMsgs?.[0] || null,
       muted: !!flags[conv.id]?.muted,
       archived: !!flags[conv.id]?.archived,
@@ -2787,7 +2787,7 @@ async function loadConversations() {
   // Для каждого собеседника в личных чатах оставляем только самый свежий (дубли создавались при повторном открытии)
   const seenPeer = new Set();
   conversations = built.filter(c => {
-    if (c.is_group || !c.other?.id) return true;
+    if (c.is_group || !c.other?.id || c.name === SAVED_NAME) return true;
     if (seenPeer.has(c.other.id)) return false;
     seenPeer.add(c.other.id);
     return true;
@@ -2796,9 +2796,34 @@ async function loadConversations() {
 }
 
 let showArchive = false;
+// «Избранное»: личный чат с самим собой, всегда наверху списка
+const SAVED_NAME = '__saved__';
+function savedProfile() {
+  return { id: me.id, display_name: 'Избранное', username: me.username, pub_key: me.pub_key, avatar_color: me.avatar_color, avatar_url: null };
+}
+async function openSavedChat() {
+  let saved = conversations.find(c => c.name === SAVED_NAME);
+  if (!saved) {
+    const convId = crypto.randomUUID();
+    const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: false, name: SAVED_NAME });
+    if (e1) return toast('Ошибка: ' + e1.message);
+    const { error: e2 } = await sb.from('conversation_members').insert({ conversation_id: convId, user_id: me.id });
+    if (e2) return toast('Ошибка: ' + e2.message);
+    await loadConversations();
+    saved = conversations.find(c => c.id === convId);
+  }
+  if (saved) openChat(saved.id);
+}
 function renderChatList(filter='') {
   const list = document.getElementById('chatList');
   list.innerHTML = '';
+  if (!filter) {
+    const sv = document.createElement('div');
+    sv.className = 'chat-item';
+    sv.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">★</div></div><div class="chat-info"><div class="chat-name">Избранное</div><div class="chat-prev">Заметки для себя</div></div>`;
+    sv.addEventListener('click', () => openSavedChat());
+    list.appendChild(sv);
+  }
   const archivedCount = conversations.filter(c => c.archived).length;
   if (archivedCount || !filter) {
     const row = document.createElement('div');
