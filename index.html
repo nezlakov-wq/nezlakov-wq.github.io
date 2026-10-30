@@ -2014,18 +2014,24 @@ async function openChat(convId) {
   }
   clearReply();
   applyWallpaper(convId);
-  await sb.rpc('mark_read', { conv: convId }).catch(() => {});
-  await loadMessages(convId);
+  // Сообщения грузим сразу, а отметку «прочитано» отправляем в фоне (чтобы она не задерживала показ)
+  loadMessages(convId);
+  sb.rpc('mark_read', { conv: convId }).catch(() => {});
 }
 
 // ── MESSAGES ──
 async function loadMessages(convId) {
   const area = document.getElementById('msgsArea');
   area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
-  const { data: msgs } = await sb.from('messages')
+  const { data: msgs, error } = await sb.from('messages')
     .select('*, profiles(id,display_name,username)')
     .eq('conversation_id', convId)
     .order('created_at', {ascending:true});
+  if (error) {
+    area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Не удалось загрузить сообщения. Откройте чат ещё раз.</div>';
+    return;
+  }
+  if (convId !== activeChatId) return; // пользователь уже открыл другой чат
   const otherPub = activeOther?.pub_key;
   for (const m of (msgs || [])) m.plain = await decryptFrom(otherPub, m.text);
   renderMessages(msgs||[], area);
