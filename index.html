@@ -1041,7 +1041,7 @@ async function init() {
   }
   if (session) {
     if (!(await ensureProfile(session.user))) { document.getElementById('authScreen').style.display = 'flex'; return; }
-    if (!sessionStorage.getItem('moonlit-priv-' + session.user.id)) await askUnlock(session.user);
+    if (!localStorage.getItem('moonlit-priv-' + session.user.id)) await askUnlock(session.user);
     await loadMe(session.user.id);
     showApp();
   } else {
@@ -1208,7 +1208,7 @@ async function ensureProfile(user) {
   return true;
 }
 async function logout() {
-  if (me) sessionStorage.removeItem('moonlit-priv-' + me.id);
+  if (me) localStorage.removeItem('moonlit-priv-' + me.id);
   await sb.auth.signOut();
   const rest = getAccounts().filter(a => a.key !== getActiveKey());
   saveAccounts(rest);
@@ -1302,7 +1302,7 @@ const sharedCache = new Map();
 async function sharedKeyWith(otherPubJson) {
   if (!otherPubJson || !me) return null;
   if (sharedCache.has(otherPubJson)) return sharedCache.get(otherPubJson);
-  const privJwk = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  const privJwk = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
   if (!privJwk) return null;
   const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
   const pub = await crypto.subtle.importKey('jwk', JSON.parse(otherPubJson), ECDH_ALG, false, []);
@@ -1386,7 +1386,7 @@ function showRecoveryCode(code) {
   });
 }
 async function makeRecoveryForMe() {
-  const priv = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  const priv = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
   if (!priv) return toast('Сначала открой переписку: введи пароль шифрования');
   const code = makeRecoveryCode();
   const enc = await wrapPriv(priv, normCode(code));
@@ -1404,7 +1404,7 @@ async function setupKeys(user, password) {
     if (e1) throw e1;
     const { error: e2 } = await sb.from('profiles').update({ pub_key: b.pub }).eq('id', user.id);
     if (e2) throw e2;
-    sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
+    localStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
     return;
   }
   const { data: k, error } = await sb.from('user_keys').select('enc_priv').eq('user_id', user.id).single();
@@ -1412,7 +1412,7 @@ async function setupKeys(user, password) {
   let privJwk;
   try { privJwk = await unlockPrivate(password, k.enc_priv); }
   catch (e) { throw new Error('bad_password'); }
-  sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(privJwk));
+  localStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(privJwk));
 }
 // Создаёт новые ключи. Старые сообщения после этого не откроются.
 async function resetKeys(user, password) {
@@ -1421,14 +1421,14 @@ async function resetKeys(user, password) {
   if (e1) throw e1;
   const { error: e2 } = await sb.from('profiles').update({ pub_key: b.pub }).eq('id', user.id);
   if (e2) throw e2;
-  sessionStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
+  localStorage.setItem('moonlit-priv-' + user.id, JSON.stringify(b.privJwk));
   sharedCache.clear();
 }
 // Смена пароля входа: переоборачиваем ключ новым паролем, история сохраняется
 async function changePassword() {
   const pw = document.getElementById('newPw').value;
   if (pw.length < 6) return toast('Пароль минимум 6 символов');
-  const priv = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  const priv = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
   if (!priv) return toast('Сначала открой переписку');
   const { error: pErr } = await sb.auth.updateUser({ password: pw });
   if (pErr) return toast('Ошибка: ' + pErr.message);
@@ -2405,7 +2405,7 @@ async function wrapGroupKey(memberPubJson, rawB64) {
   return 'g1:' + b64(cenc.encode(JSON.stringify({ e: ephJwk, i: b64(iv), c: b64(ct) })));
 }
 async function unwrapGroupKey(wrapped) {
-  const privJwk = JSON.parse(sessionStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  const privJwk = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
   if (!privJwk) return null;
   const obj = JSON.parse(cdec.decode(unb64(wrapped.slice(3))));
   const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
