@@ -1853,6 +1853,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && me
 window.addEventListener('online', () => { if (me) setupCallChannel(true); });
 function onCallMsg(p) {
   if (!p || !p.type) return;
+  if (p.type[0] === 'g') return onGroupMsg(p);
   if (p.type === 'invite') {
     if (callState || pendingCall) { sendCall(p.from, { type: 'decline', callId: p.callId }).catch(() => {}); return; }
     pendingCall = p;
@@ -1920,7 +1921,8 @@ function hideIncoming() { document.getElementById('incomingCall').style.display 
 
 async function startCallToActive(video) {
   const conv = currentConv();
-  if (!conv || conv.is_group || !activeOther) return toast('Звонки доступны в личных чатах');
+  if (conv && conv.is_group) return startGroupCall(conv, video);
+  if (!conv || !activeOther) return toast('Звонки доступны в личных чатах');
   await startCall(activeOther.id, activeOther.display_name, video);
 }
 async function startCall(uid, name, video) {
@@ -1947,6 +1949,7 @@ async function handleAnswer(sdp) {
   try { await callPC.setRemoteDescription(sdp); } catch (e) { endCall(true, 'Ошибка соединения'); }
 }
 async function acceptCall() {
+  if (pendingGroup) return acceptGroup();
   const p = pendingCall;
   if (!p) return;
   pendingCall = null;
@@ -1966,6 +1969,7 @@ async function acceptCall() {
   }
 }
 function declineCall() {
+  if (pendingGroup) { pendingGroup = null; hideIncoming(); return; }
   const p = pendingCall;
   if (!p) return;
   pendingCall = null;
@@ -1973,7 +1977,8 @@ function declineCall() {
   sendCall(p.from, { type: 'decline', callId: p.callId }).catch(() => {});
 }
 function hangUp() {
-  if (pendingCall) return declineCall();
+  if (pendingCall || pendingGroup) return declineCall();
+  if (gState) return endGroup(true, '');
   endCall(true, '');
 }
 // Запись о звонке в чат: пишет только тот, кто звонил, чтобы не было двух записей
@@ -1998,6 +2003,131 @@ function endCall(notify, reason) {
   if (callLocal) { callLocal.getTracks().forEach(t => t.stop()); callLocal = null; }
   document.getElementById('remoteVideo').srcObject = null;
   document.getElementById('localVideo').srcObject = null;
+  document.getElementById('callScreen').style.display = 'none';
+  if (reason) toast(reason);
+}
+// ── ГРУППОВЫЕ ЗВОНКИ (до 4 участников). Каждый соединяется с каждым.
+// Тот, кто входит в звонок позже, сам делает предложение (offer) всем, кто уже в звонке.
+let gState = null;       // активный групповой звонок: {id, convId, video, peers: Map, members, startedAt}
+let pendingGroup = null; // входящий групповой звонок
+function groupTilesBox() {
+  let box = document.getElementById('groupTiles');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'groupTiles';
+    box.style.cssText = 'position:absolute;inset:0;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:6px;padding:70px 8px 150px;overflow:auto;z-index:0';
+    document.getElementById('callScreen').prepend(box);
+  }
+  return box;
+}
+function addGroupTile(uid, stream, video) {
+  const box = groupTilesBox();
+  let t = document.getElementById('gt-' + uid);
+  if (!t) {
+    t = document.createElement(video ? 'video' : 'audio');
+    t.id = 'gt-' + uid;
+    t.autoplay = true;
+    t.playsInline = true;
+    if (video) t.style.cssText = 'width:46%;max-height:40%;border-radius:12px;background:#000;object-fit:cover';
+    box.appendChild(t);
+  }
+  t.srcObject = stream;
+  t.play && t.play().catch(() => {});
+}
+function setGroupStatus() { setCallStatus('В разговоре · ' + (gState ? gState.peers.size + 1 : 1) + ' чел.'); }
+function makeGroupPeer(uid) {
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  callLocal.getTracks().forEach(t => pc.addTrack(t, callLocal));
+  pc.ontrack = e => addGroupTile(uid, e.streams[0] || new MediaStream([e.track]), gState && gState.video);
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected') setGroupStatus();
+    if (pc.connectionState === 'failed') { removeGroupPeer(uid); setGroupStatus(); }
+  };
+  gState.peers.set(uid, { pc });
+  return pc;
+}
+function removeGroupPeer(uid) {
+  const p = gState && gState.peers.get(uid);
+  if (p) { p.pc.close(); gState.peers.delete(uid); }
+  document.getElementById('gt-' + uid)?.remove();
+}
+async function startGroupOffer(uid) {
+  const pc = makeGroupPeer(uid);
+  try {
+    await pc.setLocalDescription(await pc.createOffer());
+    await waitIce(pc);
+    await sendCall(uid, { type: 'goffer', callId: gState.id, from: me.id, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+  } catch (e) { removeGroupPeer(uid); }
+}
+async function startGroupCall(conv, video) {
+  if (callState || pendingCall || gState || pendingGroup) return toast('Звонок уже идёт');
+  if (!navigator.mediaDevices?.getUserMedia) return toast('Звонки не поддерживаются в этом браузере');
+  const members = (conv.members || []).map(m => m.user_id).filter(id => id !== me.id);
+  if (!members.length) return toast('В чате нет других участников');
+  if (members.length > 3) return toast('Групповой звонок до 4 участников');
+  const id = crypto.randomUUID();
+  try { await openLocalMedia(video); } catch (e) { return toast('Нет доступа к микрофону или камере'); }
+  gState = { id, convId: conv.id, video, peers: new Map(), members, startedAt: Date.now() };
+  showCallScreen('Групповой звонок', 'Звоним…', video);
+  groupTilesBox();
+  document.getElementById('remoteVideo').style.display = 'none';
+  for (const uid of members) {
+    sendCall(uid, { type: 'ginvite', callId: id, convId: conv.id, from: me.id, fromName: me.display_name, video, members: [me.id, ...members] }).catch(() => {});
+  }
+  setTimeout(() => { if (gState && gState.id === id && gState.peers.size === 0) endGroup(true, 'Никто не ответил'); }, 30000);
+}
+function onGroupInvite(p) {
+  if (callState || pendingCall || gState || pendingGroup) { sendCall(p.from, { type: 'gdecline', callId: p.callId }).catch(() => {}); return; }
+  pendingGroup = p;
+  document.getElementById('inName').textContent = p.fromName || 'Собеседник';
+  document.getElementById('inKind').textContent = 'Групповой звонок';
+  document.getElementById('incomingCall').style.display = 'flex';
+}
+async function acceptGroup() {
+  const p = pendingGroup;
+  pendingGroup = null;
+  hideIncoming();
+  try { await openLocalMedia(p.video); } catch (e) { return toast('Нет доступа к микрофону или камере'); }
+  gState = { id: p.callId, convId: p.convId, video: p.video, peers: new Map(), members: p.members.filter(id => id !== me.id), startedAt: Date.now() };
+  showCallScreen('Групповой звонок', 'Соединяем…', p.video);
+  groupTilesBox();
+  document.getElementById('remoteVideo').style.display = 'none';
+  // Говорю всем, что я в звонке: кто уже там, ответит, и я сам отправлю им предложение
+  for (const uid of gState.members) sendCall(uid, { type: 'gjoined', callId: gState.id, from: me.id }).catch(() => {});
+}
+function onGroupMsg(p) {
+  if (p.type === 'ginvite') return onGroupInvite(p);
+  if (p.type === 'gdecline') return;
+  if (!gState || p.callId !== gState.id) return;
+  const uid = p.from;
+  if (p.type === 'gjoined') { sendCall(uid, { type: 'gpresent', callId: gState.id, from: me.id }).catch(() => {}); return; }
+  if (p.type === 'gpresent') { if (!gState.peers.has(uid)) startGroupOffer(uid); return; }
+  if (p.type === 'goffer') {
+    (async () => {
+      const pc = gState.peers.get(uid)?.pc || makeGroupPeer(uid);
+      await pc.setRemoteDescription(p.sdp);
+      await pc.setLocalDescription(await pc.createAnswer());
+      await waitIce(pc);
+      await sendCall(uid, { type: 'ganswer', callId: gState.id, from: me.id, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+    })().catch(() => removeGroupPeer(uid));
+    return;
+  }
+  if (p.type === 'ganswer') { const pc = gState.peers.get(uid)?.pc; if (pc) pc.setRemoteDescription(p.sdp).catch(() => {}); return; }
+  if (p.type === 'gleft') {
+    removeGroupPeer(uid);
+    if (gState.peers.size === 0) endGroup(false, 'Звонок завершён'); else setGroupStatus();
+  }
+}
+function endGroup(notify, reason) {
+  const st = gState;
+  if (!st) return;
+  gState = null;
+  if (notify) for (const uid of st.members) sendCall(uid, { type: 'gleft', callId: st.id, from: me.id }).catch(() => {});
+  for (const [uid, p] of st.peers) { p.pc.close(); document.getElementById('gt-' + uid)?.remove(); }
+  if (callLocal) { callLocal.getTracks().forEach(t => t.stop()); callLocal = null; }
+  document.getElementById('localVideo').srcObject = null;
+  document.getElementById('groupTiles')?.remove();
+  document.getElementById('remoteVideo').style.display = '';
   document.getElementById('callScreen').style.display = 'none';
   if (reason) toast(reason);
 }
