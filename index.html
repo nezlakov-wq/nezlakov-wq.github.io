@@ -574,7 +574,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
-      <div class="set-row"><div class="set-label">Конфиденциальность</div>
+      <div class="set-row" style="display:block"><div class="set-label">Конфиденциальность</div>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
