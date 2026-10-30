@@ -483,6 +483,43 @@ html, body {
   color: #fff !important;
   box-shadow: 0 6px 20px rgba(91, 127, 255, 0.3);
 }
+
+/* ── Стиль как в Telegram: список чатов и настройки ── */
+.chat-list { padding: 4px 0; }
+.chat-item {
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 11px 14px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  transition: background 0.15s;
+}
+.chat-item:last-child { border-bottom: 0; }
+.chat-item:hover, .chat-item.active { background: rgba(91, 127, 255, 0.14) !important; }
+#settingsModal .modal {
+  padding: 8px 12px 20px;
+  border-radius: 22px;
+}
+#settingsModal .set-tabs {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 4px;
+  margin: 10px 0 14px;
+  gap: 4px;
+}
+#settingsModal .set-tab { border-radius: 10px; }
+#settingsModal .set-row {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 13px 14px;
+  margin: 8px 0;
+  border-bottom: 0;
+}
+#settingsModal .set-label {
+  font-size: 13px;
+  opacity: 0.6;
+  text-transform: none;
+  margin-bottom: 4px;
+}
 </style>
 </head>
 <body>
