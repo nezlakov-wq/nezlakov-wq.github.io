@@ -2074,7 +2074,26 @@ function bodyHtml(msg) {
       return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : '📎 ' + esc(m.n)}</div>`;
     } catch (e) { return '📎 Файл'; }
   }
-  return msgContent(p);
+  const html = msgContent(p);
+  // Для сообщения со ссылкой добавляем место под карточку превью (заполнит hydratePreviews)
+  const link = /https?:\/\/[^\s<]+/.exec(p);
+  return link ? html + `<div class="lp" data-url="${esc(link[0])}"></div>` : html;
+}
+// Превью ссылок: сервер читает заголовок и картинку страницы; результат кешируется
+const previewCache = new Map();
+function getPreview(url) {
+  if (!previewCache.has(url)) {
+    previewCache.set(url, sb.functions.invoke('preview', { body: { url } }).then(r => r.data || {}).catch(() => ({})));
+  }
+  return previewCache.get(url);
+}
+function hydratePreviews(area) {
+  area.querySelectorAll('.lp:not([data-done])').forEach(async el => {
+    el.dataset.done = '1';
+    const d = await getPreview(el.dataset.url);
+    if (!d.title && !d.description) return;
+    el.innerHTML = `<a href="${esc(el.dataset.url)}" target="_blank" rel="noopener" style="display:block;margin-top:6px;padding:8px;border-radius:10px;background:rgba(0,0,0,.25);color:inherit;text-decoration:none;font-size:13px">${d.image ? `<img src="${esc(d.image)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.remove()">` : ''}<div style="font-weight:600">${esc(d.title || d.site || '')}</div>${d.description ? `<div style="opacity:.8">${esc(d.description)}</div>` : ''}<div style="opacity:.6;font-size:11px">${esc(d.site || '')}</div></a>`;
+  });
 }
 const fileCache = new Map();
 async function fileUrl(m, keyVersion = 0) {
@@ -3144,6 +3163,7 @@ function renderMessages(msgs, area) {
   }
   lastMsgs = msgs;
   hydrateFiles(area, msgs);
+  hydratePreviews(area);
   renderPinBar();
   area.scrollTop = wasAtBottom || !prevTop ? area.scrollHeight : prevTop;
 }
