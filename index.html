@@ -1437,6 +1437,33 @@ function attachLongPress(el, msg) {
   el.addEventListener('mouseleave', cancel);
   el.addEventListener('contextmenu', e => e.preventDefault());
 }
+// Ответ свайпом вправо: сообщение сдвигается, при достаточном сдвиге становится ответом
+function attachSwipeReply(el, msg) {
+  if (msg.deleted_by?.includes(me.id)) return;
+  let x0 = 0, y0 = 0, dx = 0, active = false;
+  el.addEventListener('touchstart', e => {
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    dx = 0; active = true;
+    el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (!active) return;
+    const cx = e.touches[0].clientX - x0, cy = e.touches[0].clientY - y0;
+    if (Math.abs(cy) > Math.abs(cx)) return; // вертикальная прокрутка списка
+    dx = Math.max(0, Math.min(cx, 90));
+    el.style.transform = `translateX(${dx}px)`;
+  }, { passive: true });
+  el.addEventListener('touchend', () => {
+    if (!active) return;
+    active = false;
+    el.style.transition = 'transform .2s';
+    el.style.transform = '';
+    if (dx >= 60) {
+      if (navigator.vibrate) navigator.vibrate(10);
+      setReply(msg);
+    }
+  });
+}
 function openMsgMenu(msg) {
   menuMsg = msg;
   const isDeleted = msg.deleted_by?.includes(me.id);
@@ -1597,7 +1624,8 @@ function refreshStatusLine() {
     return;
   }
   const online = onlineIds.has(activeOther.id);
-  st.textContent = online ? 'в сети' : '@' + (activeOther.username || '');
+  const seen = activeOther.last_seen && !activeOther.hide_online;
+  st.textContent = online ? 'в сети' : (seen ? lastSeenText(activeOther.last_seen) : '@' + (activeOther.username || ''));
   st.className = 'h-status' + (online ? ' online' : '');
 }
 function setupPresence() {
@@ -2157,6 +2185,24 @@ async function leaveGroup() {
   toast('Вы вышли из группы');
 }
 
+// ── LAST SEEN (время последнего входа) ──
+function lastSeenText(iso) {
+  const d = new Date(iso), now = new Date();
+  const mins = Math.round((now - d) / 60000);
+  if (mins < 2) return 'был(а) только что';
+  if (mins < 60) return `был(а) ${mins} мин. назад`;
+  const hhmm = d.toTimeString().slice(0, 5);
+  if (d.toDateString() === now.toDateString()) return `был(а) сегодня в ${hhmm}`;
+  if (d.toDateString() === new Date(now - 86400000).toDateString()) return `был(а) вчера в ${hhmm}`;
+  return `был(а) ${d.toLocaleDateString('ru-RU')}`;
+}
+function beatLastSeen() {
+  if (!me || !sb) return;
+  sb.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', me.id).then(() => {}, () => {});
+}
+setInterval(() => { if (!document.hidden) { beatLastSeen(); if (activeOther) refreshStatusLine(); } }, 60000);
+document.addEventListener('visibilitychange', () => { beatLastSeen(); });
+
 // ── EMOJI (панель смайликов в строке ввода) ──
 const EMOJIS = ['😀','😂','😍','🥰','😎','🤔','😢','😡','👍','👎','👏','🙏','🔥','❤️','💯','🎉','😘','😉','🤣','😅','😇','🤗','😴','🙄','😱','🥳','👋','💪','🤝','✅','❌','⭐','🌙','☀️','🍕','☕','🎁','🐱','🐶','🌹','💔','😋','🤩','😏','🫶'];
 function toggleEmoji() {
@@ -2265,7 +2311,7 @@ async function loadConversations() {
   conversations = [];
   for(const conv of (convs||[])) {
     const { data: members } = await sb.from('conversation_members')
-      .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,pub_key,hide_avatar,hide_online,hide_gifts)')
+      .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,pub_key,hide_avatar,hide_online,hide_gifts,last_seen)')
       .eq('conversation_id', conv.id);
     const { data: lastMsgs } = await sb.from('messages')
       .select('*').eq('conversation_id', conv.id)
@@ -2429,6 +2475,7 @@ function renderMessages(msgs, area) {
         ? `🗑 Сообщение удалено &nbsp;${delBtn}${isLast?`<div class="bubble-foot">${timeStr(msg.created_at)}</div>`:''}`
         : `${quoteFor(msg, byId)}${bodyHtml(msg)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?tickHtml(msg):''}</div>`:''}`;
       attachLongPress(bub, msg);
+      attachSwipeReply(bub, msg);
       gEl.appendChild(bub);
     });
     area.appendChild(gEl);
