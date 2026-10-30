@@ -466,6 +466,9 @@ html, body { touch-action: pan-x pan-y; }
 body { background: transparent !important; color: #e8edff; position: relative; }
 /* Высота по видимой области экрана (без учёта панели Safari), чтобы имя и настройки не уезжали вниз */
 #app { height: 100vh; height: 100dvh; }
+/* Страница не должна уезжать вниз при свайпе: прокручивается только содержимое внутри экрана */
+html, body, #app { overscroll-behavior: none; }
+html, body { position: fixed; inset: 0; width: 100%; }
 /* Нижние панели поднимаем над полосой Домой и скруглёнными углами iPhone */
 .sidebar-bottom { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important; }
 .input-area { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
