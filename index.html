@@ -543,6 +543,14 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Закреплённое сообщение ── */
+.pin-bar {
+  display: flex; align-items: center; padding: 8px 14px; flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px; cursor: pointer; min-width: 0;
+}
+#pinText { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+
 /* ── Звонки ── */
 .call-screen {
   position: fixed; inset: 0; z-index: 80; background: #0b1638;
@@ -763,6 +771,7 @@ body::before {
           <button class="act-btn" title="Позвонить" onclick="startCallToActive(false)"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
         </div>
       </div>
+      <div class="pin-bar" id="pinBar" style="display:none"><span id="pinText"></span></div>
       <div class="msgs" id="msgsArea"></div>
       <div class="reply-bar" id="replyBar"><div class="rb-text" id="replyText"></div><button onclick="clearReply()" title="Отменить">✕</button></div>
       <div id="emojiPanel"></div>
@@ -1535,6 +1544,10 @@ function openMsgMenu(msg) {
   let actions = '';
   if (!isDeleted && !isGift) actions += `<button class="act" onclick="replyFromMenu()">↩️ Ответить</button><button class="act" onclick="showForwardList()">↪️ Переслать</button>`;
   if (!isDeleted && isOut && !isGift) actions += `<button class="act" onclick="editFromMenu()">✏️ Изменить</button>`;
+  if (!isDeleted) {
+    const pinnedNow = currentConv()?.pinned_msg === msg.id;
+    actions += `<button class="act" onclick="pinFromMenu()">${pinnedNow ? 'Открепить' : 'Закрепить'}</button>`;
+  }
   actions += isDeleted
     ? `<button class="act" onclick="menuAct('restore')">↩️ Восстановить</button>`
     : `<button class="act danger" onclick="menuAct('delete')">🗑 Удалить</button>`;
@@ -1551,6 +1564,27 @@ async function toggleReaction(id, emoji) {
   await loadMessages(activeChatId);
 }
 function menuAct(kind) { const id = menuMsg.id; closeMsgMenu(); setDeleted(id, kind === 'delete'); }
+async function pinFromMenu() {
+  const msg = menuMsg;
+  const conv = currentConv();
+  closeMsgMenu();
+  if (!msg || !conv) return;
+  const unpin = conv.pinned_msg === msg.id;
+  const { error } = await sb.rpc('set_pinned', { conv: conv.id, msg: unpin ? null : msg.id });
+  if (error) return toast('Ошибка: ' + error.message);
+  await loadConversations();
+  renderPinBar();
+  toast(unpin ? 'Откреплено' : 'Закреплено');
+}
+function renderPinBar() {
+  const bar = document.getElementById('pinBar');
+  const conv = currentConv();
+  const p = conv?.pinned_msg ? lastMsgs.find(m => m.id === conv.pinned_msg) : null;
+  if (!p) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('pinText').textContent = 'Закреплено: ' + msgPreview(p);
+  bar.onclick = () => jumpToMsg(p.id);
+}
 async function editFromMenu() {
   const msg = menuMsg; closeMsgMenu();
   const current = msg.plain ?? msg.text;
@@ -2771,6 +2805,7 @@ function renderMessages(msgs, area) {
   }
   lastMsgs = msgs;
   hydrateFiles(area, msgs);
+  renderPinBar();
   area.scrollTop = area.scrollHeight;
 }
 
@@ -2826,6 +2861,10 @@ function subscribeRealtime() {
         await loadMessages(activeChatId);
       }
       await loadConversations();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, async () => {
+      await loadConversations();
+      renderPinBar();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, async () => {
       await loadConversations();
