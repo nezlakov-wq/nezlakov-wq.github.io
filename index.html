@@ -1909,6 +1909,7 @@ function createPeer() {
   return callPC;
 }
 function showCallScreen(name, status, video) {
+  ensureCallChrome();
   document.getElementById('callName').textContent = name || 'Собеседник';
   setCallStatus(status);
   document.getElementById('callMute').textContent = 'Выкл. микрофон';
@@ -2004,6 +2005,7 @@ function endCall(notify, reason) {
   document.getElementById('remoteVideo').srcObject = null;
   document.getElementById('localVideo').srcObject = null;
   document.getElementById('callScreen').style.display = 'none';
+  hideCallMini();
   if (reason) toast(reason);
 }
 // ── ГРУППОВЫЕ ЗВОНКИ (до 4 участников). Каждый соединяется с каждым.
@@ -2020,20 +2022,101 @@ function groupTilesBox() {
   }
   return box;
 }
+function groupName(uid) {
+  const c = conversations.find(x => x.id === gState?.convId);
+  const m = c?.members?.find(x => x.user_id === uid);
+  return m?.profiles?.display_name || 'Участник';
+}
+function makeGroupCard(uid, name, video, muted) {
+  const card = document.createElement('div');
+  card.id = 'gc-' + uid;
+  card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;width:' + (video ? '46%' : '32%') + ';min-width:90px;color:#fff;font-size:13px';
+  const av = document.createElement('div');
+  av.id = 'gav-' + uid;
+  av.style.cssText = 'width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;transition:box-shadow .15s;background:' + colorFor(uid);
+  av.textContent = (name || '?').trim().charAt(0).toUpperCase();
+  const nm = document.createElement('div');
+  nm.textContent = name;
+  const media = document.createElement(video ? 'video' : 'audio');
+  media.setAttribute('data-media', '1');
+  media.autoplay = true;
+  media.playsInline = true;
+  media.muted = !!muted;
+  if (video) media.style.cssText = 'width:100%;border-radius:12px;background:#000';
+  else media.style.display = 'none';
+  card.append(av, nm, media);
+  return card;
+}
+function addLocalCard() {
+  const box = groupTilesBox();
+  if (document.getElementById('gc-' + me.id)) return;
+  const card = makeGroupCard(me.id, me.display_name, gState.video, true);
+  box.appendChild(card);
+  const media = card.querySelector('[data-media]');
+  media.srcObject = callLocal;
+  watchSpeaking(callLocal, me.id);
+}
 function addGroupTile(uid, stream, video) {
   const box = groupTilesBox();
-  let t = document.getElementById('gt-' + uid);
-  if (!t) {
-    t = document.createElement(video ? 'video' : 'audio');
-    t.id = 'gt-' + uid;
-    t.autoplay = true;
-    t.playsInline = true;
-    if (video) t.style.cssText = 'width:46%;max-height:40%;border-radius:12px;background:#000;object-fit:cover';
-    box.appendChild(t);
-  }
-  t.srcObject = stream;
-  t.play && t.play().catch(() => {});
+  let card = document.getElementById('gc-' + uid);
+  if (!card) { card = makeGroupCard(uid, groupName(uid), video, false); box.appendChild(card); }
+  const media = card.querySelector('[data-media]');
+  media.srcObject = stream;
+  media.play && media.play().catch(() => {});
+  watchSpeaking(stream, uid);
 }
+// Зелёная обводка у того, кто говорит: считаем громкость потока
+function watchSpeaking(stream, uid) {
+  try {
+    if (!window._gac) window._gac = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = window._gac;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const src = ctx.createMediaStreamSource(stream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const iv = setInterval(() => {
+      if (!document.getElementById('gc-' + uid)) { clearInterval(iv); try { src.disconnect(); } catch (e) {} return; }
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (const v of buf) { const x = (v - 128) / 128; sum += x * x; }
+      const on = Math.sqrt(sum / buf.length) > 0.03;
+      const av = document.getElementById('gav-' + uid);
+      if (av) av.style.boxShadow = on ? '0 0 0 4px #22c55e' : 'none';
+    }, 150);
+  } catch (e) {}
+}
+// Кнопка «Свернуть» и зелёная плашка для возврата в звонок
+function ensureCallChrome() {
+  const cs = document.getElementById('callScreen');
+  if (!document.getElementById('minCallBtn')) {
+    const b = document.createElement('button');
+    b.id = 'minCallBtn';
+    b.textContent = 'Свернуть';
+    b.style.cssText = 'position:absolute;top:14px;right:14px;z-index:2;padding:8px 12px;border-radius:12px;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:14px';
+    b.onclick = minimizeCall;
+    cs.appendChild(b);
+  }
+  if (!document.getElementById('callMini')) {
+    const m = document.createElement('div');
+    m.id = 'callMini';
+    m.style.cssText = 'position:fixed;top:8px;left:8px;right:8px;z-index:250;display:none;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:14px;background:#15803d;color:#fff;font-size:14px';
+    m.innerHTML = '<span id="callMiniText">Звонок</span><span style="background:rgba(255,255,255,.2);padding:6px 10px;border-radius:10px">Вернуться</span>';
+    m.onclick = restoreCall;
+    document.body.appendChild(m);
+  }
+}
+function minimizeCall() {
+  document.getElementById('callScreen').style.display = 'none';
+  document.getElementById('callMiniText').textContent = gState ? 'Групповой звонок · вернуться' : 'Звонок · вернуться';
+  document.getElementById('callMini').style.display = 'flex';
+}
+function restoreCall() {
+  document.getElementById('callMini').style.display = 'none';
+  document.getElementById('callScreen').style.display = 'flex';
+}
+function hideCallMini() { const m = document.getElementById('callMini'); if (m) m.style.display = 'none'; }
 function setGroupStatus() { setCallStatus('В разговоре · ' + (gState ? gState.peers.size + 1 : 1) + ' чел.'); }
 function makeGroupPeer(uid) {
   const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -2049,7 +2132,7 @@ function makeGroupPeer(uid) {
 function removeGroupPeer(uid) {
   const p = gState && gState.peers.get(uid);
   if (p) { p.pc.close(); gState.peers.delete(uid); }
-  document.getElementById('gt-' + uid)?.remove();
+  document.getElementById('gc-' + uid)?.remove();
 }
 async function startGroupOffer(uid) {
   const pc = makeGroupPeer(uid);
@@ -2070,6 +2153,7 @@ async function startGroupCall(conv, video) {
   gState = { id, convId: conv.id, video, peers: new Map(), members, startedAt: Date.now() };
   showCallScreen('Групповой звонок', 'Звоним…', video);
   groupTilesBox();
+  addLocalCard();
   document.getElementById('remoteVideo').style.display = 'none';
   for (const uid of members) {
     sendCall(uid, { type: 'ginvite', callId: id, convId: conv.id, from: me.id, fromName: me.display_name, video, members: [me.id, ...members] }).catch(() => {});
@@ -2091,6 +2175,7 @@ async function acceptGroup() {
   gState = { id: p.callId, convId: p.convId, video: p.video, peers: new Map(), members: p.members.filter(id => id !== me.id), startedAt: Date.now() };
   showCallScreen('Групповой звонок', 'Соединяем…', p.video);
   groupTilesBox();
+  addLocalCard();
   document.getElementById('remoteVideo').style.display = 'none';
   // Говорю всем, что я в звонке: кто уже там, ответит, и я сам отправлю им предложение
   for (const uid of gState.members) sendCall(uid, { type: 'gjoined', callId: gState.id, from: me.id }).catch(() => {});
@@ -2123,12 +2208,13 @@ function endGroup(notify, reason) {
   if (!st) return;
   gState = null;
   if (notify) for (const uid of st.members) sendCall(uid, { type: 'gleft', callId: st.id, from: me.id }).catch(() => {});
-  for (const [uid, p] of st.peers) { p.pc.close(); document.getElementById('gt-' + uid)?.remove(); }
+  for (const [uid, p] of st.peers) { p.pc.close(); document.getElementById('gc-' + uid)?.remove(); }
   if (callLocal) { callLocal.getTracks().forEach(t => t.stop()); callLocal = null; }
   document.getElementById('localVideo').srcObject = null;
   document.getElementById('groupTiles')?.remove();
   document.getElementById('remoteVideo').style.display = '';
   document.getElementById('callScreen').style.display = 'none';
+  hideCallMini();
   if (reason) toast(reason);
 }
 function toggleMute() {
