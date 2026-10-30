@@ -910,6 +910,7 @@ body::before {
         <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff9f0a">👤</span><span class="set-txt">Мой профиль</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('devices')"><span class="set-ico" style="background:#ffb340">📱</span><span class="set-txt">Устройства</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('privacy')"><span class="set-ico" style="background:#8e8e93">🔒</span><span class="set-txt">Конфиденциальность</span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b">🛠</span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
         <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa">🎨</span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
@@ -2236,6 +2237,35 @@ function notifyNew() {
   } else {
     try { new Notification('Moonlit', opts); } catch (e) {}
   }
+}
+// Временная проверка для разработчика: что сейчас работает
+async function devCheck() {
+  const rows = [];
+  rows.push('Версия: ' + (document.querySelector('meta[name="app-version"]')?.content || 'см. ссылку ?v='));
+  rows.push('Сеть: ' + (navigator.onLine ? 'онлайн' : 'офлайн'));
+  rows.push('Вкладка: ' + (document.hidden ? 'свёрнута' : 'открыта'));
+  rows.push('Уведомления: ' + (('Notification' in window) ? Notification.permission : 'не поддерживаются'));
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    const sub = reg && reg.pushManager && await reg.pushManager.getSubscription();
+    rows.push('Push на этом устройстве: ' + (sub ? 'подписан' : 'нет'));
+    const { count } = await sb.from('push_subscriptions').select('*', { count: 'exact', head: true }).eq('user_id', me.id);
+    rows.push('Подписок в базе (мои): ' + (count ?? '?'));
+  } catch (e) { rows.push('Push: ошибка ' + (e.message || '')); }
+  rows.push('Канал сообщений: ' + (realtimeSub ? realtimeSub.state : 'нет'));
+  rows.push('Канал звонков: ' + (callInChan ? callInChan.state : 'нет'));
+  rows.push('TURN серверов: ' + RTC_CONFIG.iceServers.filter(s => String(s.urls).includes('turn')).length);
+  rows.push('Чатов в списке: ' + conversations.length + ', в архиве: ' + conversations.filter(c => c.archived).length);
+  document.getElementById('devCheckBox')?.remove();
+  const box = document.createElement('div');
+  box.id = 'devCheckBox';
+  box.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+  box.innerHTML = `<div style="background:var(--sidebar);border-radius:16px;padding:16px;max-width:420px;width:100%;font-size:14px;line-height:1.7">
+    <div style="font-weight:600;margin-bottom:8px">Проверка</div>
+    <div style="white-space:pre-wrap">${esc(rows.join('\n'))}</div>
+    <button style="margin-top:12px;width:100%;padding:10px;border-radius:12px;border:0;background:var(--input-bg);color:inherit" onclick="this.closest('#devCheckBox').remove()">Закрыть</button>
+  </div>`;
+  document.body.appendChild(box);
 }
 // Публичный ключ VAPID (секретная часть хранится только на сервере)
 const VAPID_PUBLIC = 'BMMSBdJDPaHbWykPTUXAlI4rV35Itcm2XjJ2kmpahIDxLtHBeqgArlhXzc3CvBne39W2t_aMfoggtXG_8B8Kf5c';
