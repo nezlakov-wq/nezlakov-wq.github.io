@@ -1547,7 +1547,7 @@ function attachSwipeReply(el, msg) {
     if (!active) return;
     const cx = e.touches[0].clientX - x0, cy = e.touches[0].clientY - y0;
     if (Math.abs(cy) > Math.abs(cx)) return; // вертикальная прокрутка списка
-    dx = Math.max(0, Math.min(cx, 90));
+    dx = Math.min(0, Math.max(cx, -90)); // свайп влево
     el.style.transform = `translateX(${dx}px)`;
   }, { passive: true });
   el.addEventListener('touchend', () => {
@@ -1555,7 +1555,7 @@ function attachSwipeReply(el, msg) {
     active = false;
     el.style.transition = 'transform .2s';
     el.style.transform = '';
-    if (dx >= 60) {
+    if (dx <= -60) {
       if (navigator.vibrate) navigator.vibrate(10);
       setReply(msg);
     }
