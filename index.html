@@ -542,6 +542,54 @@ body::before {
   text-transform: none;
   margin-bottom: 4px;
 }
+
+/* ── Экран настроек в стиле Telegram ── */
+#settingsModal { padding: 0; align-items: stretch; }
+#settingsModal .modal.set-page {
+  max-width: none; width: 100%; height: 100%; max-height: none;
+  padding: 0; border-radius: 0; display: block;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  background: #0b1638 !important;
+}
+#settingsModal .modal-close { display: none; }
+#settingsModal .set-topbar {
+  position: sticky; top: 0; z-index: 5;
+  height: calc(52px + env(safe-area-inset-top, 0px));
+  padding: env(safe-area-inset-top, 0px) 16px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(11, 22, 56, 0.92);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+#settingsModal .set-topbar .st-title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-size: 17px; font-weight: 600; color: #fff; pointer-events: none;
+}
+#settingsModal .set-topbar button {
+  background: none; border: none; color: #6aa6ff; font-size: 16px;
+  cursor: pointer; padding: 8px 4px; font-family: inherit;
+}
+#settingsModal .set-page > div:not(.set-topbar) { padding-left: 14px; padding-right: 14px; }
+#settingsModal .set-page > #setMain { padding-bottom: 40px; }
+#settingsModal .set-name { font-size: 22px; font-weight: 700; color: #fff; text-align: center; margin-top: 4px; }
+.set-group {
+  background: rgba(255, 255, 255, 0.06); border-radius: 16px;
+  overflow: hidden; margin: 12px 0;
+}
+.set-item {
+  width: 100%; display: flex; align-items: center; gap: 14px;
+  padding: 10px 14px; background: none; border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: #fff; font-size: 16px; font-family: inherit; text-align: left; cursor: pointer;
+}
+.set-item:last-child { border-bottom: 0; }
+.set-item:active { background: rgba(255, 255, 255, 0.06); }
+.set-ico {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.set-txt { flex: 1; }
+.set-chev { color: #6b7090; font-size: 22px; line-height: 1; }
 </style>
 </head>
 <body>
@@ -679,17 +727,43 @@ body::before {
 
 <!-- SETTINGS -->
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
-  <div class="modal" style="position:relative">
-    <button class="modal-close" onclick="closeSettings()">✕</button>
-    <div class="set-profile">
-      <div class="set-av" id="setAv" title="Сменить аватарку" onclick="document.getElementById('avatarInput').click()"></div>
-      <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
-      <div class="set-username" id="setUsername"></div>
+  <div class="modal set-page">
+    <div class="set-topbar">
+      <button id="setBack" style="display:none" onclick="switchSettingsTab('main')">‹ Назад</button>
+      <span class="st-title" id="setTopTitle">Настройки</span>
+      <button onclick="closeSettings()">Закрыть</button>
     </div>
-    <div class="set-tabs">
-      <button class="set-tab active" id="tabData" onclick="switchSettingsTab('data')">Данные аккаунта</button>
-      <button class="set-tab" id="tabDevices" onclick="switchSettingsTab('devices')">Устройства</button>
-      <button class="set-tab" id="tabPrivacy" onclick="switchSettingsTab('privacy')">Конфиденциальность</button>
+    <div id="setMain">
+      <div class="set-profile">
+        <div class="set-av" id="setAv" title="Сменить аватарку" onclick="document.getElementById('avatarInput').click()"></div>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
+        <div class="set-name" id="setTitleName"></div>
+        <div class="set-username" id="setUsername"></div>
+      </div>
+      <div class="set-group">
+        <button class="set-item" onclick="document.getElementById('avatarInput').click()"><span class="set-ico" style="background:#3a8bff">📷</span><span class="set-txt">Изменить фотографию</span></button>
+      </div>
+      <div class="set-group">
+        <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff9f0a">👤</span><span class="set-txt">Мой профиль</span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="switchSettingsTab('devices')"><span class="set-ico" style="background:#ffb340">📱</span><span class="set-txt">Устройства</span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="switchSettingsTab('privacy')"><span class="set-ico" style="background:#8e8e93">🔒</span><span class="set-txt">Конфиденциальность</span><span class="set-chev">›</span></button>
+      </div>
+      <div class="set-group">
+        <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa">🎨</span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff3b30">🔔</span><span class="set-txt">Уведомления</span><span class="set-chev">›</span></button>
+      </div>
+      <div class="set-group">
+        <button class="set-item" onclick="logout()"><span class="set-ico" style="background:#ff453a">⏻</span><span class="set-txt" style="color:#ff453a">Выйти из аккаунта</span></button>
+      </div>
+    </div>
+    <div id="setAppearance" style="display:none">
+      <div class="set-row"><div class="set-label">Шрифт</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Меняет шрифт во всём приложении на этом устройстве.</div>
+        <div id="setFontOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+      <div class="set-row"><div class="set-label">Обои</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Обои ставятся отдельно в каждом чате: откройте чат и нажмите 🎨 в шапке.</div>
+      </div>
     </div>
     <div id="setData">
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
@@ -1718,6 +1792,7 @@ async function openSettings() {
   if (!me) return;
   const { data: { user } } = await sb.auth.getUser();
   document.getElementById('setUsername').textContent = '@' + me.username;
+  document.getElementById('setTitleName').textContent = me.display_name;
   document.getElementById('setName').textContent = me.display_name;
   const emailEl = document.getElementById('setEmail');
   emailEl.textContent = user?.email || '—';
@@ -1732,17 +1807,20 @@ async function openSettings() {
   document.getElementById('prAvatar').checked = !!me.hide_avatar;
   document.getElementById('prOnline').checked = !!me.hide_online;
   document.getElementById('prGifts').checked = !!me.hide_gifts;
-  switchSettingsTab('data');
+  switchSettingsTab('main');
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
+const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление' };
 function switchSettingsTab(tab) {
-  document.getElementById('setData').style.display = tab === 'data' ? '' : 'none';
-  document.getElementById('setDevices').style.display = tab === 'devices' ? '' : 'none';
-  document.getElementById('setPrivacy').style.display = tab === 'privacy' ? '' : 'none';
-  document.getElementById('tabData').classList.toggle('active', tab === 'data');
-  document.getElementById('tabDevices').classList.toggle('active', tab === 'devices');
-  document.getElementById('tabPrivacy').classList.toggle('active', tab === 'privacy');
+  for (const [key, id] of Object.entries(SET_PANELS)) {
+    document.getElementById(id).style.display = key === tab ? '' : 'none';
+  }
+  document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
+  document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
+  if (tab === 'appearance') renderFontOpts();
+  document.querySelector('#settingsModal .modal').scrollTop = 0;
 }
 async function uploadAvatar(file) {
   if (!file || !me) return;
@@ -1781,9 +1859,13 @@ function setFont(k) {
 }
 function renderFontOpts() {
   const cur = getFont();
-  document.getElementById('fontOpts').innerHTML = Object.entries(FONTS).map(([k, f]) =>
-    `<button class="set-logout" style="color:inherit;${k === cur ? 'outline:2px solid #7aa7ff;' : ''}" onclick="setFont('${k}')">${f.name}</button>`
+  const html = Object.entries(FONTS).map(([k, f]) =>
+    `<button style="width:auto;margin:0;padding:8px 12px;border:none;border-radius:10px;font-family:inherit;font-size:14px;color:#fff;cursor:pointer;background:${k === cur ? '#5b7fff' : 'rgba(255,255,255,.1)'}" onclick="setFont('${k}')">${f.name}</button>`
   ).join('');
+  ['fontOpts', 'setFontOpts'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
 }
 function wallKey(convId) { return 'moonlit-wall-' + (me?.id || 'x') + '-' + convId; }
 function applyWallpaper(convId) {
