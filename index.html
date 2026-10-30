@@ -240,6 +240,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
   padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px));
   display:flex;flex-direction:column;gap:2px;
   scrollbar-width:thin;scrollbar-color:var(--bg3) transparent;
+  background-size:cover;background-position:center;background-repeat:no-repeat;
 }
 .date-div{
   text-align:center;font-size:11px;color:var(--fg2);
@@ -626,6 +627,7 @@ body::before {
           <div class="h-status" id="hStatus"></div>
         </div>
         <div class="h-actions">
+          <button class="act-btn" title="Оформление" onclick="openAppearance()">🎨</button>
           <button class="act-btn" title="Поиск в чате" onclick="openChatSearch()">🔍</button>
           <button class="act-btn" title="Позвонить">📞</button>
         </div>
@@ -654,6 +656,24 @@ body::before {
     <div class="modal-title">Новый чат</div>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
+  </div>
+</div>
+
+<!-- APPEARANCE -->
+<div class="modal-overlay" id="appearModal" onclick="if(event.target===this)closeAppearance()">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeAppearance()">✕</button>
+    <div class="modal-title">Оформление</div>
+    <div class="set-row"><div class="set-label">Обои этого чата</div>
+      <div style="font-size:13px;opacity:.7;margin:4px 0">Видны только вам и только на этом устройстве.</div>
+      <button class="set-logout" style="color:inherit" onclick="document.getElementById('wallInput').click()">Выбрать фото</button>
+      <button class="set-logout" style="color:inherit" onclick="resetWallpaper()">Сбросить</button>
+      <input type="file" id="wallInput" accept="image/*" style="display:none" onchange="setWallpaper(this.files[0]); this.value=''">
+    </div>
+    <div class="set-row"><div class="set-label">Шрифт</div>
+      <div style="font-size:13px;opacity:.7;margin:4px 0">Меняет шрифт во всём приложении на этом устройстве.</div>
+      <div id="fontOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+    </div>
   </div>
 </div>
 
@@ -1741,6 +1761,77 @@ async function uploadAvatar(file) {
   toast('Аватарка обновлена');
 }
 
+// ── APPEARANCE (обои по чатам и шрифт, хранятся на устройстве) ──
+const FONTS = {
+  system:  { name: 'Системный', css: "-apple-system,'Inter',system-ui,sans-serif" },
+  serif:   { name: 'С засечками', css: "Georgia,'Times New Roman',serif" },
+  rounded: { name: 'Округлый', css: "ui-rounded,'SF Pro Rounded','Arial Rounded MT Bold',system-ui,sans-serif" },
+  mono:    { name: 'Моноширинный', css: "ui-monospace,Menlo,monospace" }
+};
+function getFont() { try { return localStorage.getItem('moonlit-font') || 'system'; } catch (e) { return 'system'; } }
+function applyFont(k) {
+  const f = FONTS[k] || FONTS.system;
+  document.documentElement.style.fontFamily = f.css;
+  document.body.style.fontFamily = f.css;
+}
+function setFont(k) {
+  try { localStorage.setItem('moonlit-font', k); } catch (e) {}
+  applyFont(k);
+  renderFontOpts();
+}
+function renderFontOpts() {
+  const cur = getFont();
+  document.getElementById('fontOpts').innerHTML = Object.entries(FONTS).map(([k, f]) =>
+    `<button class="set-logout" style="color:inherit;${k === cur ? 'outline:2px solid #7aa7ff;' : ''}" onclick="setFont('${k}')">${f.name}</button>`
+  ).join('');
+}
+function wallKey(convId) { return 'moonlit-wall-' + (me?.id || 'x') + '-' + convId; }
+function applyWallpaper(convId) {
+  let w = null;
+  try { w = localStorage.getItem(wallKey(convId)); } catch (e) {}
+  document.getElementById('msgsArea').style.backgroundImage = w ? `url("${w}")` : '';
+}
+function openAppearance() {
+  if (!activeChatId) return toast('Сначала откройте чат');
+  renderFontOpts();
+  document.getElementById('appearModal').style.display = 'flex';
+}
+function closeAppearance() { document.getElementById('appearModal').style.display = 'none'; }
+function compressImage(file, max = 1080) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+async function setWallpaper(file) {
+  if (!file || !activeChatId) return;
+  try {
+    const data = await compressImage(file);
+    localStorage.setItem(wallKey(activeChatId), data);
+    applyWallpaper(activeChatId);
+    toast('Обои установлены');
+  } catch (e) {
+    toast('Не удалось сохранить обои (мало места или файл не читается)');
+  }
+}
+function resetWallpaper() {
+  try { localStorage.removeItem(wallKey(activeChatId)); } catch (e) {}
+  applyWallpaper(activeChatId);
+  toast('Обои сброшены');
+}
+applyFont(getFont());
+
 // ── CONVERSATIONS ──
 async function loadConversations() {
   if(!me) return;
@@ -1840,6 +1931,7 @@ async function openChat(convId) {
     document.getElementById('mainPane').classList.remove('hidden');
   }
   clearReply();
+  applyWallpaper(convId);
   await sb.rpc('mark_read', { conv: convId }).catch(() => {});
   await loadMessages(convId);
 }
