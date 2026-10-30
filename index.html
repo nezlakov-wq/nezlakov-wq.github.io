@@ -1765,6 +1765,8 @@ function refreshStatusLine() {
     st.className = 'h-status';
     return;
   }
+  // В «Избранном» (чат с самим собой) статус не показываем
+  if (activeOther.id === me?.id) { st.textContent = ''; st.className = 'h-status'; return; }
   const online = onlineIds.has(activeOther.id);
   const seen = activeOther.last_seen && !activeOther.hide_online;
   st.textContent = online ? 'в сети' : (seen ? lastSeenText(activeOther.last_seen) : '@' + (activeOther.username || ''));
