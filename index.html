@@ -2261,6 +2261,8 @@ function updateNotifBtn() {
   b.textContent = Notification.permission === 'granted' ? 'Включены' : 'Включить';
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// Кнопка отправки не забирает фокус у поля ввода, клавиатура не закрывается
+document.getElementById('sendBtn')?.addEventListener('pointerdown', e => e.preventDefault());
 // При появлении клавиатуры iOS сдвигает страницу вверх: подгоняем высоту под видимую область и возвращаем скролл в ноль
 function fitViewport() {
   const vv = window.visualViewport;
@@ -2874,6 +2876,9 @@ async function loadMessages(convId) {
 function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
   const isGroupChat = !!currentConv()?.is_group;
+  // Запоминаем, читает ли человек историю: если да, не прыгаем вниз при новых сообщениях
+  const prevTop = area.scrollTop;
+  const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 120;
   area.innerHTML = '';
   const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
   let lastDate = '';
@@ -2929,7 +2934,7 @@ function renderMessages(msgs, area) {
   lastMsgs = msgs;
   hydrateFiles(area, msgs);
   renderPinBar();
-  area.scrollTop = area.scrollHeight;
+  area.scrollTop = wasAtBottom || !prevTop ? area.scrollHeight : prevTop;
 }
 
 async function deleteMsg(msgId) { await setDeleted(msgId, true); }
@@ -2964,6 +2969,7 @@ async function sendMsg() {
   const text = input.value.trim();
   if(!text || !activeChatId) return;
   input.value = ''; input.style.height = '';
+  input.focus(); // клавиатура остаётся открытой после отправки
   document.getElementById('sendBtn').disabled = true;
   let payload = null, keyVer = 0;
   try { const enc = await encryptForConv(currentConv(), text); payload = enc.payload; keyVer = enc.key_version; } catch (e) { payload = null; }
