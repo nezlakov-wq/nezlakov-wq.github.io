@@ -2259,9 +2259,15 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 function fitViewport() {
   const vv = window.visualViewport;
   const app = document.getElementById('app');
-  if (app && vv) app.style.height = vv.height + 'px';
-  if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0) window.scrollTo(0, 0);
+  if (!app || !vv) return;
+  // Приложение закрепляем по видимой области: и верх, и высоту, чтобы поле ввода оставалось над клавиатурой
+  app.style.position = 'fixed';
+  app.style.left = '0';
+  app.style.right = '0';
+  app.style.top = vv.offsetTop + 'px';
+  app.style.height = vv.height + 'px';
 }
+fitViewport();
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', fitViewport);
   window.visualViewport.addEventListener('scroll', fitViewport);
