@@ -2829,15 +2829,13 @@ function renderChatList(filter='') {
       <div class="chat-right">
         ${lastMsg ? `<div class="chat-time">${timeStr(lastMsg.created_at)}</div>` : ''}
       </div>`;
-    // Двойное нажатие открывает меню (уведомления, архив), одиночное открывает чат
+    // Одно нажатие открывает чат, долгое нажатие открывает меню (уведомления, архив)
     item.addEventListener('click', () => {
+      if (item.dataset.lp) { delete item.dataset.lp; return; }
       if (showArchive) return openChatSheet(conv); // в архиве одно нажатие открывает меню с кнопкой «Вернуть»
-      const now = Date.now();
-      if (item._lastTap && now - item._lastTap < 400) { item._lastTap = 0; openChatSheet(conv); return; }
-      item._lastTap = now;
       openChat(conv.id);
     });
-    item.addEventListener('contextmenu', e => { e.preventDefault(); openChatSheet(conv); });
+    attachChatLong(item, conv);
     list.appendChild(item);
   });
 }
