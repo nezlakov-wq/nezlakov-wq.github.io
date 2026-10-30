@@ -2238,6 +2238,20 @@ function notifyNew() {
     try { new Notification('Moonlit', opts); } catch (e) {}
   }
 }
+// Ошибки приложения показываются плашкой внизу экрана (для отладки)
+function showErrBanner(text) {
+  let box = document.getElementById('errBanner');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'errBanner';
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:500;background:#7f1d1d;color:#fff;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;gap:8px;align-items:flex-start';
+    box.innerHTML = '<div id="errText" style="flex:1;word-break:break-word"></div><button style="border:0;background:transparent;color:#fff;font-size:18px;line-height:1" onclick="document.getElementById(\'errBanner\').remove()">✕</button>';
+    document.body.appendChild(box);
+  }
+  document.getElementById('errText').textContent = '⚠ ' + text;
+}
+window.addEventListener('error', e => showErrBanner((e.message || 'ошибка') + (e.lineno ? ' (строка ' + e.lineno + ')' : '')));
+window.addEventListener('unhandledrejection', e => showErrBanner('Не работает: ' + ((e.reason && (e.reason.message || e.reason)) || 'неизвестная ошибка')));
 // Временная проверка для разработчика: что сейчас работает
 async function devCheck() {
   const rows = [];
