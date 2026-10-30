@@ -3012,7 +3012,14 @@ function refreshAfterResume() {
   if (!me) return;
   subscribeRealtime();
   loadConversations().catch(() => {});
-  if (activeChatId) loadMessages(activeChatId).catch(() => {});
+  if (activeChatId) reloadChatSafe();
+}
+// Перерисовка чата убивает проигрывание голосового, поэтому откладываем её, пока что-то играет
+function anyVoicePlaying() { return [...document.querySelectorAll('.file-box audio')].some(a => !a.paused); }
+function reloadChatSafe() {
+  if (anyVoicePlaying()) return setTimeout(reloadChatSafe, 2000);
+  const id = activeChatId;
+  if (id) loadMessages(id).catch(() => {});
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAfterResume(); });
 window.addEventListener('online', refreshAfterResume);
@@ -3026,7 +3033,7 @@ function subscribeRealtime() {
       if (isNew && (document.hidden || !inActive)) notifyNew();
       if (isNew && inActive && !document.hidden) sb.rpc('mark_read', { conv: activeChatId }).catch(() => {});
       if(payload.new?.conversation_id === activeChatId || payload.old?.conversation_id === activeChatId) {
-        await loadMessages(activeChatId);
+        reloadChatSafe();
       }
       await loadConversations();
     })
