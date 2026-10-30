@@ -2255,6 +2255,17 @@ function updateNotifBtn() {
   b.textContent = Notification.permission === 'granted' ? 'Включены' : 'Включить';
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+// При появлении клавиатуры iOS сдвигает страницу вверх: подгоняем высоту под видимую область и возвращаем скролл в ноль
+function fitViewport() {
+  const vv = window.visualViewport;
+  const app = document.getElementById('app');
+  if (app && vv) app.style.height = vv.height + 'px';
+  if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0) window.scrollTo(0, 0);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', fitViewport);
+  window.visualViewport.addEventListener('scroll', fitViewport);
+}
 // Блокируем щипок и двойное касание для увеличения (iOS Safari иногда игнорирует meta)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
   document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
