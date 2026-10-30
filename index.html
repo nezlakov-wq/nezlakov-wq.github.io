@@ -1805,25 +1805,33 @@ let pendingCall = null; // входящий звонок, ещё не приня
 let callPC = null, callLocal = null, callRingTimer = null, callInChan = null;
 const callOutChans = new Map();
 
-function callOut(uid) {
-  if (!callOutChans.has(uid)) {
-    const ch = sb.channel('call-' + uid);
-    const ready = new Promise(res => ch.subscribe(s => { if (s === 'SUBSCRIBED') res(); }));
-    callOutChans.set(uid, { ch, ready });
-  }
-  return callOutChans.get(uid);
-}
+// Каждый сигнал уходит через свежий канал: старый канал мог умереть после сворачивания приложения
 async function sendCall(uid, payload) {
-  const { ch, ready } = callOut(uid);
-  await ready;
-  await ch.send({ type: 'broadcast', event: 'call', payload });
+  const ch = sb.channel('call-' + uid);
+  try {
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error('Нет связи с сервером звонков')), 8000);
+      ch.subscribe(s => {
+        if (s === 'SUBSCRIBED') { clearTimeout(t); res(); }
+        else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') { clearTimeout(t); rej(new Error('Канал звонков: ' + s)); }
+      });
+    });
+    await ch.send({ type: 'broadcast', event: 'call', payload });
+  } finally {
+    try { sb.removeChannel(ch); } catch (e) {}
+  }
 }
-function setupCallChannel() {
-  if (callInChan || !me) return;
+// Входящий канал пересоздаётся при возврате в приложение и при восстановлении сети
+function setupCallChannel(force) {
+  if (!me) return;
+  if (callInChan && !force) return;
+  if (callInChan) { try { sb.removeChannel(callInChan); } catch (e) {} }
   callInChan = sb.channel('call-' + me.id)
     .on('broadcast', { event: 'call' }, ({ payload }) => onCallMsg(payload))
     .subscribe();
 }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && me) setupCallChannel(true); });
+window.addEventListener('online', () => { if (me) setupCallChannel(true); });
 function onCallMsg(p) {
   if (!p || !p.type) return;
   if (p.type === 'invite') {
