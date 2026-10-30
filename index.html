@@ -462,7 +462,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 html { background: #050f12 !important; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
 /* Без масштабирования жестами: одинаковый размер на всех устройствах */
 html, body { touch-action: pan-x pan-y; }
-body { background: transparent !important; color: #e8edff; min-height: 100vh; position: relative; }
+body { background: transparent !important; color: #e8edff; position: relative; }
+/* Высота по видимой области экрана (без учёта панели Safari), чтобы имя и настройки не уезжали вниз */
+#app { height: 100vh; height: 100dvh; }
 body::before {
   content: '';
   position: fixed;
