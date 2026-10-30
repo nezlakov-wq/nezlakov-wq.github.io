@@ -470,6 +470,7 @@ body { background: transparent !important; color: #e8edff; position: relative; }
 html, body, #app { overscroll-behavior: none; }
 /* Долгое нажатие на чат не выделяет текст и не открывает системное меню */
 .chat-item, .chat-item * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.chat-item::selection, .chat-item *::selection { background: transparent; }
 html, body { position: fixed; inset: 0; width: 100%; }
 /* Нижние панели поднимаем над полосой Домой и скруглёнными углами iPhone */
 .sidebar-bottom { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -2839,6 +2840,8 @@ function renderChatList(filter='') {
     list.appendChild(item);
   });
 }
+// Браузер не начинает выделять текст в строках чатов (Chrome на iPhone тоже)
+document.addEventListener('selectstart', e => { if (e.target.closest?.('.chat-item')) e.preventDefault(); });
 // Долгое нажатие на чат: уведомления и архив
 function attachChatLong(el, conv) {
   let t = null, sx = 0, sy = 0;
