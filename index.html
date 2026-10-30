@@ -973,6 +973,13 @@ body::before {
     <div class="set-label" id="pfUsername"></div>
     <div class="set-label" style="margin:18px 0 8px;text-align:left">Подарки в этом чате</div>
     <div id="pfGifts" style="text-align:left"></div>
+    <div class="set-label" style="margin:18px 0 8px;text-align:left">Только для этого человека</div>
+    <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px;margin-bottom:8px">
+      <input type="checkbox" id="pvAvatar" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мою аватарку
+    </label>
+    <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px">
+      <input type="checkbox" id="pvGifts" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мои подарки
+    </label>
   </div>
 </div>
 
@@ -1621,6 +1628,17 @@ function reactionsHtml(msg) {
 
 // ── PROFILE OF INTERLOCUTOR ──
 function closeProfile() { document.getElementById('profileModal').style.display = 'none'; }
+async function savePersonRule() {
+  const p = activeOther;
+  if (!p) return;
+  const { error } = await sb.rpc('set_privacy_rule', {
+    viewer: p.id,
+    hide_avatar: document.getElementById('pvAvatar').checked,
+    hide_gifts: document.getElementById('pvGifts').checked
+  });
+  if (error) return toast('Ошибка: ' + error.message);
+  toast('Сохранено');
+}
 async function openProfile() {
   if (currentConv()?.is_group) return openGroupInfo();
   if (!activeOther || !activeChatId) return;
@@ -1635,10 +1653,16 @@ async function openProfile() {
   list.innerHTML = '<div style="opacity:.6;font-size:13px">Загрузка…</div>';
   document.getElementById('profileModal').style.display = 'flex';
   const convId = activeChatId;
-  if (p.hide_gifts) {
+  // Проверка на сервере: скрыты ли подарки от меня
+  const { data: giftCount } = await sb.rpc('gift_count_for', { owner: p.id });
+  if (giftCount === null) {
     list.innerHTML = '<div style="opacity:.6;font-size:13px">Собеседник скрыл подарки</div>';
-    return;
   }
+  // Настройки «только для этого человека» (что я скрываю от него)
+  const { data: rule } = await sb.from('privacy_rules').select('hide_avatar,hide_gifts').eq('owner', me.id).eq('viewer', p.id).maybeSingle();
+  document.getElementById('pvAvatar').checked = !!rule?.hide_avatar;
+  document.getElementById('pvGifts').checked = !!rule?.hide_gifts;
+  if (giftCount === null) return;
   const { data } = await sb.from('messages')
     .select('text')
     .eq('conversation_id', convId)
@@ -2650,6 +2674,14 @@ async function loadConversations() {
     const { data: lastMsgs } = await sb.from('messages')
       .select('*').eq('conversation_id', conv.id)
       .order('created_at', {ascending:false}).limit(1);
+    // Аватарки собеседников берём через защищённое представление: скрытые аватарки приходят пустыми
+    const otherIds = (members || []).map(m => m.user_id).filter(id => id !== me.id);
+    const visAv = {};
+    if (otherIds.length) {
+      const { data: vis } = await sb.from('profiles_view').select('id,avatar_url').in('id', otherIds);
+      (vis || []).forEach(v => { visAv[v.id] = v.avatar_url; });
+    }
+    (members || []).forEach(m => { if (m.profiles && m.user_id !== me.id) m.profiles.avatar_url = visAv[m.user_id] ?? null; });
     const other = members?.find(m=>m.user_id !== me.id);
     conversations.push({
       ...conv,
@@ -2897,7 +2929,7 @@ function subscribeRealtime() {
       const id = payload.new?.id;
       if (me && id === me.id) await loadMe(me.id);
       if (activeOther && id === activeOther.id) {
-        activeOther = maskProfile({ ...activeOther, ...payload.new });
+        activeOther = maskProfile({ ...activeOther, ...payload.new, avatar_url: activeOther.avatar_url });
         const name = activeOther.display_name || '';
         document.getElementById('hName').textContent = name;
         refreshStatusLine();
@@ -2927,7 +2959,7 @@ async function searchUsers(val) {
   if(!val.trim()) { res.innerHTML = ''; return; }
   searchTimer = setTimeout(async () => {
     const q = val.replace('@','').toLowerCase();
-    const { data } = await sb.from('profiles')
+    const { data } = await sb.from('profiles_view')
       .select('*')
       .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
       .neq('id', me.id)
