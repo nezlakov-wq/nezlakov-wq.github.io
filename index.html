@@ -543,6 +543,14 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Папки чатов ── */
+.folder-tabs { display: flex; gap: 6px; padding: 0 12px 8px; flex-shrink: 0; }
+.ftab {
+  flex: 1; padding: 7px 0; border: none; border-radius: 16px; font-family: inherit; font-size: 13px;
+  background: rgba(255, 255, 255, 0.08); color: var(--fg2); cursor: pointer;
+}
+.ftab.active { background: #5b7fff; color: #fff; }
+
 /* ── Закреплённое сообщение ── */
 .pin-bar {
   display: flex; align-items: center; padding: 8px 14px; flex-shrink: 0;
@@ -736,6 +744,11 @@ body::before {
         <span class="search-ico">🔍</span>
         <input class="search-input" placeholder="Поиск чатов…" oninput="filterChats(this.value)" id="chatSearch">
       </div>
+    </div>
+    <div class="folder-tabs" id="folderTabs">
+      <button class="ftab active" data-f="all" onclick="setFolder('all')">Все</button>
+      <button class="ftab" data-f="direct" onclick="setFolder('direct')">Личные</button>
+      <button class="ftab" data-f="groups" onclick="setFolder('groups')">Группы</button>
     </div>
     <div class="section-label">Сообщения</div>
     <div class="chat-list" id="chatList"></div>
@@ -2658,6 +2671,8 @@ function renderChatList(filter='') {
   list.innerHTML = '';
   const filtered = conversations.filter(c => {
     const name = c.other?.display_name || c.name || '';
+    if (chatFolder === 'direct' && c.is_group) return false;
+    if (chatFolder === 'groups' && !c.is_group) return false;
     return name.toLowerCase().includes(filter.toLowerCase());
   });
   if(!filtered.length) {
@@ -2691,6 +2706,15 @@ function renderChatList(filter='') {
 }
 
 function filterChats(val) { renderChatList(val); }
+// Папки: показываем личные чаты, группы или всё вместе (выбор запоминается на устройстве)
+let chatFolder = (() => { try { return localStorage.getItem('moonlit-folder') || 'all'; } catch (e) { return 'all'; } })();
+function setFolder(f) {
+  chatFolder = f;
+  try { localStorage.setItem('moonlit-folder', f); } catch (e) {}
+  document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('active', b.dataset.f === f));
+  renderChatList(document.getElementById('chatSearch')?.value || '');
+}
+document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('active', b.dataset.f === chatFolder));
 
 // ── OPEN CHAT ──
 async function openChat(convId) {
