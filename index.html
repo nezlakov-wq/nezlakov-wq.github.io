@@ -2970,6 +2970,9 @@ function attachChatLong(el, conv) {
   el.addEventListener('touchend', () => { clearTimeout(t); t = null; });
   el.addEventListener('contextmenu', e => { e.preventDefault(); openChatSheet(conv); });
 }
+function ttlLabel(s) {
+  return { 3600: 'через 1 ч', 86400: 'через 1 д', 604800: 'через 1 нед' }[s] || 'выкл';
+}
 function openChatSheet(conv) {
   document.getElementById('chatSheet')?.remove();
   const ov = document.createElement('div');
@@ -2979,6 +2982,7 @@ function openChatSheet(conv) {
   ov.innerHTML = `<div style="width:100%;max-width:480px;padding:16px;background:var(--sidebar);border-radius:18px 18px 0 0">
     ${btn(conv.muted ? 'Включить уведомления' : 'Выключить уведомления', 'mute')}
     ${btn(conv.archived ? 'Вернуть из архива' : 'В архив', 'arch')}
+    ${btn('Исчезающие сообщения: ' + ttlLabel(conv.ttl_seconds), 'ttl')}
     ${btn('Отмена', 'cancel')}
   </div>`;
   ov.addEventListener('click', async e => {
@@ -2987,6 +2991,17 @@ function openChatSheet(conv) {
     if (!a) return;
     ov.remove();
     if (a === 'cancel') return;
+    if (a === 'ttl') {
+      const order = [0, 3600, 86400, 604800];
+      const next = order[(order.indexOf(conv.ttl_seconds || 0) + 1) % order.length];
+      const { error } = await sb.rpc('set_chat_ttl', { conv: conv.id, secs: next });
+      if (error) return toast('Не удалось сохранить: ' + error.message);
+      const t = conversations.find(c => c.id === conv.id);
+      if (t) t.ttl_seconds = next || null;
+      toast('Исчезающие сообщения: ' + ttlLabel(next || null));
+      await loadConversations();
+      return;
+    }
     const mute = a === 'mute' ? !conv.muted : conv.muted;
     const arch = a === 'arch' ? !conv.archived : conv.archived;
     // Сразу меняем список на экране, не дожидаясь сервера
@@ -3014,6 +3029,8 @@ document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('
 // ── OPEN CHAT ──
 async function openChat(convId) {
   activeChatId = convId;
+  // Удаляем просроченные исчезающие сообщения (не ждём: чат открывается сразу)
+  sb.rpc('purge_expired', { conv: convId }).catch(() => {});
   const conv = conversations.find(c=>c.id===convId);
   if(!conv) return;
   activeOther = conv.other;
