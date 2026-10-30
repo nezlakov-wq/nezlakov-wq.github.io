@@ -2994,6 +2994,15 @@ async function sendMsg() {
 }
 
 // ── REALTIME ──
+// При возврате в приложение или восстановлении сети пересоздаём канал сообщений и подгружаем пропущенное
+function refreshAfterResume() {
+  if (!me) return;
+  subscribeRealtime();
+  loadConversations().catch(() => {});
+  if (activeChatId) loadMessages(activeChatId).catch(() => {});
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAfterResume(); });
+window.addEventListener('online', refreshAfterResume);
 function subscribeRealtime() {
   setupCallChannel();
   if(realtimeSub) sb.removeChannel(realtimeSub);
