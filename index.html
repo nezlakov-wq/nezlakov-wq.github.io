@@ -2752,7 +2752,8 @@ async function loadConversations() {
   // Get conversations
   const { data: convs, error: cErr } = await sb.from('conversations').select('*').in('id', ids);
   // For each conversation get members and last message
-  conversations = [];
+  // Собираем во временный массив: параллельные вызовы не должны дублировать чаты
+  const built = [];
   for(const conv of (convs||[])) {
     const { data: members } = await sb.from('conversation_members')
       .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,pub_key,hide_avatar,hide_online,hide_gifts,last_seen)')
@@ -2769,7 +2770,7 @@ async function loadConversations() {
     }
     (members || []).forEach(m => { if (m.profiles && m.user_id !== me.id) m.profiles.avatar_url = visAv[m.user_id] ?? null; });
     const other = members?.find(m=>m.user_id !== me.id);
-    conversations.push({
+    built.push({
       ...conv,
       members: members||[],
       other: conv.is_group ? null : maskProfile(other?.profiles),
@@ -2778,11 +2779,12 @@ async function loadConversations() {
       archived: !!flags[conv.id]?.archived,
     });
   }
-  conversations.sort((a,b)=>{
+  built.sort((a,b)=>{
     const ta = a.lastMsg?.created_at || a.created_at;
     const tb = b.lastMsg?.created_at || b.created_at;
     return new Date(tb) - new Date(ta);
   });
+  conversations = built;
   renderChatList();
 }
 
