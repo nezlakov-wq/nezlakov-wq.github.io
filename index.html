@@ -570,19 +570,22 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
     <div class="set-tabs">
       <button class="set-tab active" id="tabData" onclick="switchSettingsTab('data')">Данные аккаунта</button>
       <button class="set-tab" id="tabDevices" onclick="switchSettingsTab('devices')">Устройства</button>
+      <button class="set-tab" id="tabPrivacy" onclick="switchSettingsTab('privacy')">Конфиденциальность</button>
     </div>
     <div id="setData">
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
-      <div class="set-row privacy-row" style="display:block"><div class="set-label">Конфиденциальность</div>
-        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
-        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
-        <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
-      </div>
       <div class="set-row"><div class="set-label">Сменить пароль</div><div style="font-size:13px;opacity:.7;margin:4px 0">Ключ шифрования переоборачивается автоматически, история сохраняется.</div><input type="password" id="newPw" placeholder="Новый пароль (минимум 6)" style="width:100%;box-sizing:border-box;margin-bottom:6px"><button class="set-logout" style="color:inherit" onclick="changePassword()">Сменить пароль</button></div>
       <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
+    </div>
+    <div id="setPrivacy" class="privacy-row" style="display:none">
+      <div class="set-row"><div class="set-label">Кто что видит</div><div style="font-size:13px;opacity:.7;margin:4px 0">Настройки действуют только внутри приложения.</div>
+        <label><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
+        <label><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
+        <label><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
+      </div>
     </div>
     <div id="setDevices" style="display:none">
       <div class="set-row"><div class="set-label">Текущее устройство</div><div id="setDevice"></div></div>
@@ -1607,8 +1610,10 @@ function closeSettings() { document.getElementById('settingsModal').style.displa
 function switchSettingsTab(tab) {
   document.getElementById('setData').style.display = tab === 'data' ? '' : 'none';
   document.getElementById('setDevices').style.display = tab === 'devices' ? '' : 'none';
+  document.getElementById('setPrivacy').style.display = tab === 'privacy' ? '' : 'none';
   document.getElementById('tabData').classList.toggle('active', tab === 'data');
   document.getElementById('tabDevices').classList.toggle('active', tab === 'devices');
+  document.getElementById('tabPrivacy').classList.toggle('active', tab === 'privacy');
 }
 async function uploadAvatar(file) {
   if (!file || !me) return;
