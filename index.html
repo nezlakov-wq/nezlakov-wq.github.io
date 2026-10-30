@@ -468,6 +468,8 @@ body { background: transparent !important; color: #e8edff; position: relative; }
 #app { height: 100vh; height: 100dvh; }
 /* Страница не должна уезжать вниз при свайпе: прокручивается только содержимое внутри экрана */
 html, body, #app { overscroll-behavior: none; }
+/* Долгое нажатие на чат не выделяет текст и не открывает системное меню */
+.chat-item, .chat-item * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { position: fixed; inset: 0; width: 100%; }
 /* Нижние панели поднимаем над полосой Домой и скруглёнными углами iPhone */
 .sidebar-bottom { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important; }
