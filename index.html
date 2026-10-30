@@ -543,6 +543,22 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Голосовое в стиле Telegram ── */
+.vp { display: flex; align-items: center; gap: 10px; min-width: 230px; }
+.vp-play {
+  width: 44px; height: 44px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: #fff; color: #5b7fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.vp-play svg { width: 20px; height: 20px; }
+.vp-wave { flex: 1; height: 30px; display: flex; align-items: center; gap: 2px; }
+.vp-wave i { flex: 1; background: rgba(255, 255, 255, 0.45); border-radius: 2px; min-height: 3px; }
+.vp-wave i.on { background: #fff; }
+.vp-time { font-size: 12px; opacity: 0.9; min-width: 34px; text-align: right; }
+.unlisten-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: #fff; margin-left: 6px; vertical-align: middle;
+}
+
 /* ── Свайп ответа: горизонтальные жесты отдаём приложению ── */
 .bubble { touch-action: pan-y; }
 
@@ -1668,6 +1684,44 @@ async function toggleVoice() {
   toast('Запись… нажми 🎤 ещё раз, чтобы отправить');
 }
 
+// ── VOICE (плеер, волна, отметка «прослушано») ──
+const VP_PLAY = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></svg>';
+const VP_PAUSE = '<svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor" stroke="none"/></svg>';
+function fmtTime(s) { return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }
+// Длительность и форма волны считаются при отправке и шифруются вместе с метаданными
+async function audioInfo(file) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+    const data = buf.getChannelData(0), bars = 40, step = Math.max(1, Math.floor(data.length / bars));
+    const w = [];
+    for (let i = 0; i < bars; i++) {
+      let max = 0;
+      for (let j = 0; j < step; j++) max = Math.max(max, Math.abs(data[i * step + j] || 0));
+      w.push(max);
+    }
+    const top = Math.max(...w) || 1;
+    ctx.close?.();
+    return { d: Math.round(buf.duration), w: w.map(v => Math.round((v / top) * 100) / 100) };
+  } catch (e) { return null; }
+}
+function isVoiceMsg(msg) {
+  const p = msg.plain ?? msg.text;
+  if (!isFileMsg(p)) return false;
+  try { return (JSON.parse(p).m || '').startsWith('audio/'); } catch (e) { return false; }
+}
+// Исходящее: точка, пока собеседник не прослушал. Входящее: точка, пока я не прослушал.
+function isUnlistened(msg, isOut) {
+  const l = msg.listened_by || [];
+  return isOut ? !l.some(id => id !== me.id) : !l.includes(me.id);
+}
+function markListened(msg, el) {
+  if (msg.sender_id === me.id || (msg.listened_by || []).includes(me.id)) return;
+  msg.listened_by = [...(msg.listened_by || []), me.id];
+  sb.rpc('mark_listened', { msg: msg.id }).catch(() => {});
+  el.closest('.bubble')?.querySelector('.unlisten-dot')?.remove();
+}
+
 // ── FILES AND PHOTOS ──
 // Файл шифруется ключом чата и кладётся в приватный bucket.
 // В сообщение кладётся зашифрованная метаданная: путь, имя, тип, IV.
@@ -1679,7 +1733,7 @@ function bodyHtml(msg) {
     try {
       const m = JSON.parse(p);
       const kind = (m.m || '').startsWith('image/') ? 'img' : (m.m || '').startsWith('audio/') ? 'audio' : 'file';
-      return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${kind === 'audio' ? '🎤 Голосовое' : '📎 ' + esc(m.n)}</div>`;
+      return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : '📎 ' + esc(m.n)}</div>`;
     } catch (e) { return '📎 Файл'; }
   }
   return msgContent(p);
@@ -1709,7 +1763,22 @@ function hydrateFiles(area, msgs) {
       if (el.dataset.kind === 'img') {
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'audio') {
-        el.innerHTML = `<audio controls preload="metadata" src="${url}"></audio>`;
+        const bars = m.w && m.w.length ? m.w : Array(40).fill(0.3);
+        el.innerHTML = `<div class="vp"><button class="vp-play" type="button">${VP_PLAY}</button><div class="vp-wave">${bars.map(v => `<i style="height:${Math.max(12, Math.round(v * 100))}%"></i>`).join('')}</div><span class="vp-time">${fmtTime(m.d || 0)}</span><audio src="${url}" preload="metadata"></audio></div>`;
+        const audio = el.querySelector('audio'), btn = el.querySelector('.vp-play');
+        const ticks = el.querySelectorAll('.vp-wave i'), time = el.querySelector('.vp-time');
+        btn.onclick = () => {
+          if (audio.paused) { audio.play(); markListened(msg, el); } else audio.pause();
+        };
+        audio.onplay = () => { btn.innerHTML = VP_PAUSE; };
+        audio.onpause = () => { btn.innerHTML = VP_PLAY; };
+        audio.onended = () => { btn.innerHTML = VP_PLAY; ticks.forEach(t => t.classList.remove('on')); time.textContent = fmtTime(m.d || 0); };
+        audio.ontimeupdate = () => {
+          const frac = audio.duration && isFinite(audio.duration) ? audio.currentTime / audio.duration : 0;
+          const n = Math.round(frac * ticks.length);
+          ticks.forEach((t, i) => t.classList.toggle('on', i < n));
+          time.textContent = fmtTime(audio.currentTime || 0);
+        };
       } else {
         el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
@@ -1737,7 +1806,8 @@ async function sendFile(file) {
   const path = `${activeChatId}/${crypto.randomUUID()}`;
   const { error: upErr } = await sb.storage.from('chat-media').upload(path, new Blob([ct]), { contentType: 'application/octet-stream' });
   if (upErr) return toast('Ошибка загрузки: ' + upErr.message);
-  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv) });
+  const info = (file.type || '').startsWith('audio/') ? await audioInfo(file) : null;
+  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv), ...(info || {}) });
   let enc;
   try { enc = await encryptForConv(conv, meta, fileKv); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
@@ -2474,9 +2544,11 @@ function renderMessages(msgs, area) {
       bub.className = 'bubble '+(isOut?'out':'in')+(isDeleted?' deleted':'');
       bub.dataset.msgId = msg.id;
       const delBtn = '';
+      const voice = isVoiceMsg(msg);
+      const dot = voice && isUnlistened(msg, isOut) ? '<span class="unlisten-dot"></span>' : '';
       bub.innerHTML = isDeleted
         ? `🗑 Сообщение удалено &nbsp;${delBtn}${isLast?`<div class="bubble-foot">${timeStr(msg.created_at)}</div>`:''}`
-        : `${quoteFor(msg, byId)}${bodyHtml(msg)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${isLast?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${isOut?tickHtml(msg):''}</div>`:''}`;
+        : `${quoteFor(msg, byId)}${bodyHtml(msg)}${msg.edited ? ' <span class="edited">изм.</span>' : ''}${reactionsHtml(msg)}${delBtn}${(isLast||voice)?`<div class="bubble-foot"><span>${timeStr(msg.created_at)}</span>${dot}${isOut?tickHtml(msg):''}</div>`:''}`;
       attachLongPress(bub, msg);
       attachSwipeReply(bub, msg);
       gEl.appendChild(bub);
