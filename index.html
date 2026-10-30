@@ -2800,7 +2800,7 @@ function renderChatList(filter='') {
   const list = document.getElementById('chatList');
   list.innerHTML = '';
   const archivedCount = conversations.filter(c => c.archived).length;
-  if (archivedCount) {
+  if (archivedCount || !filter) {
     const row = document.createElement('div');
     row.className = 'chat-item';
     row.innerHTML = `<div class="chat-info"><div class="chat-name">${showArchive ? '← Все чаты' : 'Архив'}</div><div class="chat-prev">${archivedCount} чатов</div></div>`;
