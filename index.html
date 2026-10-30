@@ -2079,7 +2079,15 @@ function hydrateFiles(area, msgs) {
         const audio = el.querySelector('audio'), btn = el.querySelector('.vp-play');
         const ticks = el.querySelectorAll('.vp-wave i'), time = el.querySelector('.vp-time');
         btn.onclick = () => {
-          if (audio.paused) { audio.play(); markListened(msg, el); } else audio.pause();
+          if (audio.paused) {
+            const p = audio.play();
+            // Если файл ещё не догрузился, ждём готовности и запускаем снова
+            if (p && p.catch) p.catch(() => {
+              audio.addEventListener('canplay', () => audio.play().catch(() => {}), { once: true });
+              audio.load();
+            });
+            markListened(msg, el);
+          } else audio.pause();
         };
         audio.onplay = () => { btn.innerHTML = VP_PAUSE; };
         audio.onpause = () => { btn.innerHTML = VP_PLAY; };
@@ -2682,7 +2690,12 @@ function wallKey(convId) { return 'moonlit-wall-' + (me?.id || 'x') + '-' + conv
 function applyWallpaper(convId) {
   let w = null;
   try { w = localStorage.getItem(wallKey(convId)); } catch (e) {}
-  document.getElementById('msgsArea').style.backgroundImage = w ? `url("${w}")` : '';
+  const area = document.getElementById('msgsArea');
+  // important, чтобы фон не перекрывала стилевая заглушка прозрачного фона
+  if (w) area.style.setProperty('background-image', `url("${w}")`, 'important');
+  else area.style.removeProperty('background-image');
+  area.style.setProperty('background-size', 'cover', 'important');
+  area.style.setProperty('background-position', 'center', 'important');
 }
 function openAppearance() {
   if (!activeChatId) return toast('Сначала откройте чат');
