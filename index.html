@@ -2784,7 +2784,14 @@ async function loadConversations() {
     const tb = b.lastMsg?.created_at || b.created_at;
     return new Date(tb) - new Date(ta);
   });
-  conversations = built;
+  // Для каждого собеседника в личных чатах оставляем только самый свежий (дубли создавались при повторном открытии)
+  const seenPeer = new Set();
+  conversations = built.filter(c => {
+    if (c.is_group || !c.other?.id) return true;
+    if (seenPeer.has(c.other.id)) return false;
+    seenPeer.add(c.other.id);
+    return true;
+  });
   renderChatList();
 }
 
