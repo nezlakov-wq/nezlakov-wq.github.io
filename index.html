@@ -543,6 +543,29 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Звонки ── */
+.call-screen {
+  position: fixed; inset: 0; z-index: 80; background: #0b1638;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: calc(40px + env(safe-area-inset-top, 0px)) 20px calc(30px + env(safe-area-inset-bottom, 0px));
+  color: #fff;
+}
+#remoteVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+#localVideo {
+  position: absolute; right: 12px; top: calc(60px + env(safe-area-inset-top, 0px)); width: 110px; height: 150px;
+  object-fit: cover; border-radius: 12px; background: #111; z-index: 2;
+}
+.call-info, .call-actions { position: relative; z-index: 3; text-align: center; }
+.call-info #callName, #inName { font-size: 26px; font-weight: 700; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+.call-info #callStatus, #inKind { font-size: 15px; opacity: 0.85; margin-top: 6px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+.call-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.call-actions button {
+  padding: 12px 18px; border: none; border-radius: 22px; font-size: 15px; font-family: inherit;
+  background: rgba(255, 255, 255, 0.18); color: #fff; cursor: pointer; backdrop-filter: blur(10px);
+}
+.call-actions .call-end { background: #e85d75; }
+.call-actions .call-accept { background: #34c78a; }
+
 /* ── Голосовое в стиле Telegram ── */
 .vp { display: flex; align-items: center; gap: 10px; min-width: 230px; }
 .vp-play {
@@ -736,7 +759,8 @@ body::before {
         <div class="h-actions">
           <button class="act-btn" title="Оформление" onclick="openAppearance()"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c1 0 1.6-.7 1.6-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></svg></button>
           <button class="act-btn" title="Поиск в чате" onclick="openChatSearch()"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-          <button class="act-btn" title="Позвонить"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
+          <button class="act-btn" title="Видеозвонок" onclick="startCallToActive(true)"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m16 10 6-3v10l-6-3"/></svg></button>
+          <button class="act-btn" title="Позвонить" onclick="startCallToActive(false)"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg></button>
         </div>
       </div>
       <div class="msgs" id="msgsArea"></div>
@@ -793,6 +817,25 @@ body::before {
     <input type="text" id="giSearch" placeholder="Найти по @username или имени…" oninput="searchAddMember(this.value)">
     <div class="user-results" id="giResults" style="max-height:25vh"></div>
     <button class="set-logout" style="background:#e85d75" onclick="leaveGroup()">Выйти из группы</button>
+  </div>
+</div>
+
+<!-- CALLS -->
+<div id="callScreen" class="call-screen" style="display:none">
+  <video id="remoteVideo" playsinline autoplay></video>
+  <video id="localVideo" playsinline autoplay muted></video>
+  <div class="call-info"><div id="callName"></div><div id="callStatus"></div></div>
+  <div class="call-actions">
+    <button id="callMute" onclick="toggleMute()">Выкл. микрофон</button>
+    <button id="callCam" onclick="toggleCam()">Выкл. камеру</button>
+    <button class="call-end" onclick="hangUp()">Завершить</button>
+  </div>
+</div>
+<div id="incomingCall" class="call-screen" style="display:none">
+  <div class="call-info"><div id="inName"></div><div id="inKind"></div></div>
+  <div class="call-actions">
+    <button class="call-end" onclick="declineCall()">Отклонить</button>
+    <button class="call-accept" onclick="acceptCall()">Ответить</button>
   </div>
 </div>
 
@@ -1682,6 +1725,177 @@ async function toggleVoice() {
   rec.start();
   document.getElementById('micBtn').classList.add('rec');
   toast('Запись… нажми 🎤 ещё раз, чтобы отправить');
+}
+
+// ── CALLS (WebRTC: звук и видео напрямую между телефонами, сигналы через Realtime) ──
+const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let callState = null;   // активный звонок
+let pendingCall = null; // входящий звонок, ещё не принятый
+let callPC = null, callLocal = null, callRingTimer = null, callInChan = null;
+const callOutChans = new Map();
+
+function callOut(uid) {
+  if (!callOutChans.has(uid)) {
+    const ch = sb.channel('call-' + uid);
+    const ready = new Promise(res => ch.subscribe(s => { if (s === 'SUBSCRIBED') res(); }));
+    callOutChans.set(uid, { ch, ready });
+  }
+  return callOutChans.get(uid);
+}
+async function sendCall(uid, payload) {
+  const { ch, ready } = callOut(uid);
+  await ready;
+  await ch.send({ type: 'broadcast', event: 'call', payload });
+}
+function setupCallChannel() {
+  if (callInChan || !me) return;
+  callInChan = sb.channel('call-' + me.id)
+    .on('broadcast', { event: 'call' }, ({ payload }) => onCallMsg(payload))
+    .subscribe();
+}
+function onCallMsg(p) {
+  if (!p || !p.type) return;
+  if (p.type === 'invite') {
+    if (callState || pendingCall) { sendCall(p.from, { type: 'decline', callId: p.callId }).catch(() => {}); return; }
+    pendingCall = p;
+    sendCall(p.from, { type: 'ringing', callId: p.callId }).catch(() => {});
+    document.getElementById('inName').textContent = p.fromName || 'Собеседник';
+    document.getElementById('inKind').textContent = p.video ? 'Видеозвонок' : 'Голосовой звонок';
+    document.getElementById('incomingCall').style.display = 'flex';
+    return;
+  }
+  if (p.type === 'end' || p.type === 'decline') {
+    if (pendingCall && pendingCall.callId === p.callId) { pendingCall = null; hideIncoming(); return; }
+    if (callState && callState.id === p.callId) endCall(false, p.type === 'decline' ? 'Звонок отклонён' : 'Звонок завершён');
+    return;
+  }
+  if (!callState || callState.id !== p.callId) return;
+  if (p.type === 'ringing') { setCallStatus('Звоним…'); return; }
+  if (p.type === 'answer') { handleAnswer(p.sdp); }
+}
+// Ждём, пока соберутся адреса (ICE), и отправляем всё сразу: отдельные сообщения не нужны
+function waitIce(pc) {
+  return new Promise(res => {
+    if (pc.iceGatheringState === 'complete') return res();
+    const t = setTimeout(res, 4000);
+    pc.addEventListener('icegatheringstatechange', () => {
+      if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); }
+    });
+  });
+}
+async function openLocalMedia(video) {
+  callLocal = await navigator.mediaDevices.getUserMedia({ audio: true, video: video ? { facingMode: 'user' } : false });
+  const lv = document.getElementById('localVideo');
+  lv.srcObject = callLocal;
+  lv.style.display = video ? '' : 'none';
+}
+function createPeer() {
+  callPC = new RTCPeerConnection(RTC_CONFIG);
+  callLocal.getTracks().forEach(t => callPC.addTrack(t, callLocal));
+  callPC.ontrack = e => {
+    const rv = document.getElementById('remoteVideo');
+    rv.srcObject = e.streams[0];
+    rv.play().catch(() => {});
+  };
+  callPC.onconnectionstatechange = () => {
+    const s = callPC && callPC.connectionState;
+    if (s === 'connected' && callState) { callState.connected = true; clearTimeout(callRingTimer); setCallStatus('В разговоре'); }
+    if (s === 'failed' && callState) endCall(true, 'Соединение прервалось');
+  };
+  return callPC;
+}
+function showCallScreen(name, status, video) {
+  document.getElementById('callName').textContent = name || 'Собеседник';
+  setCallStatus(status);
+  document.getElementById('callMute').textContent = 'Выкл. микрофон';
+  document.getElementById('callCam').textContent = 'Выкл. камеру';
+  document.getElementById('callCam').style.display = video ? '' : 'none';
+  document.getElementById('callScreen').style.display = 'flex';
+}
+function setCallStatus(t) { document.getElementById('callStatus').textContent = t; }
+function hideIncoming() { document.getElementById('incomingCall').style.display = 'none'; }
+
+async function startCallToActive(video) {
+  const conv = currentConv();
+  if (!conv || conv.is_group || !activeOther) return toast('Звонки доступны в личных чатах');
+  await startCall(activeOther.id, activeOther.display_name, video);
+}
+async function startCall(uid, name, video) {
+  if (callState || pendingCall) return toast('Звонок уже идёт');
+  if (!navigator.mediaDevices?.getUserMedia) return toast('Звонки не поддерживаются в этом браузере');
+  const id = crypto.randomUUID();
+  callState = { id, peer: uid, name, video, connected: false };
+  showCallScreen(name, 'Соединяем…', video);
+  try {
+    await openLocalMedia(video);
+    const pc = createPeer();
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitIce(pc);
+    await sendCall(uid, { type: 'invite', callId: id, from: me.id, fromName: me.display_name, video, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+    setCallStatus('Звоним…');
+    callRingTimer = setTimeout(() => { if (callState && callState.id === id && !callState.connected) endCall(true, 'Нет ответа'); }, 30000);
+  } catch (e) {
+    endCall(true, 'Не удалось позвонить: ' + (e.message || 'нет доступа к микрофону'));
+  }
+}
+async function handleAnswer(sdp) {
+  if (!callPC) return;
+  try { await callPC.setRemoteDescription(sdp); } catch (e) { endCall(true, 'Ошибка соединения'); }
+}
+async function acceptCall() {
+  const p = pendingCall;
+  if (!p) return;
+  pendingCall = null;
+  hideIncoming();
+  callState = { id: p.callId, peer: p.from, name: p.fromName, video: p.video, connected: false };
+  showCallScreen(p.fromName, 'Соединяем…', p.video);
+  try {
+    await openLocalMedia(p.video);
+    const pc = createPeer();
+    await pc.setRemoteDescription(p.sdp);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitIce(pc);
+    await sendCall(p.from, { type: 'answer', callId: p.callId, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+  } catch (e) {
+    endCall(true, 'Не удалось ответить на звонок');
+  }
+}
+function declineCall() {
+  const p = pendingCall;
+  if (!p) return;
+  pendingCall = null;
+  hideIncoming();
+  sendCall(p.from, { type: 'decline', callId: p.callId }).catch(() => {});
+}
+function hangUp() {
+  if (pendingCall) return declineCall();
+  endCall(true, '');
+}
+function endCall(notify, reason) {
+  const st = callState;
+  callState = null;
+  clearTimeout(callRingTimer);
+  if (notify && st) sendCall(st.peer, { type: 'end', callId: st.id }).catch(() => {});
+  if (callPC) { callPC.close(); callPC = null; }
+  if (callLocal) { callLocal.getTracks().forEach(t => t.stop()); callLocal = null; }
+  document.getElementById('remoteVideo').srcObject = null;
+  document.getElementById('localVideo').srcObject = null;
+  document.getElementById('callScreen').style.display = 'none';
+  if (reason) toast(reason);
+}
+function toggleMute() {
+  const t = callLocal && callLocal.getAudioTracks()[0];
+  if (!t) return;
+  t.enabled = !t.enabled;
+  document.getElementById('callMute').textContent = t.enabled ? 'Выкл. микрофон' : 'Вкл. микрофон';
+}
+function toggleCam() {
+  const t = callLocal && callLocal.getVideoTracks()[0];
+  if (!t) return;
+  t.enabled = !t.enabled;
+  document.getElementById('callCam').textContent = t.enabled ? 'Выкл. камеру' : 'Вкл. камеру';
 }
 
 // ── VOICE (плеер, волна, отметка «прослушано») ──
@@ -2600,6 +2814,7 @@ async function sendMsg() {
 
 // ── REALTIME ──
 function subscribeRealtime() {
+  setupCallChannel();
   if(realtimeSub) sb.removeChannel(realtimeSub);
   realtimeSub = sb.channel('msgs')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, async (payload) => {
