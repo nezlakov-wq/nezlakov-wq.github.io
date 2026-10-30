@@ -440,6 +440,8 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .bubble.flash{outline:2px solid #5b7fff;outline-offset:2px}
 .h-status.online{color:#34c78a}
 #settingsModal .modal{max-height:88vh;max-height:88dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#settingsModal input[type=checkbox]{width:20px!important;height:20px!important;min-width:20px;margin:0!important;padding:0!important;flex:0 0 20px;position:static!important;accent-color:#5b7fff}
+#settingsModal .privacy-row label{display:flex!important;flex-direction:row;align-items:center;gap:10px;font-size:14px;line-height:1.3;width:100%}
 </style>
 </head>
 <body>
@@ -574,7 +576,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
-      <div class="set-row" style="display:block"><div class="set-label">Конфиденциальность</div>
+      <div class="set-row privacy-row" style="display:block"><div class="set-label">Конфиденциальность</div>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
         <label style="display:flex;gap:8px;align-items:center;margin:8px 0;font-size:14px"><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
