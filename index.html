@@ -2876,8 +2876,12 @@ function openChatSheet(conv) {
     if (a === 'cancel') return;
     const mute = a === 'mute' ? !conv.muted : conv.muted;
     const arch = a === 'arch' ? !conv.archived : conv.archived;
+    // Сразу меняем список на экране, не дожидаясь сервера
+    const target = conversations.find(c => c.id === conv.id);
+    if (target) { target.muted = mute; target.archived = arch; }
+    renderChatList(document.getElementById('chatSearch')?.value || '');
     const { error } = await sb.rpc('set_chat_flags', { conv: conv.id, mute, arch });
-    if (error) return toast('Не удалось сохранить');
+    if (error) { toast('Не удалось сохранить'); await loadConversations(); return; }
     await loadConversations();
   });
   document.body.appendChild(ov);
