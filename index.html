@@ -2218,11 +2218,35 @@ function notifyNew() {
     try { new Notification('Moonlit', opts); } catch (e) {}
   }
 }
+// Публичный ключ VAPID (секретная часть хранится только на сервере)
+const VAPID_PUBLIC = 'BMMSBdJDPaHbWykPTUXAlI4rV35Itcm2XjJ2kmpahIDxLtHBeqgArlhXzc3CvBne39W2t_aMfoggtXG_8B8Kf5c';
+function urlB64ToUint8(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+// Подписываем устройство на push и сохраняем подписку, чтобы сервер мог разбудить телефон
+async function subscribePush() {
+  if (!('PushManager' in window) || !navigator.serviceWorker || !me) return false;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_PUBLIC) });
+  const j = sub.toJSON();
+  await sb.from('push_subscriptions').upsert({ user_id: me.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: 'endpoint' });
+  return true;
+}
 async function enableNotifications() {
   if (!('Notification' in window)) return toast('Открой Moonlit с экрана «Домой», чтобы включить уведомления');
   const p = await Notification.requestPermission();
-  toast(p === 'granted' ? 'Уведомления включены' : 'Уведомления не разрешены');
+  if (p === 'granted') {
+    try { await subscribePush(); toast('Уведомления включены'); }
+    catch (e) { toast('Не удалось подписаться: ' + (e.message || 'ошибка')); }
+  } else toast('Уведомления не разрешены');
   updateNotifBtn();
+}
+// Если разрешение уже выдано, обновляем подписку при каждом открытии
+if ('Notification' in window && Notification.permission === 'granted') {
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && me) subscribePush().catch(() => {}); });
 }
 function updateNotifBtn() {
   const b = document.getElementById('notifBtn');
