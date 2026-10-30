@@ -1879,8 +1879,13 @@ function createPeer() {
   callPC.onconnectionstatechange = () => {
     const s = callPC && callPC.connectionState;
     if (s === 'connected' && callState) { callState.connected = true; clearTimeout(callRingTimer); setCallStatus('В разговоре'); }
-    if (s === 'failed' && callState) endCall(true, 'Соединение прервалось');
+    if (s === 'failed' && callState) endCall(true, 'Не удалось соединиться: сеть не пропускает звонок');
   };
+  // Если медиасоединение так и не установилось, не висим бесконечно на «Соединяем…»
+  const pcRef = callPC;
+  setTimeout(() => {
+    if (callPC === pcRef && callState && !callState.connected) endCall(true, 'Не удалось соединиться: сеть не пропускает звонок');
+  }, 25000);
   return callPC;
 }
 function showCallScreen(name, status, video) {
