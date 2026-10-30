@@ -543,6 +543,9 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* ── Свайп ответа: горизонтальные жесты отдаём приложению ── */
+.bubble { touch-action: pan-y; }
+
 /* ── Панель смайликов ── */
 #emojiPanel {
   display: none; grid-template-columns: repeat(8, 1fr); gap: 2px;
@@ -2547,7 +2550,7 @@ function subscribeRealtime() {
         activeOther = maskProfile({ ...activeOther, ...payload.new });
         const name = activeOther.display_name || '';
         document.getElementById('hName').textContent = name;
-        document.getElementById('hStatus').textContent = '@' + (activeOther.username || '');
+        refreshStatusLine();
         const hAv = document.getElementById('hAv');
         hAv.textContent = avText(activeOther, name);
         hAv.style.cssText = 'width:36px;height:36px;font-size:14px;' + avStyle(activeOther, activeChatId);
