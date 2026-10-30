@@ -2048,7 +2048,7 @@ function isUnlistened(msg, isOut) {
 function markListened(msg, el) {
   if (msg.sender_id === me.id || (msg.listened_by || []).includes(me.id)) return;
   msg.listened_by = [...(msg.listened_by || []), me.id];
-  sb.rpc('mark_listened', { msg: msg.id }).catch(() => {});
+  sb.rpc('mark_listened', { msg: msg.id }).then(() => {}, () => {});
   el.closest('.bubble')?.querySelector('.unlisten-dot')?.remove();
 }
 
@@ -2265,7 +2265,7 @@ function setupTyping() {
 
 // Прочитано: отмечаем, когда пользователь реально смотрит на чат
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && activeChatId) sb.rpc('mark_read', { conv: activeChatId }).catch(() => {});
+  if (!document.hidden && activeChatId) sb.rpc('mark_read', { conv: activeChatId }).then(() => {}, () => {});
 });
 
 // Уведомления. На iPhone работают только для приложения, добавленного на экран «Домой».
@@ -3049,7 +3049,7 @@ document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('
 async function openChat(convId) {
   activeChatId = convId;
   // Удаляем просроченные исчезающие сообщения (не ждём: чат открывается сразу)
-  sb.rpc('purge_expired', { conv: convId }).catch(() => {});
+  sb.rpc('purge_expired', { conv: convId }).then(() => {}, () => {});
   const conv = conversations.find(c=>c.id===convId);
   if(!conv) return;
   activeOther = conv.other;
@@ -3076,7 +3076,7 @@ async function openChat(convId) {
   applyWallpaper(convId);
   // Сообщения грузим сразу, а отметку «прочитано» отправляем в фоне (чтобы она не задерживала показ)
   loadMessages(convId);
-  sb.rpc('mark_read', { conv: convId }).catch(() => {});
+  sb.rpc('mark_read', { conv: convId }).then(() => {}, () => {});
 }
 
 // ── MESSAGES ──
@@ -3250,7 +3250,7 @@ function subscribeRealtime() {
       const inActive = payload.new?.conversation_id === activeChatId;
       const cvMuted = conversations.find(c => c.id === payload.new?.conversation_id)?.muted;
       if (isNew && (document.hidden || !inActive) && !cvMuted) notifyNew();
-      if (isNew && inActive && !document.hidden) sb.rpc('mark_read', { conv: activeChatId }).catch(() => {});
+      if (isNew && inActive && !document.hidden) sb.rpc('mark_read', { conv: activeChatId }).then(() => {}, () => {});
       if(payload.new?.conversation_id === activeChatId || payload.old?.conversation_id === activeChatId) {
         reloadChatSafe();
       }
