@@ -2869,8 +2869,25 @@ async function deleteMsg(msgId) { await setDeleted(msgId, true); }
 async function setDeleted(msgId, del) {
   const { error } = await sb.rpc('set_message_deleted', { msg: msgId, del });
   if (error) return toast('Ошибка: ' + error.message);
+  if (del) {
+    const m = lastMsgs.find(x => x.id === msgId);
+    if (m) await removeFileIfGone(m).catch(() => {});
+  }
   await loadMessages(activeChatId);
   await loadConversations();
+}
+// Файл удаляется из хранилища, когда его удалили все участники чата
+async function removeFileIfGone(msg) {
+  const p = msg.plain ?? msg.text;
+  if (!isFileMsg(p)) return;
+  const conv = currentConv();
+  if (!conv) return;
+  const { data } = await sb.from('messages').select('deleted_by').eq('id', msg.id).single();
+  const deleted = data?.deleted_by || [];
+  const everyone = (conv.members || []).every(m => deleted.includes(m.user_id));
+  if (!everyone) return;
+  const path = JSON.parse(p).p;
+  await sb.storage.from('chat-media').remove([path]);
 }
 
 async function restoreMsg(msgId) { await setDeleted(msgId, false); }
