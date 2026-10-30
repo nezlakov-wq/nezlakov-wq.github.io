@@ -2817,13 +2817,6 @@ async function openSavedChat() {
 function renderChatList(filter='') {
   const list = document.getElementById('chatList');
   list.innerHTML = '';
-  if (!filter) {
-    const sv = document.createElement('div');
-    sv.className = 'chat-item';
-    sv.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">★</div></div><div class="chat-info"><div class="chat-name">Избранное</div><div class="chat-prev">Заметки для себя</div></div>`;
-    sv.addEventListener('click', () => openSavedChat());
-    list.appendChild(sv);
-  }
   const archivedCount = conversations.filter(c => c.archived).length;
   if (archivedCount || !filter) {
     const row = document.createElement('div');
@@ -2831,6 +2824,13 @@ function renderChatList(filter='') {
     row.innerHTML = `<div class="chat-info"><div class="chat-name">${showArchive ? '← Все чаты' : 'Архив'}</div><div class="chat-prev">${archivedCount} чатов</div></div>`;
     row.addEventListener('click', () => { showArchive = !showArchive; renderChatList(filter); });
     list.appendChild(row);
+  }
+  if (!filter) {
+    const sv = document.createElement('div');
+    sv.className = 'chat-item';
+    sv.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">★</div></div><div class="chat-info"><div class="chat-name">Избранное</div><div class="chat-prev">Заметки для себя</div></div>`;
+    sv.addEventListener('click', () => openSavedChat());
+    list.appendChild(sv);
   }
   const filtered = conversations.filter(c => {
     const name = c.other?.display_name || c.name || '';
