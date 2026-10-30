@@ -2863,7 +2863,18 @@ function renderChatList(filter='') {
       </div>
       <div class="chat-right">
         ${lastMsg ? `<div class="chat-time">${timeStr(lastMsg.created_at)}</div>` : ''}
+        ${conv.archived ? '<button type="button" class="restore-btn" style="margin-top:6px;padding:5px 10px;border-radius:12px;border:0;background:var(--accent,#5b8cff);color:#fff;font-size:12px">Вернуть</button>' : ''}
       </div>`;
+    const rb = item.querySelector('.restore-btn');
+    if (rb) rb.addEventListener('click', async e => {
+      e.stopPropagation();
+      const { error } = await sb.rpc('set_chat_flags', { conv: conv.id, mute: conv.muted, arch: false });
+      if (error) return toast('Не удалось вернуть чат');
+      const t = conversations.find(c => c.id === conv.id);
+      if (t) t.archived = false;
+      renderChatList(document.getElementById('chatSearch')?.value || '');
+      await loadConversations();
+    });
     // Одно нажатие открывает чат, долгое нажатие открывает меню (уведомления, архив)
     item.addEventListener('click', () => {
       if (item.dataset.lp) { delete item.dataset.lp; return; }
