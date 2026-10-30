@@ -449,13 +449,30 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-html, body {
-  background: linear-gradient(120deg, #0a1030 0%, #16275c 25%, #0d1a40 50%, #213a82 75%, #0a1030 100%) !important;
-  background-size: 300% 300% !important;
-  animation: moonFlow 22s ease-in-out infinite;
-  color: #e8edff;
+/* Фон-планета: тёмная бирюза, светящийся край, медленный дрейф */
+@keyframes planetDrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  50%  { transform: translate(-3%, 2%) scale(1.05); }
+  100% { transform: translate(2%, -2%) scale(1.02); }
 }
-@media (prefers-reduced-motion: reduce) { html, body { animation: none; } }
+@keyframes rimShimmer {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+html { background: #050f12 !important; }
+body { background: transparent !important; color: #e8edff; min-height: 100vh; position: relative; }
+body::before {
+  content: '';
+  position: fixed;
+  inset: -15%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 46%, rgba(190, 240, 255, 0.95) 0%, rgba(120, 200, 225, 0.6) 9%, rgba(60, 120, 140, 0.35) 22%, transparent 36%),
+    radial-gradient(circle at 82% 50%, #1f4d55 0%, #0d2a30 40%, #061418 70%, #040c0e 100%);
+  animation: planetDrift 26s ease-in-out infinite alternate, rimShimmer 6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
 .sidebar, .chat-header, .input-area, .search-row {
   background: rgba(18, 32, 82, 0.72) !important;
   backdrop-filter: blur(14px);
