@@ -2831,6 +2831,7 @@ function renderChatList(filter='') {
       </div>`;
     // Двойное нажатие открывает меню (уведомления, архив), одиночное открывает чат
     item.addEventListener('click', () => {
+      if (showArchive) return openChatSheet(conv); // в архиве одно нажатие открывает меню с кнопкой «Вернуть»
       const now = Date.now();
       if (item._lastTap && now - item._lastTap < 400) { item._lastTap = 0; openChatSheet(conv); return; }
       item._lastTap = now;
