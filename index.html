@@ -1609,6 +1609,9 @@ const GA_CSS = `
 @keyframes gABeat{0%,100%{transform:scale(1)}15%{transform:scale(1.12)}30%{transform:scale(1)}45%{transform:scale(1.08)}60%{transform:scale(1)}}
 .gA-tiny{animation:gATiny 2.4s ease-in-out infinite;opacity:.3}
 @keyframes gATiny{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-60px);opacity:1}}
+/* Подарок в чате без оболочки пузыря: без фона, рамки и анимированного кольца */
+.bubble:has(.gift-msg){background:transparent !important;border:0 !important;box-shadow:none !important;padding:0 !important;}
+.bubble:has(.gift-msg)::before{display:none !important;}
 @media (prefers-reduced-motion: reduce){.gA *{animation:none!important}}
 .gA-armL,.gA-armR{animation-name:gAReachL}
 .gA-armR{animation-name:gAReachR}
