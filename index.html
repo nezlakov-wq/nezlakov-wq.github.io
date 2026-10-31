@@ -2814,9 +2814,6 @@ function bindStoriesCollapse() {
     if (!strip) return;
     const p = Math.min(Math.max(list.scrollTop, 0) / 80, 1);
     strip.style.opacity = String(1 - p);
-    strip.style.maxHeight = (90 * (1 - p)) + 'px';
-    strip.style.paddingTop = (10 * (1 - p)) + 'px';
-    strip.style.paddingBottom = (4 * (1 - p)) + 'px';
   }, { passive: true });
 }
 function renderStories() {
