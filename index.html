@@ -498,6 +498,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .pv-val{margin-left:auto;margin-right:6px;opacity:.6;font-size:15px}
 .pv-soon{opacity:.45}
 .pv-note{font-size:13px;opacity:.6;padding:8px 14px 16px}
+
+.pv-val{margin-left:auto;margin-right:6px;opacity:.6;font-size:15px}
+.pv-note{font-size:13px;opacity:.6;padding:8px 14px 16px}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1073,6 +1076,8 @@ body::before {
         <div id="profPreview" style="margin:8px 12px 12px;border-radius:14px;overflow:hidden;background:var(--input-bg)"></div>
       </div>
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
+      <div class="set-row"><div class="set-label">О себе</div><textarea id="setBio" maxlength="140" rows="2" onchange="saveProfileField('bio', this.value.trim().slice(0,140))" style="width:100%;box-sizing:border-box;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></textarea></div>
+      <div class="set-row"><div class="set-label">День рождения</div><input type="date" id="setBirthday" onchange="saveProfileField('birthday', this.value || null)" style="background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></div>
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
@@ -1087,13 +1092,13 @@ body::before {
       </div>
       <div class="pv-note">Выбери «Никто», чтобы скрыть. Действует внутри приложения.</div>
       <div class="set-row" style="padding:0;overflow:hidden">
-        <div class="set-item pv-soon"><span class="set-txt">Раздел «О себе»</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">День рождения</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">Пересылка сообщений</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">Звонки</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">Голосовые сообщения</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">Сообщения</span><span class="pv-val">Скоро</span></div>
-        <div class="set-item pv-soon"><span class="set-txt">Приглашения в группы</span><span class="pv-val">Скоро</span></div>
+        <button class="set-item" onclick="togglePriv('hide_bio')"><span class="set-txt">Раздел «О себе»</span><span class="pv-val" id="pv_hide_bio"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_birthday')"><span class="set-txt">День рождения</span><span class="pv-val" id="pv_hide_birthday"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_forward')"><span class="set-txt">Пересылка сообщений</span><span class="pv-val" id="pv_hide_forward"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_calls')"><span class="set-txt">Звонки</span><span class="pv-val" id="pv_hide_calls"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_voice')"><span class="set-txt">Голосовые сообщения</span><span class="pv-val" id="pv_hide_voice"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_messages')"><span class="set-txt">Сообщения</span><span class="pv-val" id="pv_hide_messages"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_groups')"><span class="set-txt">Приглашения в группы</span><span class="pv-val" id="pv_hide_groups"></span><span class="set-chev">›</span></button>
       </div>
       <div class="set-row" style="padding:0;overflow:hidden;margin-top:14px">
         <button class="set-item" onclick="deleteAccount()"><span class="set-ico" style="background:#ef4444"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></span><span class="set-txt" style="color:#f87171">Удалить аккаунт</span><span class="set-chev">›</span></button>
@@ -2329,6 +2334,16 @@ async function openProfile() {
   document.getElementById('profileModal').style.display = 'flex';
   const convId = activeChatId;
   // Проверка на сервере: скрыты ли подарки от меня
+  // «О себе» и день рождения собеседника, с учётом его скрытия
+  {
+    const { data: pi } = await sb.from('profiles').select('bio,birthday,hide_bio,hide_birthday').eq('id', p.id).maybeSingle();
+    let info = document.getElementById('pfInfo');
+    if (!info) { info = document.createElement('div'); info.id = 'pfInfo'; info.style.cssText = 'margin:10px 0;font-size:14px;text-align:left'; list.parentElement.insertBefore(info, list); }
+    const rows = [];
+    if (pi?.bio && !pi.hide_bio) rows.push(`<div style="margin-bottom:6px"><span style="opacity:.6">О себе: </span>${esc(pi.bio)}</div>`);
+    if (pi?.birthday && !pi.hide_birthday) rows.push(`<div><span style="opacity:.6">День рождения: </span>${new Date(pi.birthday + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`);
+    info.innerHTML = rows.join('');
+  }
   const { data: giftCount } = await sb.rpc('gift_count_for', { owner: p.id });
   if (giftCount === null) {
     list.innerHTML = '<div style="opacity:.6;font-size:13px">Собеседник скрыл подарки</div>';
@@ -2368,7 +2383,21 @@ function maskProfile(p) {
   return p.hide_avatar ? { ...p, avatar_url: null } : p;
 }
 // Конфиденциальность: «Никто» = скрыто, «Все» = видно
-const PRIV_FIELDS = ['hide_online', 'hide_avatar', 'hide_gifts'];
+const PRIV_FIELDS = ['hide_online', 'hide_avatar', 'hide_gifts', 'hide_bio', 'hide_birthday', 'hide_forward', 'hide_calls', 'hide_voice', 'hide_messages', 'hide_groups'];
+// Проверка ограничения собеседника (true = он выбрал «Никто»)
+async function peerBlocks(uid, field) {
+  if (!uid || uid === me?.id) return false;
+  try {
+    const { data } = await sb.from('profiles').select(field).eq('id', uid).maybeSingle();
+    return !!(data && data[field]);
+  } catch (e) { return false; }
+}
+async function saveProfileField(field, val) {
+  const { error } = await sb.from('profiles').update({ [field]: val }).eq('id', me.id);
+  if (error) return toast('Ошибка: ' + error.message);
+  me[field] = val;
+  toast('Сохранено');
+}
 function renderPrivacyRows() {
   if (!me) return;
   PRIV_FIELDS.forEach(f => {
@@ -2491,6 +2520,8 @@ async function toggleVoice() {
     rec = null;
     document.getElementById('micBtn').classList.remove('rec');
     const blob = new Blob(recChunks, { type });
+    const vc = currentConv();
+    if (blob.size && vc && !vc.is_group && activeOther && await peerBlocks(activeOther.id, 'hide_voice')) return toast('Собеседник не принимает голосовые');
     if (blob.size) await sendFile(new File([blob], 'voice.' + (type.includes('mp4') ? 'm4a' : 'webm'), { type }));
   };
   rec.start();
@@ -2681,6 +2712,7 @@ function stopRingback() {
 async function startCall(uid, name, video) {
   if (callState || pendingCall) return toast('Звонок уже идёт');
   if (!navigator.mediaDevices?.getUserMedia) return toast('Звонки не поддерживаются в этом браузере');
+  if (await peerBlocks(uid, 'hide_calls')) return toast('Собеседник не принимает звонки');
   const id = crypto.randomUUID();
   callState = { id, peer: uid, name, video, connected: false, outgoing: true };
   startRingback();
@@ -3203,6 +3235,7 @@ async function forwardTo(convId) {
   if (!msg || !conv) return;
   const plain = msg.plain ?? msg.text;
   if (plain.startsWith('🔒') || plain.startsWith('[gift:') || isFileMsg(plain)) return toast('Это сообщение нельзя переслать');
+  if (msg.sender_id && msg.sender_id !== me.id && await peerBlocks(msg.sender_id, 'hide_forward')) return toast('Автор запретил пересылать его сообщения');
   let enc;
   try { enc = await encryptForConv(conv, plain); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
@@ -3596,6 +3629,8 @@ async function openSettings() {
   document.getElementById('prAvatar').checked = !!me.hide_avatar;
   document.getElementById('prOnline').checked = !!me?.hide_online;
   document.getElementById('prGifts').checked = !!me.hide_gifts;
+  document.getElementById('setBio').value = me.bio || '';
+  document.getElementById('setBirthday').value = me.birthday || '';
   switchSettingsTab('main');
   document.getElementById('settingsModal').style.display = 'flex';
 }
@@ -3847,6 +3882,7 @@ async function createGroup() {
   if (!groupMembers.length) return toast('Добавь хотя бы одного участника');
   if (groupMembers.length + 1 > 20) return toast('В группе не больше 20 участников');
   if (!me.pub_key) return toast('Нет ключа шифрования: войдите в аккаунт ещё раз');
+  for (const m of groupMembers) if (await peerBlocks(m.id, 'hide_groups')) return toast(m.display_name + ': не принимает приглашения в группы');
   const convId = crypto.randomUUID();
   const raw = b64(crypto.getRandomValues(new Uint8Array(32)));
   const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, name, created_by: me.id, key_version: 1 });
@@ -3914,6 +3950,7 @@ async function addToGroup(u) {
   const conv = currentConv();
   if (!conv) return;
   if (!u.pub_key) return toast('У этого пользователя ещё нет ключа');
+  if (await peerBlocks(u.id, 'hide_groups')) return toast('Этот пользователь не принимает приглашения в группы');
   if ((conv.members || []).find(m => m.user_id === u.id)) return toast('Уже в группе');
   if ((conv.members || []).length >= 20) return toast('В группе не больше 20 участников');
   const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
@@ -4721,6 +4758,7 @@ async function startChat(user) {
   // Check if conversation already exists
   const existing = conversations.find(c => !c.is_group && c.other?.id === user.id);
   if(existing) { openChat(existing.id); return; }
+  if (await peerBlocks(user.id, 'hide_messages')) return toast('Собеседник не принимает новые сообщения');
   // Create new conversation
   const convId = crypto.randomUUID();
   const { error: convErr } = await sb.from('conversations').insert({ id: convId, is_group: false });
