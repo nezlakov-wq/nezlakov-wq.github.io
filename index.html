@@ -2545,7 +2545,7 @@ const callOutChans = new Map();
 
 // Каждый сигнал уходит через свежий канал: старый канал мог умереть после сворачивания приложения
 async function sendCall(uid, payload) {
-  const ch = sb.channel('call-' + uid);
+  const ch = sb.channel('call-' + uid, { config: { private: true } });
   try {
     await new Promise((res, rej) => {
       const t = setTimeout(() => rej(new Error('Нет связи с сервером звонков')), 8000);
@@ -2564,7 +2564,7 @@ function setupCallChannel(force) {
   if (!me) return;
   if (callInChan && !force) return;
   if (callInChan) { try { sb.removeChannel(callInChan); } catch (e) {} }
-  callInChan = sb.channel('call-' + me.id)
+  callInChan = sb.channel('call-' + me.id, { config: { private: true } })
     .on('broadcast', { event: 'call' }, ({ payload }) => onCallMsg(payload))
     .subscribe();
 }
