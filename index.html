@@ -2974,6 +2974,7 @@ async function createGroup() {
 // Участники группы
 async function openGroupInfo() {
   if (!currentConv()) return;
+  if (currentConv().is_channel) return; // список участников канала никому не показываем
   await loadConversations();
   renderGroupInfo(currentConv());
   document.getElementById('giSearch').value = '';
