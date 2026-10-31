@@ -2971,12 +2971,30 @@ async function createGroup() {
   await openChat(convId);
 }
 
+// Переименование группы: может любой участник (проверка на сервере, функция rename_group)
+async function renameGroup() {
+  const conv = currentConv();
+  if (!conv || !conv.is_group || conv.is_channel) return;
+  const v = (prompt('Новое название группы', conv.name || '') || '').trim().slice(0, 60);
+  if (!v || v === conv.name) return;
+  const { error } = await sb.rpc('rename_group', { conv: conv.id, new_name: v });
+  if (error) return toast('Ошибка: ' + error.message);
+  await loadConversations();
+  renderGroupInfo(currentConv());
+  if (activeChatId === conv.id) document.getElementById('hName').textContent = v;
+  toast('Название изменено');
+}
+
 // Участники группы
 async function openGroupInfo() {
   if (!currentConv()) return;
   if (currentConv().is_channel) return; // список участников канала никому не показываем
   await loadConversations();
   renderGroupInfo(currentConv());
+  const gt = document.getElementById('giTitle');
+  gt.onclick = renameGroup;
+  gt.style.cursor = 'pointer';
+  gt.title = 'Нажми, чтобы переименовать';
   document.getElementById('giSearch').value = '';
   document.getElementById('giResults').innerHTML = '';
   document.getElementById('groupInfoModal').style.display = 'flex';
