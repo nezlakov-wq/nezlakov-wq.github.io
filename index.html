@@ -790,6 +790,35 @@ body::before {
 }
 .set-txt { flex: 1; }
 .set-chev { color: #6b7090; font-size: 22px; line-height: 1; }
+
+/* ── Приветствие перед входом ── */
+#welcome{position:fixed;inset:0;z-index:600;background:var(--bg);display:none;opacity:0;transition:opacity .35s ease}
+#welcome.wl-show{opacity:1}
+#welcome.wl-hide{opacity:0 !important}
+.wl-wrap{height:100%;max-width:440px;margin:0 auto;display:flex;flex-direction:column;box-sizing:border-box;padding:calc(env(safe-area-inset-top,0px) + 56px) 24px calc(env(safe-area-inset-bottom,0px) + 28px)}
+.wl-logo{font-size:22px;font-weight:700;color:var(--fg);letter-spacing:-.3px}
+.wl-logo span{color:var(--accent)}
+.wl-step{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;animation:wlIn .42s cubic-bezier(.2,.7,.2,1)}
+@keyframes wlIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+.wl-title{font-size:34px;font-weight:700;color:var(--fg);line-height:1.15;letter-spacing:-.6px}
+.wl-sub{font-size:16px;color:var(--fg2);line-height:1.45}
+.wl-feat{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+.wl-feat b{display:block;color:var(--fg);font-size:16px;margin-bottom:3px}
+.wl-feat span{color:var(--fg2);font-size:14px;line-height:1.4}
+.wl-ico{width:40px;height:40px;flex:0 0 40px;border-radius:12px;background:var(--sidebar-active);display:flex;align-items:center;justify-content:center;font-size:20px}
+.wl-langs{display:flex;gap:8px;margin-top:10px}
+.wl-lang{flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);color:var(--fg);font:inherit;font-size:15px;cursor:pointer;transition:background .25s,border-color .25s,color .25s}
+.wl-lang.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.wl-terms{font-size:15px;color:var(--fg2);line-height:1.55}
+.wl-terms a{color:var(--accent);text-decoration:none}
+.wl-dots{display:flex;gap:6px;justify-content:center;margin:0 0 16px}
+.wl-dots i{width:6px;height:6px;border-radius:50%;background:var(--bg3);transition:background .3s,transform .3s}
+.wl-dots i.on{background:var(--accent);transform:scale(1.3)}
+.wl-btn{width:100%;padding:16px;border:0;border-radius:14px;background:var(--accent);color:#fff;font:inherit;font-size:17px;font-weight:600;cursor:pointer;transition:transform .15s,opacity .2s}
+.wl-btn:active{transform:scale(.98)}
+#authScreen.wl-fade{animation:wlFade .45s ease}
+@keyframes wlFade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion: reduce){.wl-step,#authScreen.wl-fade{animation:none}#welcome{transition:none}}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
@@ -802,6 +831,14 @@ body::before {
 </div>
 
 <!-- AUTH -->
+<div id="welcome">
+  <div class="wl-wrap">
+    <div class="wl-logo">Moon<span>lit</span></div>
+    <div id="wlStep"></div>
+    <div id="wlDots" class="wl-dots"></div>
+    <button id="wlNext" class="wl-btn" onclick="wlNext()">Далее</button>
+  </div>
+</div>
 <div id="authScreen" style="display:none">
   <div class="auth-box">
     <div class="auth-logo">Moon<span>lit</span></div>
@@ -1218,9 +1255,75 @@ async function init() {
     await loadMe(session.user.id);
     showApp();
   } else {
-    document.getElementById('authScreen').style.display = 'flex';
+    showWelcome();
   }
 }
+// ── Приветствие: язык, три шага, соглашение; показывается при первом запуске ──
+const WL_T = {
+  ru: { greet: 'Приветствуем вас!', sub: 'Moonlit — мессенджер для чатов, звонков и подарков.', lang: 'Выберите язык',
+        f1: 'Личные и групповые чаты', f1t: 'Пишите друзьям, создавайте группы до 20 человек и канал обновлений.',
+        f2: 'Звонки и истории', f2t: 'Голосовые и видеозвонки, истории в ленте чатов.',
+        f3: 'Подарки', f3t: 'Отправляйте подарки себе и друзьям и продавайте их в течение 10 дней.',
+        terms: 'Продолжая, вы принимаете <a href="#" onclick="event.preventDefault();wlSoon()">Условия использования</a> и <a href="#" onclick="event.preventDefault();wlSoon()">Политику конфиденциальности</a>.',
+        next: 'Далее', agree: 'Принять и продолжить', soon: 'Скоро' },
+  en: { greet: 'Welcome!', sub: 'Moonlit — messenger for chats, calls and gifts.', lang: 'Choose language',
+        f1: 'Private and group chats', f1t: 'Message friends, create groups up to 20 people and an updates channel.',
+        f2: 'Calls and stories', f2t: 'Voice and video calls, and stories in your chat feed.',
+        f3: 'Gifts', f3t: 'Send gifts to yourself and friends, and sell them within 10 days.',
+        terms: 'By continuing you accept the <a href="#" onclick="event.preventDefault();wlSoon()">Terms of Use</a> and <a href="#" onclick="event.preventDefault();wlSoon()">Privacy Policy</a>.',
+        next: 'Next', agree: 'Accept and continue', soon: 'Soon' }
+};
+let wlStepIdx = 0;
+function wlLang() { try { return localStorage.getItem('moonlit-lang') || 'ru'; } catch (e) { return 'ru'; } }
+function wlSetLang(l) { try { localStorage.setItem('moonlit-lang', l); } catch (e) {} renderWelcome(); }
+function wlSoon() { toast(WL_T[wlLang()].soon); }
+function renderWelcome() {
+  const lang = wlLang(), T = WL_T[lang];
+  const box = document.getElementById('wlStep');
+  let html = '';
+  if (wlStepIdx === 0) {
+    html = '<div class="wl-title">' + T.greet + '</div><div class="wl-sub">' + T.sub + '</div>' +
+      '<div class="wl-sub" style="margin-top:18px;font-size:13px">' + T.lang + '</div>' +
+      '<div class="wl-langs"><button class="wl-lang ' + (lang === 'ru' ? 'on' : '') + '" onclick="wlSetLang(\'ru\')">Русский</button>' +
+      '<button class="wl-lang ' + (lang === 'en' ? 'on' : '') + '" onclick="wlSetLang(\'en\')">English</button></div>';
+  } else if (wlStepIdx === 1) {
+    html = '<div class="wl-feat"><div class="wl-ico">💬</div><div><b>' + T.f1 + '</b><span>' + T.f1t + '</span></div></div>' +
+      '<div class="wl-feat"><div class="wl-ico">📞</div><div><b>' + T.f2 + '</b><span>' + T.f2t + '</span></div></div>' +
+      '<div class="wl-feat"><div class="wl-ico">🎁</div><div><b>' + T.f3 + '</b><span>' + T.f3t + '</span></div></div>';
+  } else {
+    html = '<div class="wl-title" style="font-size:28px">Moonlit</div><div class="wl-terms" style="margin-top:6px">' + T.terms + '</div>';
+  }
+  // новый элемент: анимация входа проигрывается при каждом шаге
+  box.innerHTML = '<div class="wl-step">' + html + '</div>';
+  document.getElementById('wlDots').innerHTML = [0, 1, 2].map(i => '<i class="' + (i === wlStepIdx ? 'on' : '') + '"></i>').join('');
+  document.getElementById('wlNext').textContent = wlStepIdx === 2 ? T.agree : T.next;
+}
+function wlNext() {
+  if (wlStepIdx < 2) { wlStepIdx++; renderWelcome(); } else wlFinish();
+}
+function wlIsDone() { try { return localStorage.getItem('moonlit-onboarded') === '1'; } catch (e) { return false; } }
+function showWelcome() {
+  if (wlIsDone()) { document.getElementById('authScreen').style.display = 'flex'; return; }
+  wlStepIdx = 0;
+  renderWelcome();
+  const w = document.getElementById('welcome');
+  w.style.display = 'block';
+  requestAnimationFrame(() => requestAnimationFrame(() => w.classList.add('wl-show')));
+}
+function wlFinish() {
+  try { localStorage.setItem('moonlit-onboarded', '1'); } catch (e) {}
+  const w = document.getElementById('welcome');
+  w.classList.add('wl-hide');
+  setTimeout(() => {
+    w.style.display = 'none';
+    w.classList.remove('wl-hide', 'wl-show');
+    const a = document.getElementById('authScreen');
+    a.style.display = 'flex';
+    a.classList.add('wl-fade');
+    setTimeout(() => a.classList.remove('wl-fade'), 500);
+  }, 320);
+}
+
 
 async function loadMe(uid) {
   const { data } = await sb.from('profiles').select('*').eq('id', uid).single();
