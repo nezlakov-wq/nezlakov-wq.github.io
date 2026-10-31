@@ -1498,6 +1498,10 @@ const GA_CSS = `
 /* кубок: имя пишется */
 .gA-name{transform-box:fill-box;transform-origin:left center;animation:gAReveal 3.2s ease-in-out infinite}
 @keyframes gAReveal{0%{transform:scaleX(0)}45%,85%{transform:scaleX(1)}100%{transform:scaleX(0)}}
+.gA-beat{transform-box:fill-box;transform-origin:center;animation:gABeat 1.8s ease-in-out infinite}
+@keyframes gABeat{0%,100%{transform:scale(1)}15%{transform:scale(1.12)}30%{transform:scale(1)}45%{transform:scale(1.08)}60%{transform:scale(1)}}
+.gA-tiny{animation:gATiny 2.4s ease-in-out infinite;opacity:.3}
+@keyframes gATiny{0%,100%{transform:translateY(0);opacity:.3}50%{transform:translateY(-60px);opacity:1}}
 @media (prefers-reduced-motion: reduce){.gA *{animation:none!important}}
 .gA-armL,.gA-armR{animation-name:gAReachL}
 .gA-armR{animation-name:gAReachR}
@@ -1556,15 +1560,14 @@ ${[[24, 36], [40, 62], [22, 70]].map(([x, y], i) => `<g transform="translate(${x
       break;
     }
     case 'moon': {
-      svg = `<defs><radialGradient id="mg${U}" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff7c2"/><stop offset="1" stop-color="#e0b84a"/></radialGradient></defs>
-<circle cx="50" cy="50" r="34" fill="url(#mg${U})"/>
-<circle cx="38" cy="42" r="5" fill="#d4a53a" opacity=".5"/><circle cx="62" cy="62" r="4" fill="#d4a53a" opacity=".5"/>
-<circle class="gA-shadow" cx="50" cy="50" r="34" fill="#1d1f35"/>`;
+      svg = `<defs><radialGradient id="mg${U}" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#fff7c2"/><stop offset="1" stop-color="#e0b84a"/></radialGradient><mask id="mk${U}"><rect x="0" y="0" width="100" height="100" fill="#fff"/><circle class="gA-shadow" cx="50" cy="50" r="34" fill="#000"/></mask></defs>
+<g mask="url(#mk${U})"><circle cx="50" cy="50" r="34" fill="url(#mg${U})"/><circle cx="38" cy="42" r="5" fill="#d4a53a" opacity=".5"/><circle cx="62" cy="62" r="4" fill="#d4a53a" opacity=".5"/><circle cx="56" cy="34" r="3" fill="#d4a53a" opacity=".4"/></g>`;
       break;
     }
     case 'heart': {
-      svg = `<g class="gA-bobs"><path d="${GA_HEART}" fill="#ec4899" stroke="#fbcfe8" stroke-width="2"/></g>
-${[[18, 22, 0], [82, 30, 0.5], [72, 84, 1.0], [20, 80, 1.5]].map(([x, y, d]) => `<g transform="translate(${x} ${y}) scale(.22)"><path class="gA-mini" style="animation-delay:${d}s" d="${GA_HEART}" fill="#f9a8d4"/></g>`).join('')}`;
+      const minis = [[16, 20, 0], [84, 26, 0.4], [70, 86, 0.9], [24, 84, 1.3], [50, 8, 0.7], [90, 60, 1.8], [10, 56, 1.1]];
+      svg = `<g class="gA-beat"><path d="${GA_HEART}" fill="#ec4899" stroke="#fbcfe8" stroke-width="2"/></g>
+${minis.map(([x, y, d]) => `<g transform="translate(${x} ${y}) scale(.2)"><path class="gA-tiny" style="animation-delay:${d}s" d="${GA_HEART}" fill="#f9a8d4"/></g>`).join('')}`;
       break;
     }
     case 'crown': {
