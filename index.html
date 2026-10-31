@@ -1821,7 +1821,7 @@ function setupPresence() {
       renderChatList(document.getElementById('chatSearch')?.value || '');
     })
     .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED' && !me.hide_online) await presenceCh.track({ uid: me.id });
+      if (status === 'SUBSCRIBED' && me && !me.hide_online) await presenceCh.track({ uid: me.id });
     });
 }
 
@@ -2701,7 +2701,7 @@ async function openSettings() {
   renderAccounts();
   updateNotifBtn();
   document.getElementById('prAvatar').checked = !!me.hide_avatar;
-  document.getElementById('prOnline').checked = !!me.hide_online;
+  document.getElementById('prOnline').checked = !!me?.hide_online;
   document.getElementById('prGifts').checked = !!me.hide_gifts;
   switchSettingsTab('main');
   document.getElementById('settingsModal').style.display = 'flex';
