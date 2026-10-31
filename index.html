@@ -450,6 +450,21 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay, .modal-overlay .modal, #chatView, #chatList.anim { animation: none !important; }
 }
+
+/* ── Истории ── */
+.stories-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 12px 4px;scrollbar-width:none;flex-shrink:0}
+.stories-strip::-webkit-scrollbar{display:none}
+.story-bub{flex:0 0 auto;width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;cursor:pointer;background:none;border:0;color:inherit;font-family:inherit}
+.story-ring{width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#5b7fff,#a855f7)}
+.story-ring > div{width:100%;height:100%;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#fff;background-size:cover;background-position:center;border:2px solid var(--sidebar)}
+#storyView{position:fixed;inset:0;background:#000;z-index:500;display:none;align-items:center;justify-content:center}
+#storyView .story-media{max-width:100%;max-height:100%;object-fit:contain}
+.story-bars{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:4px;z-index:3}
+.story-bars i{flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden}
+.story-bars i b{display:block;height:100%;width:0;background:#fff}
+.story-head{position:absolute;top:22px;left:12px;right:12px;color:#fff;font-size:14px;display:flex;justify-content:space-between;align-items:center;z-index:3}
+.story-tap{position:absolute;inset:0;z-index:2;display:flex}
+.story-tap div{flex:1}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -785,7 +800,9 @@ body::before {
       <button class="ftab" data-f="groups" onclick="setFolder('groups')">Группы</button>
     </div>
     <div class="section-label">Сообщения</div>
-    <div class="chat-list" id="chatList"></div>
+    <div id="storiesStrip" class="stories-strip"></div>
+      <input type="file" id="storyInput" accept="image/*,video/*" style="display:none" onchange="uploadStory(this.files[0]); this.value=''">
+      <div class="chat-list" id="chatList"></div>
     <div class="sidebar-bottom">
       <div class="my-av" id="myAv"></div>
       <div class="my-name">
@@ -2770,6 +2787,128 @@ function openCallsList() {
   ov.style.display = 'flex';
 }
 
+// ── ИСТОРИИ (видят те, у кого есть общий чат; живут 12 часов; до 5 в сутки — проверка на сервере) ──
+let storiesAll = [];
+let storyQueue = [], storyIdx = 0, storyTimer = null;
+
+async function loadStories() {
+  if (!me || !document.getElementById('storiesStrip')) return;
+  try {
+    const { data, error } = await sb.from('stories')
+      .select('id,user_id,media_url,kind,created_at,profiles(display_name,avatar_color,avatar_url)')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    storiesAll = data || [];
+  } catch (e) { storiesAll = []; }
+  renderStories();
+}
+
+function renderStories() {
+  const strip = document.getElementById('storiesStrip');
+  if (!strip || !me) return;
+  const byUser = new Map();
+  storiesAll.forEach(st => {
+    if (!byUser.has(st.user_id)) byUser.set(st.user_id, []);
+    byUser.get(st.user_id).push(st);
+  });
+  let html = '';
+  byUser.forEach((list, uid) => {
+    const p = list[0].profiles || {};
+    const isMe = uid === me.id;
+    const name = isMe ? 'Моя' : (p.display_name || '').split(' ')[0];
+    const bg = p.avatar_url ? "background-image:url('" + p.avatar_url + "')" : 'background:' + colorFor(uid);
+    html += '<button class="story-bub" onclick="openStories(\'' + uid + '\')"><div class="story-ring"><div style="' + bg + '">' +
+      (p.avatar_url ? '' : esc((p.display_name || '?').charAt(0).toUpperCase())) + '</div></div><span>' + esc(name) + '</span></button>';
+  });
+  if (!byUser.has(me.id)) {
+    html = '<button class="story-bub" onclick="document.getElementById(\'storyInput\').click()"><div class="story-ring" style="background:#334155"><div style="background:#1e293b">+</div></div><span>Моя</span></button>' + html;
+  } else {
+    html = '<button class="story-bub" onclick="document.getElementById(\'storyInput\').click()"><div class="story-ring" style="background:#334155"><div style="background:#1e293b">+</div></div><span>Добавить</span></button>' + html;
+  }
+  strip.innerHTML = html;
+}
+
+function openStories(uid) {
+  storyQueue = storiesAll.filter(st => st.user_id === uid);
+  if (!storyQueue.length) return;
+  storyIdx = 0;
+  let v = document.getElementById('storyView');
+  if (!v) { v = document.createElement('div'); v.id = 'storyView'; document.body.appendChild(v); }
+  v.innerHTML = '<div class="story-bars" id="storyBars"></div>' +
+    '<div class="story-head"><span id="storyHead"></span><button onclick="closeStories()" style="background:none;border:0;color:#fff;font-size:20px">✕</button></div>' +
+    '<div id="storyBody" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"></div>' +
+    '<div class="story-tap"><div onclick="storyStep(-1)"></div><div onclick="storyStep(1)"></div></div>';
+  v.style.display = 'flex';
+  showStory();
+}
+
+function showStory() {
+  clearTimeout(storyTimer);
+  const st = storyQueue[storyIdx];
+  if (!st) return closeStories();
+  document.getElementById('storyHead').textContent = (st.profiles?.display_name) || '';
+  document.getElementById('storyBars').innerHTML = storyQueue.map((x, i) =>
+    '<i><b style="width:' + (i < storyIdx ? 100 : 0) + '%"></b></i>').join('');
+  const body = document.getElementById('storyBody');
+  if (st.kind === 'video') {
+    body.innerHTML = '<video class="story-media" src="' + st.media_url + '" autoplay playsinline></video>';
+    const vid = body.querySelector('video');
+    vid.onloadedmetadata = () => animateBar(vid.duration * 1000, false);
+    vid.onended = () => storyStep(1);
+  } else {
+    body.innerHTML = '<img class="story-media" src="' + st.media_url + '">';
+    animateBar(5000, true);
+  }
+}
+
+function animateBar(ms, useTimer) {
+  const b = document.querySelectorAll('#storyBars b')[storyIdx];
+  if (!b) return;
+  b.style.transition = 'none';
+  b.style.width = '0%';
+  void b.offsetWidth;
+  b.style.transition = 'width ' + ms + 'ms linear';
+  b.style.width = '100%';
+  if (useTimer) storyTimer = setTimeout(() => storyStep(1), ms);
+}
+
+function storyStep(d) {
+  storyIdx += d;
+  if (storyIdx < 0) storyIdx = 0;
+  if (storyIdx >= storyQueue.length) return closeStories();
+  showStory();
+}
+
+function closeStories() {
+  clearTimeout(storyTimer);
+  const v = document.getElementById('storyView');
+  if (v) { v.style.display = 'none'; v.innerHTML = ''; }
+}
+
+async function uploadStory(file) {
+  if (!file || !me) return;
+  const isVid = file.type.startsWith('video/');
+  if (isVid && file.size > 20 * 1024 * 1024) return toast('Видео больше 20 МБ');
+  if (!isVid && file.size > 5 * 1024 * 1024) return toast('Фото больше 5 МБ');
+  toast('Публикуем историю…');
+  try {
+    let blob = file, ext = (file.name.split('.').pop() || 'jpg').toLowerCase(), type = file.type;
+    if (!isVid) {
+      const d = await compressImage(file, 1080);
+      blob = await (await fetch(d)).blob();
+      ext = 'jpg'; type = 'image/jpeg';
+    }
+    const path = me.id + '/story-' + Date.now() + '.' + ext;
+    const { error } = await sb.storage.from('avatars').upload(path, blob, { contentType: type });
+    if (error) return toast('Ошибка: ' + error.message);
+    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+    const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: url, kind: isVid ? 'video' : 'photo' });
+    if (e2) return toast('Нельзя: не больше 5 историй за сутки');
+    toast('История опубликована');
+    loadStories();
+  } catch (e) { toast('Не удалось опубликовать'); }
+}
+
 async function openSettings() {
   if (!me) return;
   const { data: { user } } = await sb.auth.getUser();
@@ -3319,6 +3458,7 @@ applyFont(getFont());
 
 // ── CONVERSATIONS ──
 async function loadConversations() {
+  loadStories();
   if(!me) return;
   // Get my conversation ids
   const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived, label, label_color').eq('user_id', me.id);
