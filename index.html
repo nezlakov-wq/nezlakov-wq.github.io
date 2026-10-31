@@ -2820,7 +2820,6 @@ function bindStoriesCollapse() {
     const strip = document.getElementById('storiesStrip');
     if (!strip) return;
     const p = Math.min(Math.max(list.scrollTop, 0) / 80, 1);
-    strip.style.opacity = String(1 - p);
   }, { passive: true });
 }
 function renderStories() {
@@ -3572,6 +3571,9 @@ async function openSavedChat() {
 function renderChatList(filter='') {
   const list = document.getElementById('chatList');
   list.innerHTML = '';
+  // Полоска историй — первая строка прокручиваемого списка, уезжает вместе с чатами
+  const strip = document.getElementById('storiesStrip');
+  if (strip) list.appendChild(strip);
   const archivedCount = conversations.filter(c => c.archived).length;
   if (archivedCount || !filter) {
     const row = document.createElement('div');
