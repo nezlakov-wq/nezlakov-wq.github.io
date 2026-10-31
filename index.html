@@ -3056,10 +3056,10 @@ applyFont(getFont());
 async function loadConversations() {
   if(!me) return;
   // Get my conversation ids
-  const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived').eq('user_id', me.id);
+  const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived, label, label_color').eq('user_id', me.id);
   if(!memberships?.length) { renderChatList(); return; }
   const ids = memberships.map(m=>m.conversation_id);
-  const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived }]));
+  const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived, label: m.label, label_color: m.label_color }]));
   // Get conversations
   const { data: convs, error: cErr } = await sb.from('conversations').select('*').in('id', ids);
   // For each conversation get members and last message
@@ -3088,6 +3088,8 @@ async function loadConversations() {
       lastMsg: lastMsgs?.[0] || null,
       muted: !!flags[conv.id]?.muted,
       archived: !!flags[conv.id]?.archived,
+      label: flags[conv.id]?.label || null,
+      label_color: flags[conv.id]?.label_color || null,
     });
   }
   built.sort((a,b)=>{
@@ -3170,7 +3172,7 @@ function renderChatList(filter='') {
         <div class="av-img" style="${avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${avText(other, name)}</div>
       </div>
       <div class="chat-info">
-        <div class="chat-name">${esc(name)}${conv.muted ? ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6;vertical-align:-2px"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 8A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M1 1l22 22"/></svg>' : ''}</div>
+        <div class="chat-name">${esc(name)}${conv.label ? ` <span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${LABEL_COLORS[conv.label_color] || "#64748b"};color:#fff;vertical-align:1px">${esc(conv.label)}</span>` : ''}${conv.muted ? ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6;vertical-align:-2px"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 8A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M1 1l22 22"/></svg>' : ''}</div>
         <div class="chat-prev">${esc(preview)}</div>
       </div>
       <div class="chat-right">
@@ -3214,6 +3216,7 @@ function attachChatLong(el, conv) {
   el.addEventListener('touchend', () => { clearTimeout(t); t = null; });
   el.addEventListener('contextmenu', e => { e.preventDefault(); openChatSheet(conv); });
 }
+const LABEL_COLORS = { red: '#ef4444', blue: '#3b82f6', green: '#22c55e', orange: '#f59e0b', purple: '#8b5cf6' };
 function ttlLabel(s) {
   return { 3600: 'через 1 ч', 86400: 'через 1 д', 604800: 'через 1 нед' }[s] || 'выкл';
 }
@@ -3227,6 +3230,7 @@ function openChatSheet(conv) {
     ${btn(conv.muted ? 'Включить уведомления' : 'Выключить уведомления', 'mute')}
     ${btn(conv.archived ? 'Вернуть из архива' : 'В архив', 'arch')}
     ${btn('Исчезающие сообщения: ' + ttlLabel(conv.ttl_seconds), 'ttl')}
+    ${btn('Ярлык: ' + (conv.label || 'нет'), 'label')}
     ${btn('Отмена', 'cancel')}
   </div>`;
   ov.addEventListener('click', async e => {
@@ -3235,6 +3239,18 @@ function openChatSheet(conv) {
     if (!a) return;
     ov.remove();
     if (a === 'cancel') return;
+    if (a === 'label') {
+      const text = prompt('Ярлык для чата (пусто — убрать)', conv.label || '');
+      if (text === null) return;
+      const names = Object.keys(LABEL_COLORS);
+      const cur = names.indexOf(conv.label_color);
+      const color = names[(cur + 1) % names.length];
+      const lbl = text.trim().slice(0, 20);
+      const { error } = await sb.rpc('set_chat_label', { conv: conv.id, lbl, color: lbl ? color : '' });
+      if (error) return toast('Не удалось сохранить ярлык');
+      await loadConversations();
+      return;
+    }
     if (a === 'ttl') {
       const order = [0, 3600, 86400, 604800];
       const next = order[(order.indexOf(conv.ttl_seconds || 0) + 1) % order.length];
@@ -3269,6 +3285,21 @@ function setFolder(f) {
   renderChatList(document.getElementById('chatSearch')?.value || '');
 }
 document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('active', b.dataset.f === chatFolder));
+// Названия папок можно поменять двойным нажатием на вкладку (сохраняется на этом устройстве)
+(() => {
+  let names = {};
+  try { names = JSON.parse(localStorage.getItem('moonlit-ftab-names') || '{}'); } catch (e) {}
+  document.querySelectorAll('#folderTabs .ftab').forEach(b => {
+    if (names[b.dataset.f]) b.textContent = names[b.dataset.f];
+    b.addEventListener('dblclick', () => {
+      const v = prompt('Название папки', b.textContent);
+      if (!v || !v.trim()) return;
+      names[b.dataset.f] = v.trim().slice(0, 16);
+      b.textContent = names[b.dataset.f];
+      try { localStorage.setItem('moonlit-ftab-names', JSON.stringify(names)); } catch (e) {}
+    });
+  });
+})();
 
 // ── OPEN CHAT ──
 async function openChat(convId) {
