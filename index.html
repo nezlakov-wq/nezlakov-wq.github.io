@@ -2903,7 +2903,7 @@ async function uploadStory(file) {
     if (error) return toast('Ошибка: ' + error.message);
     const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
     const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: url, kind: isVid ? 'video' : 'photo' });
-    if (e2) return toast('Нельзя: не больше 5 историй за сутки');
+    if (e2) return toast('Не опубликовалось: ' + e2.message);
     toast('История опубликована');
     loadStories();
   } catch (e) { toast('Не удалось опубликовать'); }
