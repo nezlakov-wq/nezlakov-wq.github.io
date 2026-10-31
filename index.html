@@ -928,6 +928,12 @@ body::before {
         <div style="font-size:13px;opacity:.7;margin:4px 0">Меняет шрифт во всём приложении на этом устройстве.</div>
         <div id="setFontOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
+      <div class="set-row"><div class="set-label">Цвета сообщений</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Только на этом устройстве.</div>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px">Рамка сообщений <input type="color" id="bubbleBorderColor" value="#5b7fff" onchange="setBubbleStyle('border', this.value)" style="width:48px;height:32px;border:0;background:none"></label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px">Цвет шрифта <input type="color" id="bubbleTextColor" value="#ffffff" onchange="setBubbleStyle('text', this.value)" style="width:48px;height:32px;border:0;background:none"></label>
+        <button class="set-logout" style="color:inherit;margin-top:6px" onclick="resetBubbleStyle()">Сбросить цвета</button>
+      </div>
       <div class="set-row"><div class="set-label">Обои</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Обои ставятся отдельно в каждом чате: откройте чат и нажмите 🎨 в шапке.</div>
       </div>
@@ -3039,6 +3045,34 @@ const FONTS = {
   mono:    { name: 'Моноширинный', css: "ui-monospace,Menlo,monospace" }
 };
 function getFont() { try { return localStorage.getItem('moonlit-font') || 'system'; } catch (e) { return 'system'; } }
+// Цвет рамки и шрифта сообщений, сохраняется на устройстве
+function bubbleCss() {
+  let b = '', t = '';
+  try { b = localStorage.getItem('moonlit-bubble-border') || ''; t = localStorage.getItem('moonlit-bubble-text') || ''; } catch (e) {}
+  let css = '';
+  if (b) css += `.bubble { border: 1.5px solid ${b} !important; }`;
+  if (t) css += `.bubble.out, .bubble.in { color: ${t} !important; }`;
+  return css;
+}
+function applyBubbleStyle() {
+  let el = document.getElementById('bubbleStyle');
+  if (!el) { el = document.createElement('style'); el.id = 'bubbleStyle'; document.head.appendChild(el); }
+  el.textContent = bubbleCss();
+  const b = localStorage.getItem('moonlit-bubble-border'), t = localStorage.getItem('moonlit-bubble-text');
+  const bi = document.getElementById('bubbleBorderColor'), ti = document.getElementById('bubbleTextColor');
+  if (bi && b) bi.value = b;
+  if (ti && t) ti.value = t;
+}
+function setBubbleStyle(kind, color) {
+  try { localStorage.setItem(kind === 'border' ? 'moonlit-bubble-border' : 'moonlit-bubble-text', color); } catch (e) {}
+  applyBubbleStyle();
+}
+function resetBubbleStyle() {
+  try { localStorage.removeItem('moonlit-bubble-border'); localStorage.removeItem('moonlit-bubble-text'); } catch (e) {}
+  applyBubbleStyle();
+  toast('Цвета сброшены');
+}
+applyBubbleStyle();
 function applyFont(k) {
   const f = FONTS[k] || FONTS.system;
   document.documentElement.style.fontFamily = f.css;
