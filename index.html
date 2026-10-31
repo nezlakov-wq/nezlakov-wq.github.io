@@ -491,6 +491,17 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gift-msg{background:#1c1f2e;border-radius:18px;padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:200px}
 .gift-msg-em{font-size:72px;line-height:1.1}
 .gift-msg-name{font-size:15px;font-weight:600}
+@keyframes gaBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px) scale(1.06)}}
+@keyframes gaSpin{0%{transform:rotate(-12deg) scale(1)}50%{transform:rotate(12deg) scale(1.06)}100%{transform:rotate(-12deg) scale(1)}}
+@keyframes gaPulse{0%,100%{transform:scale(1);filter:drop-shadow(0 0 0 rgba(139,92,246,0))}50%{transform:scale(1.12);filter:drop-shadow(0 0 14px rgba(139,92,246,.55))}}
+@keyframes gaFloat{0%,100%{transform:translateY(0) rotate(0)}33%{transform:translateY(-6px) rotate(4deg)}66%{transform:translateY(3px) rotate(-3deg)}}
+@keyframes gaWobble{0%,100%{transform:rotate(0)}20%{transform:rotate(-8deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(3deg)}}
+.ga-bounce{animation:gaBounce 1.8s ease-in-out infinite}
+.ga-spin{animation:gaSpin 2.4s ease-in-out infinite}
+.ga-pulse{animation:gaPulse 2s ease-in-out infinite}
+.ga-float{animation:gaFloat 3s ease-in-out infinite}
+.ga-wobble{animation:gaWobble 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.ga-bounce,.ga-spin,.ga-pulse,.ga-float,.ga-wobble{animation:none}}
 .gift-msg-btn{margin-top:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:8px 22px;font-size:14px}
 
 .gc-recip{text-align:left;max-height:220px;overflow-y:auto;overflow-x:hidden;margin:0 0 14px;background:rgba(255,255,255,.05);border-radius:14px;padding:6px 10px;box-sizing:border-box;width:100%}
@@ -1397,7 +1408,7 @@ function msgContent(text, msg) {
   const price = g ? g.price : 0;
   const svc = '<div class="gift-svc">' + esc(from) + ' отправил(а) ' + (gg ? 'всем получателям ' : 'Вам ') + 'подарок стоимостью <b>' + price + ' 🪙</b></div>';
   const btn = msg ? ' onclick="openGiftView(\'' + msg.id + '\')"' : '';
-  return '<div class="gift-msg">' + svc + '<div class="gift-msg-em">' + (g ? g.emoji : '🎁') + '</div><div class="gift-msg-name">' + (g ? esc(g.name) : 'Подарок') + '</div><button class="gift-msg-btn"' + btn + '>Посмотреть</button></div>';
+  return '<div class="gift-msg">' + svc + '<div class="gift-msg-em ' + gAnim(gid) + '">' + (g ? g.emoji : '🎁') + '</div><div class="gift-msg-name">' + (g ? esc(g.name) : 'Подарок') + '</div><button class="gift-msg-btn"' + btn + '>Посмотреть</button></div>';
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
@@ -1409,18 +1420,27 @@ function renderGiftList() {
   document.getElementById('giftBalance').textContent = '🪙 ' + Number(me.balance || 0).toFixed(2);
   document.getElementById('giftList').innerHTML = giftList.map(g => `
     <button class="gift-tile" onclick="pickGift('${g.id}')">
-      <div class="gift-tile-em">${g.emoji}</div>
+      <div class="gift-tile-em ${gAnim(g.id)}">${g.emoji}</div>
       <div class="gift-tile-price">🪙 ${g.price}</div>
     </button>`).join('');
 }
 let pendingGiftId = null;
+// Каждый подарок получает свою анимацию по id (стабильно между устройствами)
+const GIFT_ANIMS = ['ga-bounce', 'ga-spin', 'ga-pulse', 'ga-float', 'ga-wobble'];
+function gAnim(id) {
+  let h = 0;
+  for (const ch of String(id || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return GIFT_ANIMS[h % GIFT_ANIMS.length];
+}
 function pickGift(id) {
   const g = giftList.find(x => x.id === id);
   if (!g) return;
   pendingGiftId = id;
   const conv = currentConv();
   const isGroup = !!conv?.is_group;
-  document.getElementById('gcEmoji').textContent = g.emoji;
+  const gcE = document.getElementById('gcEmoji');
+  gcE.textContent = g.emoji;
+  gcE.className = 'gift-confirm-em ' + gAnim(g.id);
   document.getElementById('gcName').textContent = g.name;
   document.getElementById('gcWho').textContent = isGroup ? 'Группе «' + (conv.name || 'Группа') + '»' : 'Подарок для ' + (activeOther?.display_name || 'собеседника');
   const box = document.getElementById('gcRecip');
