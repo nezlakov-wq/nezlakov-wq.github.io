@@ -2008,7 +2008,7 @@ function createPeer() {
   };
   callPC.onconnectionstatechange = () => {
     const s = callPC && callPC.connectionState;
-    if (s === 'connected' && callState) { callState.connected = true; callState.startedAt = callState.startedAt || Date.now(); clearTimeout(callRingTimer); setCallStatus('В разговоре'); }
+    if (s === 'connected' && callState) { callState.connected = true; stopRingback(); callState.startedAt = callState.startedAt || Date.now(); clearTimeout(callRingTimer); setCallStatus('В разговоре'); }
     if (s === 'failed' && callState) endCall(true, 'Не удалось соединиться: сеть не пропускает звонок');
   };
   // Если медиасоединение так и не установилось, не висим бесконечно на «Соединяем…»
@@ -2036,11 +2036,38 @@ async function startCallToActive(video) {
   if (!conv || !activeOther) return toast('Звонки доступны в личных чатах');
   await startCall(activeOther.id, activeOther.display_name, video);
 }
+// Гудки на время исходящего вызова (тихий тон 425 Гц: 1 с звук, 4 с пауза)
+let ringCtx = null, ringTimer = null;
+function startRingback() {
+  stopRingback();
+  try {
+    ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = () => {
+      if (!ringCtx) return;
+      const t = ringCtx.currentTime;
+      const o = ringCtx.createOscillator(), g = ringCtx.createGain();
+      o.frequency.value = 425;
+      o.connect(g); g.connect(ringCtx.destination);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.03);
+      g.gain.setValueAtTime(0.12, t + 1.0);
+      g.gain.linearRampToValueAtTime(0, t + 1.08);
+      o.start(t); o.stop(t + 1.1);
+    };
+    beep();
+    ringTimer = setInterval(beep, 4000);
+  } catch (e) {}
+}
+function stopRingback() {
+  clearInterval(ringTimer); ringTimer = null;
+  if (ringCtx) { ringCtx.close().catch(() => {}); ringCtx = null; }
+}
 async function startCall(uid, name, video) {
   if (callState || pendingCall) return toast('Звонок уже идёт');
   if (!navigator.mediaDevices?.getUserMedia) return toast('Звонки не поддерживаются в этом браузере');
   const id = crypto.randomUUID();
   callState = { id, peer: uid, name, video, connected: false, outgoing: true };
+  startRingback();
   showCallScreen(name, 'Соединяем…', video);
   try {
     await openLocalMedia(video);
@@ -2105,6 +2132,7 @@ async function logCall(st) {
   } catch (e) { /* запись звонка не критична */ }
 }
 function endCall(notify, reason) {
+  stopRingback();
   const st = callState;
   callState = null;
   clearTimeout(callRingTimer);
@@ -2537,7 +2565,10 @@ function quoteFor(msg, byId) {
 }
 function tickHtml(msg) {
   const read = (msg.read_by || []).some(id => id !== me.id);
-  return `<span class="tick${read ? ' read' : ''}">✓✓</span>`;
+  const svg = read
+    ? '<svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5.5 4.5 9 11 2"/><path d="M5 5.5 8.5 9 15 2"/></svg>'
+    : '<svg width="12" height="11" viewBox="0 0 12 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5.5 4.5 9 11 2"/></svg>';
+  return '<span class="tick' + (read ? ' read' : '') + '">' + svg + '</span>';
 }
 function showForwardList() {
   forwardMsg = menuMsg;
