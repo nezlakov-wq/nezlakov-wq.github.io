@@ -472,6 +472,7 @@ html, body, #app { overscroll-behavior: none; }
 .chat-item, .chat-item * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .chat-item::selection, .chat-item *::selection { background: transparent; }
 html, body { position: fixed; inset: 0; width: 100%; }
+.pf-act { padding:12px 6px; min-width:84px; border-radius:14px; border:0; background:var(--input-bg); color:inherit; font-size:13px }
 /* Нижние панели поднимаем над полосой Домой и скруглёнными углами iPhone */
 .sidebar-bottom { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important; }
 .input-area { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -982,20 +983,31 @@ body::before {
 
 <!-- PROFILE OF INTERLOCUTOR -->
 <div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfile()">
-  <div class="modal" style="position:relative;text-align:center">
-    <button class="modal-close" onclick="closeProfile()">✕</button>
-    <div class="av-img" id="pfAv" style="margin:12px auto"></div>
-    <div class="modal-title" id="pfName"></div>
-    <div class="set-label" id="pfUsername"></div>
-    <div class="set-label" style="margin:18px 0 8px;text-align:left">Подарки в этом чате</div>
-    <div id="pfGifts" style="text-align:left"></div>
-    <div class="set-label" style="margin:18px 0 8px;text-align:left">Только для этого человека</div>
-    <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px;margin-bottom:8px">
-      <input type="checkbox" id="pvAvatar" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мою аватарку
-    </label>
-    <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px">
-      <input type="checkbox" id="pvGifts" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мои подарки
-    </label>
+  <div class="modal" style="position:relative;text-align:center;padding:0;overflow:hidden;max-width:440px;width:100%;max-height:92vh;overflow-y:auto">
+    <div id="pfBanner" style="height:220px;position:relative"></div>
+    <button class="modal-close" onclick="closeProfile()" style="position:absolute;top:12px;left:12px;z-index:2">✕</button>
+    <div style="margin-top:-70px;position:relative;z-index:1"><div class="av-img" id="pfAv" style="width:120px;height:120px;font-size:44px;margin:0 auto;border:4px solid var(--sidebar)"></div></div>
+    <div class="modal-title" id="pfName" style="margin-top:10px"></div>
+    <div id="pfStatus" style="font-size:14px;opacity:.8;margin-top:2px"></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin:16px 12px">
+      <button class="pf-act" onclick="closeProfile();startCallToActive(false)">Звонок</button>
+      <button class="pf-act" onclick="closeProfile();startCallToActive(true)">Видео</button>
+      <button class="pf-act" onclick="closeProfile();openChatSearch()">Поиск</button>
+    </div>
+    <div style="margin:0 12px 12px;text-align:left;padding:12px 14px;border-radius:14px;background:var(--input-bg)">
+      <div class="set-label">имя пользователя</div><div id="pfUsername"></div>
+    </div>
+    <div style="padding:0 12px 20px">
+      <div class="set-label" style="margin:12px 0 8px;text-align:left">Подарки в этом чате</div>
+      <div id="pfGifts" style="text-align:left"></div>
+      <div class="set-label" style="margin:18px 0 8px;text-align:left">Только для этого человека</div>
+      <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px;margin-bottom:8px">
+        <input type="checkbox" id="pvAvatar" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мою аватарку
+      </label>
+      <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px">
+        <input type="checkbox" id="pvGifts" style="width:20px;height:20px;margin:0" onchange="savePersonRule()"> Скрыть мои подарки
+      </label>
+    </div>
   </div>
 </div>
 
@@ -1662,10 +1674,12 @@ async function openProfile() {
   const name = p.display_name || '';
   const av = document.getElementById('pfAv');
   av.textContent = avText(p, name);
-  av.style.cssText = 'width:80px;height:80px;font-size:28px;margin:12px auto;position:relative;' + avStyle(p, activeChatId);
+  av.style.cssText = 'width:120px;height:120px;font-size:44px;margin:0 auto;border:4px solid var(--sidebar);' + avStyle(p, activeChatId);
+  const onNow = onlineIds.has(p.id) && !p.hide_online;
+  document.getElementById('pfStatus').textContent = onNow ? 'в сети' : (p.last_seen && !p.hide_online ? lastSeenText(p.last_seen) : '');
   let bn = document.getElementById('pfBanner');
   if (!bn) { bn = document.createElement('div'); bn.id = 'pfBanner'; av.parentElement.insertBefore(bn, av); }
-  bn.style.cssText = 'height:96px;border-radius:14px;margin:0;background:' + (p.banner_url ? `url("${p.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)');
+  bn.style.cssText = 'height:220px;position:relative;background:' + (p.banner_url ? `url("${p.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)');
   document.getElementById('pfName').textContent = name;
   document.getElementById('pfUsername').textContent = '@' + (p.username || '');
   const list = document.getElementById('pfGifts');
