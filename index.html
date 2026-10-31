@@ -502,6 +502,16 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .ga-float{animation:gaFloat 3s ease-in-out infinite}
 .ga-wobble{animation:gaWobble 2.6s ease-in-out infinite}
 @media (prefers-reduced-motion: reduce){.ga-bounce,.ga-spin,.ga-pulse,.ga-float,.ga-wobble{animation:none}}
+/* Магазин: лист со скроллом, сетка прокручивается целиком */
+#giftModal .gift-shop{max-height:88vh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0}
+#giftModal .gift-shop-head{flex:0 0 auto}
+#giftModal #giftList{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:2px 2px 18px}
+/* Сияние за подарком и объём при покачивании */
+.gift-tile-em,.gift-msg-em,.gift-confirm-em{position:relative;display:inline-block;transform-style:preserve-3d}
+.gift-tile-em::before,.gift-msg-em::before,.gift-confirm-em::before{content:'';position:absolute;inset:-18%;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.35),transparent 65%);z-index:-1;animation:gaGlow 2.4s ease-in-out infinite}
+.gift-tile-em,.gift-msg-em,.gift-confirm-em{z-index:0}
+@keyframes gaGlow{0%,100%{opacity:.35;transform:scale(.92)}50%{opacity:.9;transform:scale(1.08)}}
+@media (prefers-reduced-motion: reduce){.gift-tile-em::before,.gift-msg-em::before,.gift-confirm-em::before{animation:none}}
 .gift-msg-btn{margin-top:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:8px 22px;font-size:14px}
 
 .gc-recip{text-align:left;max-height:220px;overflow-y:auto;overflow-x:hidden;margin:0 0 14px;background:rgba(255,255,255,.05);border-radius:14px;padding:6px 10px;box-sizing:border-box;width:100%}
