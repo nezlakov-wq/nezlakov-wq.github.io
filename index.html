@@ -1757,6 +1757,12 @@ function jumpToMsg(id) {
 let onlineIds = new Set();
 let presenceCh = null;
 let typingNow = false;
+// Кольцо статуса вокруг аватарки: зелёное — в сети, серое — не в сети или статус скрыт
+function statusRing(p) {
+  if (!p || p.id === me?.id) return '';
+  const on = onlineIds.has(p.id) && !p.hide_online;
+  return `box-shadow:0 0 0 3px ${on ? '#22c55e' : '#64748b'};`;
+}
 function refreshStatusLine() {
   const st = document.getElementById('hStatus');
   if (!st) return;
@@ -1768,6 +1774,8 @@ function refreshStatusLine() {
   }
   // В «Избранном» (чат с самим собой) статус не показываем
   if (activeOther.id === me?.id) { st.textContent = ''; st.className = 'h-status'; return; }
+  const hav = document.getElementById('hAv');
+  if (hav) hav.style.boxShadow = statusRing(activeOther).replace('box-shadow:','').replace(';','');
   const online = onlineIds.has(activeOther.id);
   const seen = activeOther.last_seen && !activeOther.hide_online;
   st.textContent = online ? 'в сети' : (seen ? lastSeenText(activeOther.last_seen) : '@' + (activeOther.username || ''));
@@ -1779,6 +1787,7 @@ function setupPresence() {
     .on('presence', { event: 'sync' }, () => {
       onlineIds = new Set(Object.keys(presenceCh.presenceState()));
       refreshStatusLine();
+      renderChatList(document.getElementById('chatSearch')?.value || '');
     })
     .subscribe(async (status) => {
       if (status === 'SUBSCRIBED' && !me.hide_online) await presenceCh.track({ uid: me.id });
@@ -3158,7 +3167,7 @@ function renderChatList(filter='') {
     item.dataset.id = conv.id;
     item.innerHTML = `
       <div class="av">
-        <div class="av-img" style="${avStyle(other, conv.id)}">${avText(other, name)}</div>
+        <div class="av-img" style="${avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${avText(other, name)}</div>
       </div>
       <div class="chat-info">
         <div class="chat-name">${esc(name)}${conv.muted ? ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6;vertical-align:-2px"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 8A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M1 1l22 22"/></svg>' : ''}</div>
