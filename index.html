@@ -803,7 +803,7 @@ body::before {
 .set-txt { flex: 1; }
 .set-chev { color: #6b7090; font-size: 22px; line-height: 1; }
 </style>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
 <body>
 
@@ -825,6 +825,7 @@ body::before {
     <div id="loginForm">
       <div class="auth-field"><label>Email</label><input type="email" id="loginEmail" placeholder="you@email.com"></div>
       <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="loginPass" placeholder="••••••••"><button type="button" class="pw-eye" onclick="togglePw('loginPass', this)">👁</button></div></div>
+      <div id="tsLogin" style="margin:6px 0 12px;min-height:65px"></div>
       <button class="auth-btn" onclick="login()">Войти</button>
       <button type="button" onclick="forgotPassword()" style="background:none;border:0;color:#5b7fff;margin-top:10px;font-size:14px;cursor:pointer;width:100%">Забыли пароль?</button>
     </div>
@@ -833,7 +834,7 @@ body::before {
       <div class="auth-field"><label>Username</label><input type="text" id="regUsername" placeholder="@username" oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'').toLowerCase()"></div>
       <div class="auth-field"><label>Email</label><input type="email" id="regEmail" placeholder="you@email.com"></div>
       <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="regPass" placeholder="Минимум 6 символов"><button type="button" class="pw-eye" onclick="togglePw('regPass', this)">👁</button></div></div>
-      <div id="tsWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAFubeqk55-8vq4r2" data-theme="dark" style="margin:6px 0 12px"></div>
+      <div id="tsWidget" style="margin:6px 0 12px;min-height:65px"></div>
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
     <div id="regCodeBox" style="display:none">
@@ -1283,7 +1284,10 @@ async function login() {
   if(!email||!pass) return authErr('Заполни все поля');
   const btn = document.querySelector('#loginForm .auth-btn');
   btn.disabled = true; btn.textContent = 'Входим…';
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const loginCaptcha = getCaptchaToken('tsLogin');
+  if (!loginCaptcha) return authErr('Подтвердите, что вы не робот');
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass, options: { captchaToken: loginCaptcha } });
+  resetCaptcha('tsLogin');
   btn.disabled = false; btn.textContent = 'Войти';
   if(error) return authErr(error.message);
   if (!(await ensureProfile(data.user))) return;
@@ -1336,12 +1340,29 @@ async function register() {
   }
 }
 let pendingReg = null;
-// Turnstile: токен одноразовый, после каждой попытки виджет сбрасывается
-function getCaptchaToken() {
-  try { return window.turnstile ? (turnstile.getResponse(document.getElementById('tsWidget')) || '') : ''; } catch (e) { return ''; }
+// Turnstile: виджеты отрисовываются явно, когда их форма видна; токен одноразовый
+const TS_SITE = '0x4AAAAAAFubeqk55-8vq4r2';
+function renderTsWidgets() {
+  if (!window.turnstile) return;
+  ['tsLogin', 'tsWidget'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.wid && el.offsetParent !== null) {
+      try { el.dataset.wid = turnstile.render(el, { sitekey: TS_SITE, theme: 'dark' }); } catch (e) {}
+    }
+  });
 }
-function resetCaptcha() {
-  try { if (window.turnstile) turnstile.reset(document.getElementById('tsWidget')); } catch (e) {}
+setInterval(renderTsWidgets, 700);
+function getCaptchaToken(id = 'tsWidget') {
+  try {
+    const el = document.getElementById(id);
+    return window.turnstile && el && el.dataset.wid ? (turnstile.getResponse(el.dataset.wid) || '') : '';
+  } catch (e) { return ''; }
+}
+function resetCaptcha(id = 'tsWidget') {
+  try {
+    const el = document.getElementById(id);
+    if (window.turnstile && el && el.dataset.wid) turnstile.reset(el.dataset.wid);
+  } catch (e) {}
 }
 async function confirmRegCode() {
   const token = document.getElementById('regCode').value.replace(/\s/g, '');
@@ -1973,7 +1994,10 @@ async function changePassword() {
 async function forgotPassword() {
   const email = document.getElementById('loginEmail').value.trim();
   if (!email) return authErr('Сначала введи email выше');
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  const resetCap = getCaptchaToken('tsLogin');
+  if (!resetCap) return authErr('Подтвердите, что вы не робот');
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname, captchaToken: resetCap });
+  resetCaptcha('tsLogin');
   authErr(error ? 'Ошибка: ' + error.message : 'Письмо для сброса пароля отправлено');
 }
 // После перехода по ссылке из письма: задаём новый пароль входа
