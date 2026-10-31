@@ -1040,7 +1040,6 @@ body::before {
         <input type="file" id="bannerInput" accept="image/*" style="display:none" onchange="uploadBanner(this.files[0]); this.value=''">
         <button class="set-item" onclick="document.getElementById('profBgInput').click()"><span class="set-ico" style="background:#8b5cf6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg></span><span class="set-txt">Фон профиля</span><span class="set-chev">›</span></button>
         <input type="file" id="profBgInput" accept="image/*" style="display:none" onchange="uploadProfBg(this.files[0]); this.value=''">
-        <button class="set-item" onclick="deleteAccount()"><span class="set-ico" style="background:#ef4444"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></span><span class="set-txt" style="color:#f87171">Удалить аккаунт</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l3-3 3 3-3 3M3 21l9-9"/></svg></span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
@@ -1095,6 +1094,9 @@ body::before {
         <div class="set-item pv-soon"><span class="set-txt">Голосовые сообщения</span><span class="pv-val">Скоро</span></div>
         <div class="set-item pv-soon"><span class="set-txt">Сообщения</span><span class="pv-val">Скоро</span></div>
         <div class="set-item pv-soon"><span class="set-txt">Приглашения в группы</span><span class="pv-val">Скоро</span></div>
+      </div>
+      <div class="set-row" style="padding:0;overflow:hidden;margin-top:14px">
+        <button class="set-item" onclick="deleteAccount()"><span class="set-ico" style="background:#ef4444"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></span><span class="set-txt" style="color:#f87171">Удалить аккаунт</span><span class="set-chev">›</span></button>
       </div>
       <div style="display:none">
         <input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)">
