@@ -2711,7 +2711,8 @@ const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', 
 function renderProfPreview() {
   const box = document.getElementById('profPreview');
   if (!box || !me) return;
-  const banner = me.banner_url ? `url("${me.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)';
+  // Одинарные кавычки: иначе двойные ломают атрибут style="..." в innerHTML
+  const banner = me.banner_url ? `url('${me.banner_url}') center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)';
   const ring = `box-shadow:0 0 0 3px ${onlineIds.has(me.id) ? '#22c55e' : '#64748b'};`;
   const av = me.avatar_url
     ? `<img src="${esc(me.avatar_url)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;${ring}">`
