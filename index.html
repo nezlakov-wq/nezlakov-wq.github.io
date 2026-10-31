@@ -3329,6 +3329,7 @@ async function createGroup() {
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название группы');
   if (!groupMembers.length) return toast('Добавь хотя бы одного участника');
+  if (groupMembers.length + 1 > 20) return toast('В группе не больше 20 участников');
   if (!me.pub_key) return toast('Нет ключа шифрования: войдите в аккаунт ещё раз');
   const convId = crypto.randomUUID();
   const raw = b64(crypto.getRandomValues(new Uint8Array(32)));
@@ -3398,6 +3399,7 @@ async function addToGroup(u) {
   if (!conv) return;
   if (!u.pub_key) return toast('У этого пользователя ещё нет ключа');
   if ((conv.members || []).find(m => m.user_id === u.id)) return toast('Уже в группе');
+  if ((conv.members || []).length >= 20) return toast('В группе не больше 20 участников');
   const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
   if (error) return toast('Ошибка: ' + error.message);
   try {
