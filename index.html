@@ -932,6 +932,8 @@ body::before {
         <div style="font-size:13px;opacity:.7;margin:4px 0">Только на этом устройстве.</div>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px">Рамка сообщений <input type="color" id="bubbleBorderColor" value="#5b7fff" onchange="setBubbleStyle('border', this.value)" style="width:48px;height:32px;border:0;background:none"></label>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px">Цвет шрифта <input type="color" id="bubbleTextColor" value="#ffffff" onchange="setBubbleStyle('text', this.value)" style="width:48px;height:32px;border:0;background:none"></label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px">Анимированная рамка <input type="checkbox" id="bubbleFrameAnim" onchange="setFrameAnim(this.checked)"></label>
+        <div style="font-size:12px;opacity:.6;margin-bottom:6px">Рамка 2 px, цикл 4 с. Берёт цвет из «Рамка сообщений».</div>
         <button class="set-logout" style="color:inherit;margin-top:6px" onclick="resetBubbleStyle()">Сбросить цвета</button>
       </div>
       <div class="set-row"><div class="set-label">Обои</div>
@@ -2740,8 +2742,7 @@ async function uploadBanner(file) {
   if (!file || !me) return;
   toast('Загружаем баннер…');
   try {
-    const dataUrl = await compressImage(file, 1000);
-    const blob = await (await fetch(dataUrl)).blob();
+    const blob = await bannerBlob(file);
     const path = `${me.id}/banner.jpg`;
     const { error } = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
     if (error) return toast('Ошибка: ' + error.message);
@@ -2750,7 +2751,29 @@ async function uploadBanner(file) {
     if (e2) return toast('Ошибка: ' + e2.message);
     me.banner_url = url;
     toast('Баннер обновлён');
-  } catch (e) { toast('Не удалось загрузить баннер'); }
+  } catch (e) { toast(e.message || 'Не удалось загрузить баннер'); }
+}
+// Ограничения баннера: до 5 МБ на входе, кадр 3:1 (как в шапке профиля), не больше 1200×400 px, на выходе до 300 КБ
+const BANNER_MAX_IN = 5 * 1024 * 1024, BANNER_MAX_OUT = 300 * 1024, BANNER_MAX_W = 1200, BANNER_MIN_W = 600;
+async function bannerBlob(file) {
+  if (!file.type.startsWith('image/')) throw new Error('Нужна картинка');
+  if (file.size > BANNER_MAX_IN) throw new Error('Файл больше 5 МБ');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const sw = Math.min(img.width, img.height * 3);      // ширина кадра 3:1 по центру
+    const sh = sw / 3;
+    if (sw < BANNER_MIN_W) throw new Error('Картинка слишком маленькая (минимум 600×200)');
+    const w = Math.min(BANNER_MAX_W, sw), h = Math.round(w / 3);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, w, h);
+    for (const q of [0.85, 0.7, 0.55]) {
+      const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', q));
+      if (blob && blob.size <= BANNER_MAX_OUT) return blob;
+    }
+    throw new Error('Картинка слишком сложная, выбери попроще');
+  } finally { URL.revokeObjectURL(url); }
 }
 function pickBanner() { document.getElementById('bannerInput').click(); }
 async function uploadAvatar(file) {
@@ -3053,6 +3076,19 @@ function bubbleCss() {
   let css = '';
   if (b) css += `.bubble { border: 1.5px solid ${b} !important; }`;
   if (t) css += `.bubble.out, .bubble.in { color: ${t} !important; }`;
+  // Анимированная рамка: фиксированные 2 px и цикл 4 с, без анимации для удалённых сообщений
+  if (localStorage.getItem('moonlit-frame-anim') === '1') {
+    const c1 = b || '#5b7fff';
+    css += `@property --fr { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+    @keyframes frameSpin { to { --fr: 360deg; } }
+    body.frame-anim .bubble:not(.deleted) { position: relative; isolation: isolate; }
+    body.frame-anim .bubble:not(.deleted)::before { content: ''; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: -1;
+      background: conic-gradient(from var(--fr), ${c1}, #22d3ee, ${c1});
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+      mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+      animation: frameSpin 4s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { body.frame-anim .bubble::before { animation: none; } }`;
+  }
   return css;
 }
 function applyBubbleStyle() {
@@ -3063,6 +3099,14 @@ function applyBubbleStyle() {
   const bi = document.getElementById('bubbleBorderColor'), ti = document.getElementById('bubbleTextColor');
   if (bi && b) bi.value = b;
   if (ti && t) ti.value = t;
+  const on = localStorage.getItem('moonlit-frame-anim') === '1';
+  document.body.classList.toggle('frame-anim', on);
+  const fi = document.getElementById('bubbleFrameAnim');
+  if (fi) fi.checked = on;
+}
+function setFrameAnim(on) {
+  try { localStorage.setItem('moonlit-frame-anim', on ? '1' : '0'); } catch (e) {}
+  applyBubbleStyle();
 }
 function setBubbleStyle(kind, color) {
   try { localStorage.setItem(kind === 'border' ? 'moonlit-bubble-border' : 'moonlit-bubble-text', color); } catch (e) {}
