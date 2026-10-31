@@ -4090,7 +4090,7 @@ async function loadMessages(convId) {
   const area = document.getElementById('msgsArea');
   area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
   const { data: msgs, error } = await sb.from('messages')
-    .select('*, profiles(id,display_name,username)')
+    .select('*, profiles:profiles!messages_sender_id_fkey(id,display_name,username)')
     .eq('conversation_id', convId)
     .order('created_at', {ascending:true});
   if (error) {
