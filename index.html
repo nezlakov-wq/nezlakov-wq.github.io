@@ -498,6 +498,12 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gc-row:last-child{border-bottom:0}
 .gc-all{font-weight:600}
 .gift-send-btn:disabled{opacity:.5;cursor:default}
+
+.gift-svc{font-size:13px;opacity:.9;margin-bottom:10px;max-width:260px;text-align:center}
+.gift-msg-btn{border:0;cursor:pointer;font-family:inherit;color:inherit}
+.gv-row{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px}
+.gv-row span{opacity:.6}
+.gv-note{font-size:13px;opacity:.75;margin-top:8px}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1359,17 +1365,19 @@ async function loadGifts() {
   const { data } = await sb.from('gifts').select('*').order('price');
   giftList = data || [];
 }
-function msgContent(text) {
+const giftInfo = {};
+function msgContent(text, msg) {
   const gg = text.match(/^\[ggift:(\w+):([0-9a-f,-]*)\]$/);
-  if (gg) {
-    const g = giftList.find(x => x.id === gg[1]);
-    const n = gg[2] ? gg[2].split(',').length : 0;
-    return `<div class="gift-msg"><div class="gift-msg-em">${g ? g.emoji : '🎁'}</div><div class="gift-msg-name">${g ? esc(g.name) : 'Подарок'}</div><div class="gift-msg-btn">Группе · получателей: ${n}</div></div>`;
-  }
   const m = text.match(/^\[gift:(\w+)\]$/);
-  if (!m) return esc(text);
-  const g = giftList.find(x => x.id === m[1]);
-  return `<div class="gift-msg"><div class="gift-msg-em">${g ? g.emoji : '🎁'}</div><div class="gift-msg-name">${g ? esc(g.name) : 'Подарок'}</div><div class="gift-msg-btn">Посмотреть</div></div>`;
+  if (!gg && !m) return esc(text);
+  const gid = gg ? gg[1] : m[1];
+  const g = giftList.find(x => x.id === gid);
+  const from = msg?.profiles?.display_name || 'Пользователь';
+  if (msg) giftInfo[msg.id] = { text, created: msg.created_at, from, fromId: msg.sender_id };
+  const price = g ? g.price : 0;
+  const svc = '<div class="gift-svc">' + esc(from) + ' отправил(а) ' + (gg ? 'всем получателям ' : 'Вам ') + 'подарок стоимостью <b>' + price + ' 🪙</b></div>';
+  const btn = msg ? ' onclick="openGiftView(\'' + msg.id + '\')"' : '';
+  return '<div class="gift-msg">' + svc + '<div class="gift-msg-em">' + (g ? g.emoji : '🎁') + '</div><div class="gift-msg-name">' + (g ? esc(g.name) : 'Подарок') + '</div><button class="gift-msg-btn"' + btn + '>Посмотреть</button></div>';
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
@@ -1430,6 +1438,54 @@ function updateGiftBtn() {
     btn.disabled = false;
     btn.textContent = 'Отправить подарок за 🪙 ' + g.price;
   }
+}
+// Окно подарка: от кого, дата отправки, продажа в течение 10 дней
+async function openGiftView(id) {
+  const info = giftInfo[id];
+  if (!info) return toast('Подарок не найден');
+  const gid = info.text.match(/^\[g?gift:(\w+)/)[1];
+  const g = giftList.find(x => x.id === gid) || { emoji: '🎁', name: 'Подарок', price: 0 };
+  const created = new Date(info.created);
+  const until = new Date(created.getTime() + 10 * 24 * 3600 * 1000);
+  const expired = Date.now() > until.getTime();
+  const own = info.fromId === me.id;
+  let sold = false;
+  try {
+    const { data } = await sb.from('gift_sales').select('message_id').eq('message_id', id).eq('user_id', me.id);
+    sold = !!(data && data.length);
+  } catch (e) {}
+  const payout = Math.round((g.price || 0) * 0.5);
+  const fmt = d => d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  let action = '';
+  if (own) action = '<div class="gv-note">Это подарок, который вы отправили</div>';
+  else if (sold) action = '<div class="gv-note">✅ Продано</div>';
+  else if (expired) action = '<div class="gv-note">Срок продажи истёк (10 дней)</div>';
+  else action = '<button class="gift-send-btn" onclick="sellGiftFromView(\'' + id + '\')">Продать за 🪙 ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
+  let ov = document.getElementById('giftView');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'giftView';
+    ov.className = 'modal-overlay';
+    ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = '<div class="modal" style="position:relative;max-width:360px;text-align:center">' +
+    '<button class="modal-close" onclick="document.getElementById(\'giftView\').style.display=\'none\'">✕</button>' +
+    '<div class="gift-confirm-card"><div class="gift-confirm-em">' + g.emoji + '</div><div class="gift-confirm-name">' + esc(g.name) + '</div></div>' +
+    '<div class="gv-row"><span>От</span><b>' + esc(info.from) + '</b></div>' +
+    '<div class="gv-row"><span>Отправлен</span><b>' + fmt(created) + '</b></div>' +
+    '<div class="gv-row"><span>Стоимость</span><b>' + (g.price || 0) + ' 🪙</b></div>' +
+    '<div style="margin-top:16px">' + action + '</div></div>';
+  ov.style.display = 'flex';
+}
+async function sellGiftFromView(id) {
+  const { data, error } = await sb.rpc('sell_gift', { msg: id });
+  if (error) return toast(error.message.includes('Уже') ? 'Уже продано' : (error.message || 'Ошибка'));
+  me.balance = Number(data);
+  document.getElementById('myUsername').textContent = '@' + me.username + ' · 🪙 ' + me.balance.toFixed(2);
+  document.getElementById('giftView').style.display = 'none';
+  toast('Подарок продан: баланс ' + me.balance.toFixed(2));
+  if (activeChatId) loadMessages(activeChatId);
 }
 function closeGiftConfirm() { document.getElementById('giftConfirm').style.display = 'none'; pendingGiftId = null; }
 async function confirmGift() {
@@ -2578,7 +2634,7 @@ function bodyHtml(msg) {
       return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : '📎 ' + esc(m.n)}</div>`;
     } catch (e) { return '📎 Файл'; }
   }
-  const html = msgContent(p);
+  const html = msgContent(p, msg);
   // Для сообщения со ссылкой добавляем место под карточку превью (заполнит hydratePreviews)
   const link = /https?:\/\/[^\s<]+/.exec(p);
   return link ? html + `<div class="lp" data-url="${esc(link[0])}"></div>` : html;
