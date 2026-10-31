@@ -4094,17 +4094,21 @@ async function loadMessages(convId) {
     .eq('conversation_id', convId)
     .order('created_at', {ascending:true});
   if (error) {
-    area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Не удалось загрузить сообщения. Откройте чат ещё раз.</div>';
+    console.error('loadMessages', error);
+    area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Не удалось загрузить сообщения: ' + esc(error.message || 'ошибка') + '</div>';
     return;
   }
   if (convId !== activeChatId) return; // пользователь уже открыл другой чат
   const conv = conversations.find(c => c.id === convId);
+  // Ошибка расшифровки одного сообщения не должна прятать всю переписку
+  const safe = async (fn) => { try { return await fn(); } catch (e) { console.error('decrypt', e); return '🔒 не удалось расшифровать'; } };
   if (conv?.is_group) {
-    const entry = await loadGroupKeys(convId);
-    for (const m of (msgs || [])) m.plain = await decryptWith(entry.keys.get(m.key_version || 0), m.text);
+    let entry = null;
+    try { entry = await loadGroupKeys(convId); } catch (e) { console.error('group keys', e); }
+    for (const m of (msgs || [])) m.plain = await safe(() => decryptWith(entry.keys.get(m.key_version || 0), m.text));
   } else {
     const otherPub = activeOther?.pub_key;
-    for (const m of (msgs || [])) m.plain = await decryptFrom(otherPub, m.text);
+    for (const m of (msgs || [])) m.plain = await safe(() => decryptFrom(otherPub, m.text));
   }
   renderMessages(msgs||[], area);
 }
