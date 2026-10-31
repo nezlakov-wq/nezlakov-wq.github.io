@@ -473,6 +473,25 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .set-in { animation: setIn .24s cubic-bezier(.2, .8, .2, 1); }
 .set-out { animation: setOut .16s ease-in forwards; }
 @media (prefers-reduced-motion: reduce) { .set-in, .set-out { animation: none !important; } }
+
+/* ── Магазин подарков ── */
+.gift-shop-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.gift-shop-title{font-size:17px;font-weight:600;flex:1;text-align:center}
+.gift-x{width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:#fff;font-size:16px;cursor:pointer}
+.gift-balance{font-size:13px;opacity:.85;white-space:nowrap}
+.gift-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.gift-tile{border:0;border-radius:18px;background:#1c2030;color:#fff;padding:14px 6px 12px;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;font-family:inherit}
+.gift-tile-em{font-size:46px;line-height:1}
+.gift-tile-price{background:rgba(245,158,11,.16);color:#f59e0b;border-radius:999px;padding:4px 10px;font-size:13px}
+.gift-confirm-card{background:linear-gradient(160deg,#2a2550,#1b1d33);border-radius:20px;padding:24px 16px 18px;margin:10px 0 16px}
+.gift-confirm-em{font-size:88px;line-height:1.1}
+.gift-confirm-name{font-size:18px;font-weight:600;margin-top:8px}
+.gift-confirm-who{font-size:13px;opacity:.7;margin-top:4px}
+.gift-send-btn{width:100%;border:0;border-radius:16px;padding:14px;font-size:16px;font-weight:600;color:#fff;background:linear-gradient(135deg,#5b7fff,#8b5cf6);cursor:pointer;font-family:inherit}
+.gift-msg{background:#1c1f2e;border-radius:18px;padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:200px}
+.gift-msg-em{font-size:72px;line-height:1.1}
+.gift-msg-name{font-size:15px;font-weight:600}
+.gift-msg-btn{margin-top:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:8px 22px;font-size:14px}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1034,11 +1053,24 @@ body::before {
 
 <!-- GIFTS -->
 <div class="modal-overlay" id="giftModal" onclick="if(event.target===this)closeGifts()">
-  <div class="modal" style="position:relative">
-    <button class="modal-close" onclick="closeGifts()">✕</button>
-    <div class="modal-title">Подарки</div>
-    <div class="set-label" id="giftBalance" style="margin-bottom:12px"></div>
-    <div id="giftList"></div>
+  <div class="modal gift-shop" style="position:relative;max-width:440px">
+    <div class="gift-shop-head">
+      <button class="gift-x" onclick="closeGifts()">✕</button>
+      <div class="gift-shop-title">Отправить подарок</div>
+      <div class="gift-balance"><span id="giftBalance"></span></div>
+    </div>
+    <div id="giftList" class="gift-grid"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="giftConfirm" onclick="if(event.target===this)closeGiftConfirm()">
+  <div class="modal" style="position:relative;max-width:360px;text-align:center">
+    <button class="modal-close" onclick="closeGiftConfirm()">✕</button>
+    <div class="gift-confirm-card">
+      <div id="gcEmoji" class="gift-confirm-em"></div>
+      <div id="gcName" class="gift-confirm-name"></div>
+      <div id="gcWho" class="gift-confirm-who"></div>
+    </div>
+    <button id="gcBtn" class="gift-send-btn" onclick="confirmGift()">Отправить подарок</button>
   </div>
 </div>
 
@@ -1324,7 +1356,7 @@ function msgContent(text) {
   const m = text.match(/^\[gift:(\w+)\]$/);
   if (!m) return esc(text);
   const g = giftList.find(x => x.id === m[1]);
-  return `<div class="gift-card">${g ? g.emoji + ' ' + esc(g.name) : '🎁 Подарок'}</div>`;
+  return `<div class="gift-msg"><div class="gift-msg-em">${g ? g.emoji : '🎁'}</div><div class="gift-msg-name">${g ? esc(g.name) : 'Подарок'}</div><div class="gift-msg-btn">Посмотреть</div></div>`;
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
@@ -1334,12 +1366,30 @@ async function openGifts() {
   document.getElementById('giftModal').style.display = 'flex';
 }
 function renderGiftList() {
-  document.getElementById('giftBalance').textContent = 'Твой баланс: ' + Number(me.balance || 0).toFixed(2) + ' токенов';
+  document.getElementById('giftBalance').textContent = '🪙 ' + Number(me.balance || 0).toFixed(2);
   document.getElementById('giftList').innerHTML = giftList.map(g => `
-    <div class="set-row" style="flex-direction:row;align-items:center;justify-content:space-between">
-      <div><div style="font-size:28px">${g.emoji}</div><div>${esc(g.name)}</div></div>
-      <button class="set-logout" style="width:auto;padding:8px 14px;margin:0;background:#5b7fff" onclick="buyGift('${g.id}')">${g.price} токенов</button>
-    </div>`).join('');
+    <button class="gift-tile" onclick="pickGift('${g.id}')">
+      <div class="gift-tile-em">${g.emoji}</div>
+      <div class="gift-tile-price">🪙 ${g.price}</div>
+    </button>`).join('');
+}
+let pendingGiftId = null;
+function pickGift(id) {
+  const g = giftList.find(x => x.id === id);
+  if (!g) return;
+  pendingGiftId = id;
+  document.getElementById('gcEmoji').textContent = g.emoji;
+  document.getElementById('gcName').textContent = g.name;
+  document.getElementById('gcWho').textContent = 'Подарок для ' + (activeOther?.display_name || 'собеседника');
+  document.getElementById('gcBtn').textContent = 'Отправить подарок за 🪙 ' + g.price;
+  document.getElementById('giftConfirm').style.display = 'flex';
+}
+function closeGiftConfirm() { document.getElementById('giftConfirm').style.display = 'none'; pendingGiftId = null; }
+async function confirmGift() {
+  if (!pendingGiftId) return;
+  const id = pendingGiftId;
+  closeGiftConfirm();
+  await buyGift(id);
 }
 function closeGifts() { document.getElementById('giftModal').style.display = 'none'; }
 async function buyGift(giftId) {
