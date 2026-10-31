@@ -13,34 +13,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <style>
 :root {
-  --bg: #ffffff; --bg2: #f5f5f8; --bg3: #ebebf0;
-  --panel: rgba(255,255,255,.86);
-  --sidebar: #ffffff; --sidebar-hover: rgba(0,0,0,.04); --sidebar-active: rgba(124,92,255,.10);
-  --sidebar-fg: #111118; --sidebar-muted: rgba(17,17,24,.45);
-  --fg: #111118; --fg2: #6e6e7d; --accent: #7c5cff; --accent-fg: #fff;
-  --bubble-out: #7c5cff; --bubble-out-fg: #fff; --bubble-in: #f0f0f5; --bubble-in-fg: #111118;
-  --border: rgba(0,0,0,.07); --input-bg: #f2f2f6; --online: #22c55e; --danger: #ef4444;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0b0b10; --bg2: #13131a; --bg3: #1c1c26;
-  --panel: rgba(11,11,16,.86);
-  --sidebar: #0b0b10; --sidebar-hover: rgba(255,255,255,.05); --sidebar-active: rgba(139,108,255,.16);
-  --sidebar-fg: #ececf4; --sidebar-muted: rgba(236,236,244,.45);
-  --fg: #ececf4; --fg2: #8a8aa0; --accent: #8b6cff; --accent-fg: #fff;
-  --bubble-out: #8b6cff; --bubble-out-fg: #fff; --bubble-in: #1c1c26; --bubble-in-fg: #ececf4;
-  --border: rgba(255,255,255,.07); --input-bg: #16161f; color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
   --bg: #0b0b10; --bg2: #13131a; --bg3: #1c1c26;
   --panel: rgba(11,11,16,.86);
   --sidebar: #0b0b10; --sidebar-hover: rgba(255,255,255,.05); --sidebar-active: rgba(139,108,255,.16);
   --sidebar-fg: #ececf4; --sidebar-muted: rgba(236,236,244,.45);
   --fg: #ececf4; --fg2: #8a8aa0; --accent: #8b6cff; --accent-fg: #fff;
   --bubble-out: #8b6cff; --bubble-out-fg: #fff; --bubble-in: #1c1c26; --bubble-in-fg: #ececf4;
-  --border: rgba(255,255,255,.07); --input-bg: #16161f; color-scheme: dark;
+  --border: rgba(255,255,255,.07); --input-bg: #16161f; --online: #22c55e; --danger: #ef4444;
+  color-scheme: dark;
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1072,9 +1052,6 @@ body::before {
       </div>
     </div>
     <div id="setAppearance" style="display:none">
-      <div class="set-row"><div class="set-label">Тема</div>
-        <div id="setThemeOpts" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
-      </div>
       <div class="set-row"><div class="set-label">Шрифт</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Меняет шрифт во всём приложении на этом устройстве.</div>
         <div id="setFontOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -3640,7 +3617,7 @@ function switchSettingsTab(tab) {
     if (cur && prev !== tab) { cur.classList.remove('set-in'); void cur.offsetWidth; cur.classList.add('set-in'); }
     document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
     document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
-    if (tab === 'appearance') { renderFontOpts(); renderThemeOpts(); }
+    if (tab === 'appearance') renderFontOpts();
     if (tab === 'privacy') renderPrivacyRows();
     document.querySelector('#settingsModal .modal').scrollTop = 0;
   };
@@ -4105,7 +4082,7 @@ function renderThemeOpts() {
     '<button style="width:auto;margin:0;padding:8px 12px;border:none;border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;color:' + (k === cur ? '#fff' : 'var(--fg)') + ';background:' + (k === cur ? 'var(--accent)' : 'var(--bg3)') + '" onclick="setTheme(\'' + k + '\')">' + n + '</button>'
   ).join('');
 }
-applyTheme(getTheme());
+document.documentElement.removeAttribute('data-theme');
 function renderFontOpts() {
   const cur = getFont();
   const html = Object.entries(FONTS).map(([k, f]) =>
