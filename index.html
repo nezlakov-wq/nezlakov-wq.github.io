@@ -466,6 +466,13 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .story-head{position:absolute;top:22px;left:12px;right:12px;color:#fff;font-size:14px;display:flex;justify-content:space-between;align-items:center;z-index:3}
 .story-tap{position:absolute;inset:0;z-index:2;display:flex}
 .story-tap div{flex:1}
+
+/* ── Переходы между разделами настроек ── */
+@keyframes setIn { from { opacity: 0; transform: translateX(28px) } to { opacity: 1; transform: none } }
+@keyframes setOut { from { opacity: 1; transform: none } to { opacity: 0; transform: translateX(-20px) } }
+.set-in { animation: setIn .24s cubic-bezier(.2, .8, .2, 1); }
+.set-out { animation: setOut .16s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) { .set-in, .set-out { animation: none !important; } }
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -2966,15 +2973,31 @@ function renderProfPreview() {
       <div style="opacity:.6;font-size:13px">@${esc(me.username || '')}</div>
     </div>`;
 }
+let curSetTab = 'main';
 function switchSettingsTab(tab) {
-  if (tab === 'data') setTimeout(renderProfPreview, 0);
-  for (const [key, id] of Object.entries(SET_PANELS)) {
-    document.getElementById(id).style.display = key === tab ? '' : 'none';
+  const prev = curSetTab;
+  curSetTab = tab;
+  const show = () => {
+    if (tab === 'data') setTimeout(renderProfPreview, 0);
+    for (const [key, id] of Object.entries(SET_PANELS)) {
+      const el = document.getElementById(id);
+      el.style.display = key === tab ? '' : 'none';
+      el.classList.remove('set-out');
+    }
+    const cur = document.getElementById(SET_PANELS[tab]);
+    if (cur && prev !== tab) { cur.classList.remove('set-in'); void cur.offsetWidth; cur.classList.add('set-in'); }
+    document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
+    document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
+    if (tab === 'appearance') renderFontOpts();
+    document.querySelector('#settingsModal .modal').scrollTop = 0;
+  };
+  const prevEl = SET_PANELS[prev] ? document.getElementById(SET_PANELS[prev]) : null;
+  if (prevEl && prev !== tab && prevEl.style.display !== 'none') {
+    prevEl.classList.add('set-out');
+    setTimeout(show, 160);
+  } else {
+    show();
   }
-  document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
-  document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
-  if (tab === 'appearance') renderFontOpts();
-  document.querySelector('#settingsModal .modal').scrollTop = 0;
 }
 // Баннер профиля (как обложка): картинка сжимается и хранится в том же хранилище, что и аватарки
 async function uploadBanner(file) {
