@@ -3321,7 +3321,7 @@ function renderChatList(filter='') {
     list.appendChild(sv);
     const ch = document.createElement('div');
     ch.className = 'chat-item';
-    ch.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📢</div></div><div class="chat-info"><div class="chat-name">Обновления Moonlit</div><div class="chat-prev">Канал: только для чтения</div></div>`;
+    ch.innerHTML = `<div class="av"><div class="av-img" style="background:#0f172a url('icon-192.png') center/cover no-repeat"></div></div><div class="chat-info"><div class="chat-name">Обновления Moonlit</div><div class="chat-prev">Канал: только для чтения</div></div>`;
     ch.addEventListener('click', () => openChannel());
     list.appendChild(ch);
   }
@@ -3349,7 +3349,7 @@ function renderChatList(filter='') {
     item.dataset.id = conv.id;
     item.innerHTML = `
       <div class="av">
-        <div class="av-img" style="${avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${avText(other, name)}</div>
+        <div class="av-img" style="${conv.is_channel ? "background:#0f172a url('icon-192.png') center/cover no-repeat" : avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${conv.is_channel ? '' : avText(other, name)}</div>
       </div>
       <div class="chat-info">
         <div class="chat-name">${esc(name)}${conv.label ? ` <span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${LABEL_COLORS[conv.label_color] || "#64748b"};color:#fff;vertical-align:1px">${esc(conv.label)}</span>` : ''}${conv.muted ? ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6;vertical-align:-2px"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 8A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M1 1l22 22"/></svg>' : ''}</div>
@@ -3503,13 +3503,14 @@ async function openChat(convId) {
   // Header
   const color = colorFor(activeOther?.id || convId);
   const name = activeOther?.display_name || conv.name || 'Чат';
-  document.getElementById('hAv').textContent = avText(activeOther, name);
-  document.getElementById('hAv').style.cssText = 'width:36px;height:36px;font-size:14px;' + avStyle(activeOther, convId);
+  document.getElementById('hAv').textContent = conv.is_channel ? '' : avText(activeOther, name);
+  document.getElementById('hAv').style.cssText = 'width:36px;height:36px;font-size:14px;' + (conv.is_channel ? "background:#0f172a url('icon-192.png') center/cover no-repeat" : avStyle(activeOther, convId));
   document.getElementById('hName').textContent = name;
   refreshStatusLine();
-  // В «Избранном» звонки не нужны
+  // В «Избранном» и канале звонков нет; обои в канале меняет только владелец
   const isSaved = activeOther?.id === me?.id;
-  document.querySelectorAll('button[onclick="startCallToActive(true)"],button[onclick="startCallToActive(false)"]').forEach(b => b.style.display = isSaved ? 'none' : '');
+  document.querySelectorAll('button[onclick="startCallToActive(true)"],button[onclick="startCallToActive(false)"]').forEach(b => b.style.display = (isSaved || conv.is_channel) ? 'none' : '');
+  document.querySelectorAll('.act-btn[title="Оформление"]').forEach(b => b.style.display = roChannel ? 'none' : '');
   document.getElementById('hStatus').className = 'h-status';
   document.getElementById('welcome').style.display = 'none';
   const cv = document.getElementById('chatView');
