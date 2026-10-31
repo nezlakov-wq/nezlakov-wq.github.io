@@ -453,6 +453,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 
 /* ── Истории ── */
 .stories-strip{display:flex;gap:10px;overflow-x:auto;padding:10px 12px 4px;scrollbar-width:none;flex-shrink:0}
+.stories-strip{transition:opacity .15s ease,max-height .15s ease}
 .stories-strip::-webkit-scrollbar{display:none}
 .story-bub{flex:0 0 auto;width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;cursor:pointer;background:none;border:0;color:inherit;font-family:inherit}
 .story-ring{width:54px;height:54px;border-radius:50%;padding:2px;background:linear-gradient(135deg,#5b7fff,#a855f7)}
@@ -2803,6 +2804,21 @@ async function loadStories() {
   renderStories();
 }
 
+// Полоска историй сжимается при прокрутке списка вверх, как в Telegram
+function bindStoriesCollapse() {
+  const list = document.getElementById('chatList');
+  if (!list || list.dataset.storyBound) return;
+  list.dataset.storyBound = '1';
+  list.addEventListener('scroll', () => {
+    const strip = document.getElementById('storiesStrip');
+    if (!strip) return;
+    const p = Math.min(Math.max(list.scrollTop, 0) / 80, 1);
+    strip.style.opacity = String(1 - p);
+    strip.style.maxHeight = (90 * (1 - p)) + 'px';
+    strip.style.paddingTop = (10 * (1 - p)) + 'px';
+    strip.style.paddingBottom = (4 * (1 - p)) + 'px';
+  }, { passive: true });
+}
 function renderStories() {
   const strip = document.getElementById('storiesStrip');
   if (!strip || !me) return;
@@ -2826,6 +2842,7 @@ function renderStories() {
     html = '<button class="story-bub" onclick="document.getElementById(\'storyInput\').click()"><div class="story-ring" style="background:#334155"><div style="background:#1e293b">+</div></div><span>Добавить</span></button>' + html;
   }
   strip.innerHTML = html;
+  bindStoriesCollapse();
 }
 
 function openStories(uid) {
