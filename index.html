@@ -1543,7 +1543,7 @@ function askUnlock(user) {
 function avStyle(p, fallbackId) {
   const bg = colorFor(p?.id || fallbackId);
   return p?.avatar_url
-    ? `background:${bg} url("${p.avatar_url}") center/cover no-repeat`
+    ? `background:${bg} url('${p.avatar_url}') center/cover no-repeat`
     : `background:${bg}`;
 }
 function avText(p, name) { return p?.avatar_url ? '' : initials(name); }
