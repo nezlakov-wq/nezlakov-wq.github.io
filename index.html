@@ -3314,13 +3314,20 @@ document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('
   try { names = JSON.parse(localStorage.getItem('moonlit-ftab-names') || '{}'); } catch (e) {}
   document.querySelectorAll('#folderTabs .ftab').forEach(b => {
     if (names[b.dataset.f]) b.textContent = names[b.dataset.f];
-    b.addEventListener('dblclick', () => {
+    const rename = () => {
       const v = prompt('Название папки', b.textContent);
       if (!v || !v.trim()) return;
       names[b.dataset.f] = v.trim().slice(0, 16);
       b.textContent = names[b.dataset.f];
       try { localStorage.setItem('moonlit-ftab-names', JSON.stringify(names)); } catch (e) {}
-    });
+    };
+    b.addEventListener('dblclick', rename);
+    // Долгое нажатие тоже переименовывает (на iPhone двойное нажатие не всегда срабатывает)
+    let lp = null;
+    b.addEventListener('touchstart', () => { lp = setTimeout(() => { lp = null; b.dataset.lp = '1'; rename(); }, 600); }, { passive: true });
+    b.addEventListener('touchend', () => clearTimeout(lp));
+    b.addEventListener('touchmove', () => clearTimeout(lp), { passive: true });
+    b.addEventListener('click', e => { if (b.dataset.lp) { delete b.dataset.lp; e.stopImmediatePropagation(); } }, true);
   });
 })();
 
