@@ -504,6 +504,10 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gv-row{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid rgba(255,255,255,.07);font-size:14px}
 .gv-row span{opacity:.6}
 .gv-note{font-size:13px;opacity:.75;margin-top:8px}
+
+.pv-val{margin-left:auto;margin-right:6px;opacity:.6;font-size:15px}
+.pv-soon{opacity:.45}
+.pv-note{font-size:13px;opacity:.6;padding:8px 14px 16px}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1047,13 +1051,28 @@ body::before {
       <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
     </div>
     <div id="setPrivacy" class="privacy-row" style="display:none">
-      <div class="set-row"><div class="set-label">Кто что видит</div><div style="font-size:13px;opacity:.7;margin:4px 0">Настройки действуют только внутри приложения.</div>
-        <label><input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)"> Скрыть аватарку от собеседников</label>
-        <label><input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)"> Не показывать, что я в сети</label>
-        <label><input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)"> Скрыть мои подарки от собеседников</label>
+      <div class="set-row" style="padding:0;overflow:hidden">
+        <button class="set-item" onclick="togglePriv('hide_online')"><span class="set-txt">Время захода</span><span class="pv-val" id="pv_hide_online"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_avatar')"><span class="set-txt">Фотографии профиля</span><span class="pv-val" id="pv_hide_avatar"></span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="togglePriv('hide_gifts')"><span class="set-txt">Подарки</span><span class="pv-val" id="pv_hide_gifts"></span><span class="set-chev">›</span></button>
+      </div>
+      <div class="pv-note">Выбери «Никто», чтобы скрыть. Действует внутри приложения.</div>
+      <div class="set-row" style="padding:0;overflow:hidden">
+        <div class="set-item pv-soon"><span class="set-txt">Раздел «О себе»</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">День рождения</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">Пересылка сообщений</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">Звонки</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">Голосовые сообщения</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">Сообщения</span><span class="pv-val">Скоро</span></div>
+        <div class="set-item pv-soon"><span class="set-txt">Приглашения в группы</span><span class="pv-val">Скоро</span></div>
+      </div>
+      <div style="display:none">
+        <input type="checkbox" id="prAvatar" onchange="savePrivacy('hide_avatar', this.checked)">
+        <input type="checkbox" id="prOnline" onchange="savePrivacy('hide_online', this.checked)">
+        <input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)">
       </div>
     </div>
-    <div id="setDevices" style="display:none">
+    <div id="setDevices"    <div id="setDevices" style="display:none">
       <div class="set-row"><div class="set-label">Текущее устройство</div><div id="setDevice"></div></div>
       <div class="set-row"><div class="set-label">Вход выполнен</div><div id="setSignedIn"></div></div>
       <div class="set-label" style="margin-top:14px">Аккаунты на этом устройстве (до 3)</div>
@@ -1969,6 +1988,20 @@ async function openProfile() {
 function maskProfile(p) {
   if (!p) return null;
   return p.hide_avatar ? { ...p, avatar_url: null } : p;
+}
+// Конфиденциальность: «Никто» = скрыто, «Все» = видно
+const PRIV_FIELDS = ['hide_online', 'hide_avatar', 'hide_gifts'];
+function renderPrivacyRows() {
+  if (!me) return;
+  PRIV_FIELDS.forEach(f => {
+    const el = document.getElementById('pv_' + f);
+    if (el) el.textContent = me[f] ? 'Никто' : 'Все';
+  });
+}
+async function togglePriv(field) {
+  if (!me) return;
+  await savePrivacy(field, !me[field]);
+  renderPrivacyRows();
 }
 async function savePrivacy(field, val) {
   const { error } = await sb.from('profiles').update({ [field]: val }).eq('id', me.id);
@@ -3236,6 +3269,7 @@ function switchSettingsTab(tab) {
     document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
     document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
     if (tab === 'appearance') renderFontOpts();
+    if (tab === 'privacy') renderPrivacyRows();
     document.querySelector('#settingsModal .modal').scrollTop = 0;
   };
   const prevEl = SET_PANELS[prev] ? document.getElementById(SET_PANELS[prev]) : null;
