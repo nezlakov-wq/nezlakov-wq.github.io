@@ -13,46 +13,31 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <style>
 :root {
-  --bg: #ffffff;
-  --bg2: #f4f4f6;
-  --bg3: #e8e8ec;
-  --sidebar: #1a1a2e;
-  --sidebar-hover: rgba(255,255,255,0.07);
-  --sidebar-active: rgba(91,127,255,0.22);
-  --sidebar-fg: rgba(255,255,255,0.92);
-  --sidebar-muted: rgba(255,255,255,0.42);
-  --fg: #111118;
-  --fg2: #6b6b80;
-  --accent: #5b7fff;
-  --accent-fg: #fff;
-  --bubble-out: #5b7fff;
-  --bubble-out-fg: #fff;
-  --bubble-in: #e8e8ec;
-  --bubble-in-fg: #111118;
-  --border: rgba(0,0,0,0.08);
-  --input-bg: #f0f0f4;
-  --online: #22c55e;
-  --danger: #ef4444;
+  --bg: #ffffff; --bg2: #f5f5f8; --bg3: #ebebf0;
+  --sidebar: #ffffff; --sidebar-hover: rgba(0,0,0,.04); --sidebar-active: rgba(124,92,255,.10);
+  --sidebar-fg: #111118; --sidebar-muted: rgba(17,17,24,.45);
+  --fg: #111118; --fg2: #6e6e7d; --accent: #7c5cff; --accent-fg: #fff;
+  --bubble-out: #7c5cff; --bubble-out-fg: #fff; --bubble-in: #f0f0f5; --bubble-in-fg: #111118;
+  --border: rgba(0,0,0,.07); --input-bg: #f2f2f6; --online: #22c55e; --danger: #ef4444;
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e0e14; --bg2: #17171f; --bg3: #21212e;
-    --fg: #e6e6f0; --fg2: #8080a0;
-    --accent: #6a8fff;
-    --bubble-in: #21212e; --bubble-in-fg: #e6e6f0;
-    --border: rgba(255,255,255,0.07);
-    --input-bg: #1c1c28;
-    color-scheme: dark;
+    --bg: #0b0b10; --bg2: #13131a; --bg3: #1c1c26;
+  --sidebar: #0b0b10; --sidebar-hover: rgba(255,255,255,.05); --sidebar-active: rgba(139,108,255,.16);
+  --sidebar-fg: #ececf4; --sidebar-muted: rgba(236,236,244,.45);
+  --fg: #ececf4; --fg2: #8a8aa0; --accent: #8b6cff; --accent-fg: #fff;
+  --bubble-out: #8b6cff; --bubble-out-fg: #fff; --bubble-in: #1c1c26; --bubble-in-fg: #ececf4;
+  --border: rgba(255,255,255,.07); --input-bg: #16161f; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0e0e14; --bg2: #17171f; --bg3: #21212e;
-  --fg: #e6e6f0; --fg2: #8080a0;
-  --accent: #6a8fff;
-  --bubble-in: #21212e; --bubble-in-fg: #e6e6f0;
-  --border: rgba(255,255,255,0.07);
-  --input-bg: #1c1c28;
-  color-scheme: dark;
+  --bg: #0b0b10; --bg2: #13131a; --bg3: #1c1c26;
+  --sidebar: #0b0b10; --sidebar-hover: rgba(255,255,255,.05); --sidebar-active: rgba(139,108,255,.16);
+  --sidebar-fg: #ececf4; --sidebar-muted: rgba(236,236,244,.45);
+  --fg: #ececf4; --fg2: #8a8aa0; --accent: #8b6cff; --accent-fg: #fff;
+  --bubble-out: #8b6cff; --bubble-out-fg: #fff; --bubble-in: #1c1c26; --bubble-in-fg: #ececf4;
+  --border: rgba(255,255,255,.07); --input-bg: #16161f; color-scheme: dark;
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1047,6 +1032,9 @@ body::before {
       </div>
     </div>
     <div id="setAppearance" style="display:none">
+      <div class="set-row"><div class="set-label">Тема</div>
+        <div id="setThemeOpts" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+      </div>
       <div class="set-row"><div class="set-label">Шрифт</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Меняет шрифт во всём приложении на этом устройстве.</div>
         <div id="setFontOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -3546,7 +3534,7 @@ function switchSettingsTab(tab) {
     if (cur && prev !== tab) { cur.classList.remove('set-in'); void cur.offsetWidth; cur.classList.add('set-in'); }
     document.getElementById('setTopTitle').textContent = SET_TITLES[tab];
     document.getElementById('setBack').style.display = tab === 'main' ? 'none' : '';
-    if (tab === 'appearance') renderFontOpts();
+    if (tab === 'appearance') { renderFontOpts(); renderThemeOpts(); }
     if (tab === 'privacy') renderPrivacyRows();
     document.querySelector('#settingsModal .modal').scrollTop = 0;
   };
@@ -3992,6 +3980,26 @@ function setFont(k) {
   applyFont(k);
   renderFontOpts();
 }
+// Тема: авто (как в системе), светлая или тёмная; хранится на этом устройстве
+function getTheme() { try { return localStorage.getItem('moonlit-theme') || 'auto'; } catch (e) { return 'auto'; } }
+function applyTheme(t) {
+  const r = document.documentElement;
+  if (t === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', t);
+}
+function setTheme(t) {
+  try { localStorage.setItem('moonlit-theme', t); } catch (e) {}
+  applyTheme(t);
+  renderThemeOpts();
+}
+function renderThemeOpts() {
+  const el = document.getElementById('setThemeOpts');
+  if (!el) return;
+  const cur = getTheme();
+  el.innerHTML = [['auto', 'Авто'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, n]) =>
+    '<button style="width:auto;margin:0;padding:8px 12px;border:none;border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;color:' + (k === cur ? '#fff' : 'var(--fg)') + ';background:' + (k === cur ? 'var(--accent)' : 'var(--bg3)') + '" onclick="setTheme(\'' + k + '\')">' + n + '</button>'
+  ).join('');
+}
+applyTheme(getTheme());
 function renderFontOpts() {
   const cur = getFont();
   const html = Object.entries(FONTS).map(([k, f]) =>
