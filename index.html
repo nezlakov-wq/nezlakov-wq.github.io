@@ -493,8 +493,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gift-msg-name{font-size:15px;font-weight:600}
 .gift-msg-btn{margin-top:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:8px 22px;font-size:14px}
 
-.gc-recip{text-align:left;max-height:220px;overflow-y:auto;margin:0 0 14px;background:rgba(255,255,255,.05);border-radius:14px;padding:6px 10px}
-.gc-row{display:flex;align-items:center;gap:8px;padding:8px 2px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.gc-recip{text-align:left;max-height:220px;overflow-y:auto;overflow-x:hidden;margin:0 0 14px;background:rgba(255,255,255,.05);border-radius:14px;padding:6px 10px;box-sizing:border-box;width:100%}
+.gc-row{display:flex;align-items:center;gap:10px;padding:8px 2px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.06);width:100%;box-sizing:border-box;min-width:0;white-space:normal}
+.gc-row input[type=checkbox]{width:20px;height:20px;flex:0 0 20px;margin:0;padding:0}
 .gc-row:last-child{border-bottom:0}
 .gc-all{font-weight:600}
 .gift-send-btn:disabled{opacity:.5;cursor:default}
