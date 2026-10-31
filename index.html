@@ -932,6 +932,10 @@ body::before {
       </div>
     </div>
     <div id="setData">
+      <div class="set-row" style="padding:0;overflow:hidden">
+        <div style="font-size:12px;opacity:.6;padding:10px 12px 0">Так тебя видят другие</div>
+        <div id="profPreview" style="margin:8px 12px 12px;border-radius:14px;overflow:hidden;background:var(--input-bg)"></div>
+      </div>
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
@@ -2683,7 +2687,25 @@ async function openSettings() {
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
 const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance' };
 const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление' };
+// Предпросмотр профиля «как для других»: баннер, аватарка, имя, статус
+function renderProfPreview() {
+  const box = document.getElementById('profPreview');
+  if (!box || !me) return;
+  const banner = me.banner_url ? `url("${me.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)';
+  const ring = `box-shadow:0 0 0 3px ${onlineIds.has(me.id) ? '#22c55e' : '#64748b'};`;
+  const av = me.avatar_url
+    ? `<img src="${esc(me.avatar_url)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;${ring}">`
+    : `<div style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;background:${colorFor(me.id)};${ring}">${esc((me.display_name || '?').charAt(0).toUpperCase())}</div>`;
+  box.innerHTML = `
+    <div style="height:90px;background:${banner}"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;margin-top:-36px;padding-bottom:14px">
+      ${av}
+      <div style="margin-top:8px;font-weight:600;font-size:16px">${esc(me.display_name || '')}</div>
+      <div style="opacity:.6;font-size:13px">@${esc(me.username || '')}</div>
+    </div>`;
+}
 function switchSettingsTab(tab) {
+  if (tab === 'data') setTimeout(renderProfPreview, 0);
   for (const [key, id] of Object.entries(SET_PANELS)) {
     document.getElementById(id).style.display = key === tab ? '' : 'none';
   }
