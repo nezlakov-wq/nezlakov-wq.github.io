@@ -3179,7 +3179,7 @@ async function sendFile(file) {
   let enc;
   try { enc = await encryptForConv(conv, meta, fileKv); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
-  const { error } = await sb.from('messages').insert({ conversation_id: activeChatId, sender_id: me.id, text: enc.payload, key_version: enc.key_version, reply_to: replyTo?.id || null });
+  const { error } = await sb.from('messages').insert({ conversation_id: activeChatId, sender_id: me.id, text: enc.payload, key_version: enc.key_version, reply_to: replyTo?.id || null, kind: file.name.startsWith('voice.') ? 'voice' : null });
   if (error) return toast('Ошибка: ' + error.message);
   clearReply();
   await loadMessages(activeChatId);
@@ -3239,7 +3239,7 @@ async function forwardTo(convId) {
   let enc;
   try { enc = await encryptForConv(conv, plain); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
-  const { error } = await sb.from('messages').insert({ conversation_id: convId, sender_id: me.id, text: enc.payload, key_version: enc.key_version });
+  const { error } = await sb.from('messages').insert({ conversation_id: convId, sender_id: me.id, text: enc.payload, key_version: enc.key_version, forwarded_from: msg.sender_id || null });
   if (error) return toast('Ошибка: ' + error.message);
   toast('Переслано');
   await loadConversations();
