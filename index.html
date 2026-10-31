@@ -437,6 +437,19 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 #chatList{padding-bottom:96px}
 .sidebar-bottom{display:none !important}
 @media (min-width:641px){.tab-bar{display:none}}
+
+/* ── Плавные переходы ── */
+@keyframes mFade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes mUp { from { opacity: 0; transform: translateY(24px) scale(.98) } to { opacity: 1; transform: none } }
+@keyframes chatIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes listIn { from { opacity: 0; transform: translateX(-14px) } to { opacity: 1; transform: none } }
+.modal-overlay { animation: mFade .2s ease-out; }
+.modal-overlay .modal { animation: mUp .26s cubic-bezier(.2, .8, .2, 1); }
+#chatView { animation: chatIn .26s cubic-bezier(.2, .8, .2, 1); }
+#chatList.anim { animation: listIn .24s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay, .modal-overlay .modal, #chatView, #chatList.anim { animation: none !important; }
+}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -2725,6 +2738,13 @@ async function openChannel() {
 }
 
 // Звонки: чаты, где последнее сообщение — звонок
+function flashList() {
+  const l = document.getElementById('chatList');
+  if (!l) return;
+  l.classList.remove('anim');
+  void l.offsetWidth; // перезапуск анимации
+  l.classList.add('anim');
+}
 function openCallsList() {
   let ov = document.getElementById('callsModal');
   if (!ov) {
@@ -3380,7 +3400,7 @@ function renderChatList(filter='') {
     const row = document.createElement('div');
     row.className = 'chat-item';
     row.innerHTML = `<div class="chat-info"><div class="chat-name">${showArchive ? '← Все чаты' : 'Архив'}</div><div class="chat-prev">${archivedCount} чатов</div></div>`;
-    row.addEventListener('click', () => { showArchive = !showArchive; renderChatList(filter); });
+    row.addEventListener('click', () => { showArchive = !showArchive; renderChatList(filter); flashList(); });
     list.appendChild(row);
   }
   if (!filter) {
@@ -3533,6 +3553,7 @@ function setFolder(f) {
   try { localStorage.setItem('moonlit-folder', f); } catch (e) {}
   document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('active', b.dataset.f === f));
   renderChatList(document.getElementById('chatSearch')?.value || '');
+  flashList();
 }
 document.querySelectorAll('#folderTabs .ftab').forEach(b => b.classList.toggle('active', b.dataset.f === chatFolder));
 // Названия папок можно поменять двойным нажатием на вкладку (сохраняется на этом устройстве)
