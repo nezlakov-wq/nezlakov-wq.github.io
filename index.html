@@ -803,6 +803,7 @@ body::before {
 .set-txt { flex: 1; }
 .set-chev { color: #6b7090; font-size: 22px; line-height: 1; }
 </style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 
@@ -832,6 +833,7 @@ body::before {
       <div class="auth-field"><label>Username</label><input type="text" id="regUsername" placeholder="@username" oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'').toLowerCase()"></div>
       <div class="auth-field"><label>Email</label><input type="email" id="regEmail" placeholder="you@email.com"></div>
       <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="regPass" placeholder="Минимум 6 символов"><button type="button" class="pw-eye" onclick="togglePw('regPass', this)">👁</button></div></div>
+      <div id="tsWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAFubeqk55-8vq4r2" data-theme="dark" style="margin:6px 0 12px"></div>
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
     <div id="regCodeBox" style="display:none">
@@ -1311,7 +1313,10 @@ async function register() {
   // Check username unique
   const { data: existing } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
   if(existing) { btn.disabled=false; btn.textContent='Создать аккаунт'; return authErr('Username уже занят'); }
-  const { data, error } = await sb.auth.signUp({ email, password: pass });
+  const captchaToken = getCaptchaToken();
+  if (!captchaToken) { btn.disabled = false; btn.textContent = 'Создать аккаунт'; return authErr('Подтвердите, что вы не робот'); }
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { captchaToken } });
+  resetCaptcha();
   btn.disabled = false; btn.textContent = 'Создать аккаунт';
   if(error) return authErr(error.message);
   try { localStorage.setItem('pendingProfile', JSON.stringify({ id: data.user.id, username, display_name: name })); } catch(e) {}
@@ -1331,6 +1336,13 @@ async function register() {
   }
 }
 let pendingReg = null;
+// Turnstile: токен одноразовый, после каждой попытки виджет сбрасывается
+function getCaptchaToken() {
+  try { return window.turnstile ? (turnstile.getResponse(document.getElementById('tsWidget')) || '') : ''; } catch (e) { return ''; }
+}
+function resetCaptcha() {
+  try { if (window.turnstile) turnstile.reset(document.getElementById('tsWidget')); } catch (e) {}
+}
 async function confirmRegCode() {
   const token = document.getElementById('regCode').value.replace(/\s/g, '');
   if (!/^\d{6,8}$/.test(token)) return authErr('Введи код из письма');
@@ -1347,7 +1359,10 @@ async function confirmRegCode() {
 }
 async function resendRegCode() {
   if (!pendingReg) return authErr('Начни регистрацию заново');
-  const { error } = await sb.auth.resend({ type: 'signup', email: pendingReg.email });
+  const captchaToken = getCaptchaToken();
+  if (!captchaToken) return authErr('Подтвердите, что вы не робот, и попробуйте снова');
+  const { error } = await sb.auth.resend({ type: 'signup', email: pendingReg.email, options: { captchaToken } });
+  resetCaptcha();
   authErr(error ? 'Не удалось отправить: ' + error.message : 'Код отправлен ещё раз');
 }
 // Вход через Google/Apple: после возврата со страницы провайдера init() создаст профиль и попросит пароль шифрования
