@@ -3601,9 +3601,11 @@ async function openSavedChat() {
 }
 function renderChatList(filter='') {
   const list = document.getElementById('chatList');
+  // Полоска историй — первая строка прокручиваемого списка. Ссылку берём до очистки списка,
+  // иначе innerHTML её удаляет и больше не найти.
+  const strip = window._storiesEl || document.getElementById('storiesStrip');
+  window._storiesEl = strip;
   list.innerHTML = '';
-  // Полоска историй — первая строка прокручиваемого списка, уезжает вместе с чатами
-  const strip = document.getElementById('storiesStrip');
   if (strip) list.appendChild(strip);
   const archivedCount = conversations.filter(c => c.archived).length;
   if (archivedCount || !filter) {
