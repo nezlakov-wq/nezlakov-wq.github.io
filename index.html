@@ -1511,7 +1511,7 @@ async function openGiftView(id) {
   }
   ov.innerHTML = '<div class="modal" style="position:relative;max-width:360px;text-align:center">' +
     '<button class="modal-close" onclick="document.getElementById(\'giftView\').style.display=\'none\'">✕</button>' +
-    '<div class="gift-confirm-card"><div class="gift-confirm-em">' + g.emoji + '</div><div class="gift-confirm-name">' + esc(g.name) + '</div></div>' +
+    '<div class="gift-confirm-card"><div class="gift-confirm-em ' + gAnim(gid) + '">' + g.emoji + '</div><div class="gift-confirm-name">' + esc(g.name) + '</div></div>' +
     '<div class="gv-row"><span>От</span><b>' + esc(info.from) + '</b></div>' +
     '<div class="gv-row"><span>Отправлен</span><b>' + fmt(created) + '</b></div>' +
     '<div class="gv-row"><span>Стоимость</span><b>' + (g.price || 0) + ' 🪙</b></div>' +
