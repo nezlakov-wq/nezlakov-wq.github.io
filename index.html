@@ -441,11 +441,11 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 /* ── Плавные переходы ── */
 @keyframes mFade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes mUp { from { opacity: 0; transform: translateY(24px) scale(.98) } to { opacity: 1; transform: none } }
-@keyframes chatIn { from { opacity: 0; transform: translateX(24px) } to { opacity: 1; transform: none } }
+@keyframes chatIn { from { transform: translateX(100%) } to { transform: none } }
 @keyframes listIn { from { opacity: 0; transform: translateX(-14px) } to { opacity: 1; transform: none } }
 .modal-overlay { animation: mFade .2s ease-out; }
 .modal-overlay .modal { animation: mUp .26s cubic-bezier(.2, .8, .2, 1); }
-#chatView { animation: chatIn .26s cubic-bezier(.2, .8, .2, 1); }
+@media (max-width: 640px) { #chatView { animation: chatIn .32s cubic-bezier(.22, .8, .25, 1); } }
 #chatList.anim { animation: listIn .24s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay, .modal-overlay .modal, #chatView, #chatList.anim { animation: none !important; }
