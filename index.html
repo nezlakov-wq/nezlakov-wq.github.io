@@ -492,6 +492,12 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gift-msg-em{font-size:72px;line-height:1.1}
 .gift-msg-name{font-size:15px;font-weight:600}
 .gift-msg-btn{margin-top:6px;background:rgba(255,255,255,.12);border-radius:999px;padding:8px 22px;font-size:14px}
+
+.gc-recip{text-align:left;max-height:220px;overflow-y:auto;margin:0 0 14px;background:rgba(255,255,255,.05);border-radius:14px;padding:6px 10px}
+.gc-row{display:flex;align-items:center;gap:8px;padding:8px 2px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.gc-row:last-child{border-bottom:0}
+.gc-all{font-weight:600}
+.gift-send-btn:disabled{opacity:.5;cursor:default}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1069,6 +1075,7 @@ body::before {
       <div id="gcEmoji" class="gift-confirm-em"></div>
       <div id="gcName" class="gift-confirm-name"></div>
       <div id="gcWho" class="gift-confirm-who"></div>
+    <div id="gcRecip" class="gc-recip" style="display:none"></div>
     </div>
     <button id="gcBtn" class="gift-send-btn" onclick="confirmGift()">Отправить подарок</button>
   </div>
@@ -1353,6 +1360,12 @@ async function loadGifts() {
   giftList = data || [];
 }
 function msgContent(text) {
+  const gg = text.match(/^\[ggift:(\w+):([0-9a-f,-]*)\]$/);
+  if (gg) {
+    const g = giftList.find(x => x.id === gg[1]);
+    const n = gg[2] ? gg[2].split(',').length : 0;
+    return `<div class="gift-msg"><div class="gift-msg-em">${g ? g.emoji : '🎁'}</div><div class="gift-msg-name">${g ? esc(g.name) : 'Подарок'}</div><div class="gift-msg-btn">Группе · получателей: ${n}</div></div>`;
+  }
   const m = text.match(/^\[gift:(\w+)\]$/);
   if (!m) return esc(text);
   const g = giftList.find(x => x.id === m[1]);
@@ -1360,7 +1373,6 @@ function msgContent(text) {
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
-  if (currentConv()?.is_group) return toast('Подарки в группах пока недоступны');
   await loadGifts();
   renderGiftList();
   document.getElementById('giftModal').style.display = 'flex';
@@ -1378,16 +1390,63 @@ function pickGift(id) {
   const g = giftList.find(x => x.id === id);
   if (!g) return;
   pendingGiftId = id;
+  const conv = currentConv();
+  const isGroup = !!conv?.is_group;
   document.getElementById('gcEmoji').textContent = g.emoji;
   document.getElementById('gcName').textContent = g.name;
-  document.getElementById('gcWho').textContent = 'Подарок для ' + (activeOther?.display_name || 'собеседника');
-  document.getElementById('gcBtn').textContent = 'Отправить подарок за 🪙 ' + g.price;
+  document.getElementById('gcWho').textContent = isGroup ? 'Группе «' + (conv.name || 'Группа') + '»' : 'Подарок для ' + (activeOther?.display_name || 'собеседника');
+  const box = document.getElementById('gcRecip');
+  if (isGroup) {
+    const members = (conv.members || []).filter(m => m.user_id !== me.id);
+    box.style.display = '';
+    box.innerHTML = '<label class="gc-row gc-all"><input type="checkbox" id="gcAll" checked onchange="toggleAllRecip(this.checked)"> Всем (' + members.length + ')</label>' +
+      members.map(m => '<label class="gc-row"><input type="checkbox" class="gc-chk" value="' + m.user_id + '" checked onchange="updateGiftBtn()"> ' + esc((m.profiles && m.profiles.display_name) || 'Участник') + '</label>').join('');
+  } else {
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
+  updateGiftBtn();
   document.getElementById('giftConfirm').style.display = 'flex';
+}
+function selectedRecipients() {
+  return [...document.querySelectorAll('#gcRecip .gc-chk:checked')].map(c => c.value);
+}
+function toggleAllRecip(on) {
+  document.querySelectorAll('#gcRecip .gc-chk').forEach(c => { c.checked = on; });
+  updateGiftBtn();
+}
+function updateGiftBtn() {
+  const g = giftList.find(x => x.id === pendingGiftId);
+  const btn = document.getElementById('gcBtn');
+  if (!g || !btn) return;
+  const conv = currentConv();
+  if (conv?.is_group) {
+    const n = selectedRecipients().length;
+    const all = document.getElementById('gcAll');
+    if (all) all.checked = n === document.querySelectorAll('#gcRecip .gc-chk').length;
+    btn.disabled = n === 0;
+    btn.textContent = n ? 'Отправить за 🪙 ' + (g.price * n) + ' (' + n + ' чел.)' : 'Выбери получателей';
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Отправить подарок за 🪙 ' + g.price;
+  }
 }
 function closeGiftConfirm() { document.getElementById('giftConfirm').style.display = 'none'; pendingGiftId = null; }
 async function confirmGift() {
   if (!pendingGiftId) return;
   const id = pendingGiftId;
+  const conv = currentConv();
+  if (conv?.is_group) {
+    const recipients = selectedRecipients();
+    if (!recipients.length) return;
+    closeGiftConfirm();
+    const { error } = await sb.rpc('send_group_gift', { conv: conv.id, gift: id, recipients });
+    if (error) return toast(error.message.includes('Not enough') ? 'Недостаточно токенов' : 'Ошибка: ' + error.message);
+    await loadMe(me.id);
+    closeGifts();
+    toast('Подарок отправлен группе');
+    return;
+  }
   closeGiftConfirm();
   await buyGift(id);
 }
@@ -1708,7 +1767,7 @@ function openMsgMenu(msg) {
   menuMsg = msg;
   const isDeleted = msg.deleted_by?.includes(me.id);
   const isOut = msg.sender_id === me.id;
-  const isGift = msg.text.startsWith('[gift:');
+  const isGift = msg.text.startsWith('[gift:') || msg.text.startsWith('[ggift:');
   const reacts = ['👍','❤️','😂','😮','😢'].map(e => `<button onclick="reactFromMenu('${e}')">${e}</button>`).join('');
   let actions = '';
   if (!isDeleted && !isGift) actions += `<button class="act" onclick="replyFromMenu()">↩️ Ответить</button><button class="act" onclick="showForwardList()">↪️ Переслать</button>`;
@@ -3749,7 +3808,7 @@ function renderChatList(filter='') {
     const color = colorFor(other?.id || conv.id);
     const lastMsg = conv.lastMsg;
     const isDeleted = lastMsg && lastMsg.deleted_by?.includes(me.id);
-    const preview = lastMsg ? (isDeleted ? '🗑 Удалено' : lastMsg.text.startsWith('[gift:') ? '🎁 Подарок' : lastMsg.text.startsWith('e1:') ? '🔒 Сообщение' : lastMsg.text) : 'Начни общение';
+    const preview = lastMsg ? (isDeleted ? '🗑 Удалено' : (lastMsg.text.startsWith('[gift:') || lastMsg.text.startsWith('[ggift:')) ? '🎁 Подарок' : lastMsg.text.startsWith('e1:') ? '🔒 Сообщение' : lastMsg.text) : 'Начни общение';
     const item = document.createElement('div');
     item.className = 'chat-item' + (conv.id===activeChatId?' active':'');
     item.dataset.id = conv.id;
