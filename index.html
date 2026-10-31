@@ -2043,6 +2043,7 @@ function cycleCallSound() {
   callSoundMode = (callSoundMode + 1) % CALL_SOUND_MODES.length;
   const m = CALL_SOUND_MODES[callSoundMode];
   if (callSoundGain) callSoundGain.gain.value = m.gain;
+  if (ringMaster) ringMaster.gain.value = m.gain;
   const b = document.getElementById('callSound');
   if (b) b.textContent = m.label;
 }
@@ -2071,17 +2072,20 @@ async function startCallToActive(video) {
   await startCall(activeOther.id, activeOther.display_name, video);
 }
 // Гудки на время исходящего вызова (тихий тон 425 Гц: 1 с звук, 4 с пауза)
-let ringCtx = null, ringTimer = null;
+let ringCtx = null, ringTimer = null, ringMaster = null;
 function startRingback() {
   stopRingback();
   try {
     ringCtx = new (window.AudioContext || window.webkitAudioContext)();
+    ringMaster = ringCtx.createGain();
+    ringMaster.gain.value = CALL_SOUND_MODES[callSoundMode].gain;
+    ringMaster.connect(ringCtx.destination);
     const beep = () => {
       if (!ringCtx) return;
       const t = ringCtx.currentTime;
       const o = ringCtx.createOscillator(), g = ringCtx.createGain();
       o.frequency.value = 425;
-      o.connect(g); g.connect(ringCtx.destination);
+      o.connect(g); g.connect(ringMaster);
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(0.05, t + 0.03);
       g.gain.setValueAtTime(0.05, t + 1.0);
@@ -2095,6 +2099,7 @@ function startRingback() {
 function stopRingback() {
   clearInterval(ringTimer); ringTimer = null;
   if (ringCtx) { ringCtx.close().catch(() => {}); ringCtx = null; }
+  ringMaster = null;
 }
 async function startCall(uid, name, video) {
   if (callState || pendingCall) return toast('Звонок уже идёт');
