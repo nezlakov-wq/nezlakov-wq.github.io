@@ -1692,6 +1692,11 @@ async function openProfile() {
   const pm = document.querySelector('#profileModal .modal');
   if (pm) pm.style.backgroundImage = p.profile_bg_url ? `linear-gradient(rgba(10,14,30,.75),rgba(10,14,30,.9)), url('${p.profile_bg_url}')` : '';
   if (pm) { pm.style.backgroundSize = 'cover'; pm.style.backgroundPosition = 'center'; }
+  // Блоки текста полупрозрачные поверх фона, как в Discord
+  if (pm) pm.querySelectorAll('div[style*="border-radius:14px"]').forEach(d => {
+    d.style.background = p.profile_bg_url ? 'rgba(15,20,40,.55)' : 'var(--input-bg)';
+    d.style.backdropFilter = p.profile_bg_url ? 'blur(10px)' : '';
+  });
   let bn = document.getElementById('pfBanner');
   if (!bn) { bn = document.createElement('div'); bn.id = 'pfBanner'; av.parentElement.insertBefore(bn, av); }
   bn.style.cssText = 'height:220px;position:relative;background:' + (p.banner_url ? `url("${p.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)');
