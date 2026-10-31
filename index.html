@@ -2691,6 +2691,14 @@ function deviceName() {
   const browser = /CriOS|Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Браузер';
   return os + ' · ' + browser;
 }
+// Канал обновлений: нажатие подписывает (если ещё не подписан) и открывает канал
+async function openChannel() {
+  const { data: cid, error } = await sb.rpc('join_channel');
+  if (error || !cid) return toast('Канал пока недоступен');
+  await loadConversations();
+  openChat(cid);
+}
+
 async function openSettings() {
   if (!me) return;
   const { data: { user } } = await sb.auth.getUser();
@@ -2872,6 +2880,8 @@ async function decryptWith(key, text) {
 }
 // Единая точка шифрования: личный чат или группа. Возвращает payload и номер ключа.
 async function encryptForConv(conv, text, version) {
+  // Канал обновлений: открытый текст, его читают все подписчики без ключей
+  if (conv?.is_channel) return { payload: text, key_version: 0 };
   if (conv?.is_group) {
     const entry = await loadGroupKeys(conv.id);
     const v = version || entry.latest;
@@ -3309,6 +3319,11 @@ function renderChatList(filter='') {
     sv.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">★</div></div><div class="chat-info"><div class="chat-name">Избранное</div><div class="chat-prev">Заметки для себя</div></div>`;
     sv.addEventListener('click', () => openSavedChat());
     list.appendChild(sv);
+    const ch = document.createElement('div');
+    ch.className = 'chat-item';
+    ch.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">📢</div></div><div class="chat-info"><div class="chat-name">Обновления Moonlit</div><div class="chat-prev">Канал: только для чтения</div></div>`;
+    ch.addEventListener('click', () => openChannel());
+    list.appendChild(ch);
   }
   const filtered = conversations.filter(c => {
     const name = c.other?.display_name || c.name || '';
@@ -3481,6 +3496,9 @@ async function openChat(convId) {
   const conv = conversations.find(c=>c.id===convId);
   if(!conv) return;
   activeOther = conv.other;
+  // В канале писать может только создатель
+  const roChannel = !!conv.is_channel && conv.created_by !== me?.id;
+  document.querySelector('.input-area').style.display = roChannel ? 'none' : '';
   document.querySelectorAll('.chat-item').forEach(el=>el.classList.toggle('active', el.dataset.id===convId));
   // Header
   const color = colorFor(activeOther?.id || convId);
