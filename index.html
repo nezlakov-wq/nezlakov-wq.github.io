@@ -768,6 +768,7 @@ body::before {
         <div class="my-name-text" id="myName">—</div>
         <div class="my-username" id="myUsername"></div>
       </div>
+      <button class="s-btn" title="TikTok" onclick="openTikTok()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></button>
       <button class="s-btn" title="Настройки" onclick="openSettings()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg></button>
     </div>
   </nav>
@@ -2685,6 +2686,35 @@ function deviceName() {
   const browser = /CriOS|Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Браузер';
   return os + ' · ' + browser;
 }
+// Плеер TikTok: вставляешь ссылку на видео, оно играет в окне приложения через официальный embed-плеер
+function openTikTok() {
+  let ov = document.getElementById('tiktokModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'tiktokModal';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `<div class="modal" style="position:relative;max-width:420px">
+      <div class="modal-title">TikTok</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="ttInput" placeholder="Ссылка на видео tiktok.com/@…/video/…" style="flex:1;min-width:0;box-sizing:border-box">
+        <button id="ttGo" class="auth-btn" style="width:auto;padding:0 14px">Открыть</button>
+      </div>
+      <div id="ttBox" style="aspect-ratio:9/16;max-height:70vh;width:100%;background:#000;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">Вставь ссылку выше</div>
+      <button class="set-logout" style="color:inherit;margin-top:10px" onclick="document.getElementById('tiktokModal').style.display='none'">Закрыть</button>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) ov.style.display = 'none'; });
+    document.getElementById('ttGo').onclick = () => {
+      const raw = document.getElementById('ttInput').value.trim();
+      const m = raw.match(/video\/(\d+)/);
+      const box = document.getElementById('ttBox');
+      if (!m) { box.textContent = 'Нужна ссылка вида tiktok.com/@имя/video/123'; return; }
+      box.innerHTML = `<iframe src="https://www.tiktok.com/embed/v2/${m[1]}" allow="autoplay; fullscreen" style="width:100%;height:100%;border:0"></iframe>`;
+    };
+  }
+  ov.style.display = 'flex';
+}
+
 async function openSettings() {
   if (!me) return;
   const { data: { user } } = await sb.auth.getUser();
