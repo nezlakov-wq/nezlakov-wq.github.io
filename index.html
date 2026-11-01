@@ -708,6 +708,9 @@ body::before {
 .call-info, .call-actions { position: relative; z-index: 3; text-align: center; }
 .call-info #callName, #inName { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
 .call-info #callStatus, #inKind { font-size: 14px; opacity: 0.75; margin-top: 6px; letter-spacing: .3px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
+.call-face { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -60%); z-index: 3; display: none; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.call-ava { width: 170px; height: 170px; border-radius: 50%; font-size: 64px; font-weight: 700; color: #fff; transition: box-shadow .2s ease; }
+.call-face.speaking .call-ava { box-shadow: 0 0 0 5px rgba(91,127,255,.95), 0 0 0 16px rgba(91,127,255,.28), 0 0 70px rgba(91,127,255,.55); }
 .call-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 340px; margin: 0 auto; }
 .call-actions button {
   padding: 15px 12px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 18px; font-size: 14px; font-weight: 500; font-family: inherit;
@@ -1036,6 +1039,7 @@ body::before {
   <video id="remoteVideo" playsinline autoplay></video>
   <video id="localVideo" playsinline autoplay muted></video>
   <div class="call-info"><div id="callName"></div><div id="callStatus"></div></div>
+  <div id="callFace" class="call-face"><div id="callAva" class="av-img"></div></div>
   <div class="call-actions">
     <button id="callSound" onclick="cycleCallSound()">Звук: обычный</button>
     <button id="callMute" onclick="toggleMute()">Выкл. микрофон</button>
@@ -2827,6 +2831,36 @@ async function openLocalMedia(video) {
   lv.srcObject = callLocal;
   lv.style.display = video ? '' : 'none';
 }
+let speakCtx = null, speakRAF = null;
+function startSpeakMeter(stream) {
+  stopSpeakMeter();
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    speakCtx = new AC();
+    const src = speakCtx.createMediaStreamSource(stream);
+    const an = speakCtx.createAnalyser();
+    an.fftSize = 512;
+    src.connect(an);
+    const buf = new Uint8Array(an.fftSize);
+    const face = document.getElementById('callFace');
+    let hold = 0;
+    const tick = (t) => {
+      an.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      if (Math.sqrt(sum / buf.length) > 0.03) hold = t + 350;
+      face && face.classList.toggle('speaking', t < hold);
+      speakRAF = requestAnimationFrame(tick);
+    };
+    speakRAF = requestAnimationFrame(tick);
+  } catch (e) { stopSpeakMeter(); }
+}
+function stopSpeakMeter() {
+  if (speakRAF) cancelAnimationFrame(speakRAF);
+  speakRAF = null;
+  document.getElementById('callFace')?.classList.remove('speaking');
+  if (speakCtx) { speakCtx.close().catch(() => {}); speakCtx = null; }
+}
 function createPeer() {
   callPC = new RTCPeerConnection(RTC_CONFIG);
   callLocal.getTracks().forEach(t => callPC.addTrack(t, callLocal));
@@ -2835,6 +2869,7 @@ function createPeer() {
     rv.srcObject = e.streams[0];
     rv.play().catch(() => {});
     setupCallSound(rv);
+    startSpeakMeter(e.streams[0]);
   };
   callPC.onconnectionstatechange = () => {
     const s = callPC && callPC.connectionState;
@@ -2884,6 +2919,12 @@ function resetCallSound() {
 function showCallScreen(name, status, video) {
   ensureCallChrome();
   document.getElementById('callName').textContent = name || 'Собеседник';
+  const cv = conversations.find(c => c.other && c.other.display_name === name);
+  const pp = cv ? cv.other : null;
+  const ava = document.getElementById('callAva');
+  ava.textContent = pp ? avText(pp, name) : initials(name || '?');
+  ava.style.cssText = 'width:170px;height:170px;font-size:64px;' + avStyle(pp || {}, name);
+  document.getElementById('callFace').style.display = video ? 'none' : 'flex';
   setCallStatus(status);
   document.getElementById('callMute').textContent = 'Выкл. микрофон';
   document.getElementById('callCam').textContent = 'Выкл. камеру';
@@ -3011,6 +3052,7 @@ function endCall(notify, reason) {
   if (callLocal) { callLocal.getTracks().forEach(t => t.stop()); callLocal = null; }
   document.getElementById('remoteVideo').srcObject = null;
   document.getElementById('localVideo').srcObject = null;
+  stopSpeakMeter();
   document.getElementById('callScreen').style.display = 'none';
   hideCallMini();
   if (reason) toast(reason);
