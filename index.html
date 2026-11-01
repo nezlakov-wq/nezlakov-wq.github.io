@@ -1104,6 +1104,7 @@ body::before {
       </div>
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
       <div class="set-row"><div class="set-label">О себе</div><textarea id="setBio" maxlength="140" rows="2" onchange="saveProfileField('bio', this.value.trim().slice(0,140))" style="width:100%;box-sizing:border-box;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></textarea></div>
+      <div class="set-row"><div class="set-label">Дополнительные юзернеймы (Plus, до 3)</div><div id="aliasBox" style="margin-top:6px"></div></div>
       <div class="set-row"><div class="set-label">День рождения</div><input type="date" id="setBirthday" onchange="saveProfileField('birthday', this.value || null)" style="background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></div>
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
@@ -1952,6 +1953,41 @@ async function confirmGift() {
 }
 // Активна ли у меня подписка Plus
 function isPlusNow() { return !!(me && me.plus_until && new Date(me.plus_until) > new Date()); }
+// Поиск: учитываем дополнительные юзернеймы (Plus)
+async function aliasUserIds(q) {
+  if (!q) return [];
+  try {
+    const { data } = await sb.from('username_aliases').select('user_id').ilike('username', '%' + q + '%').limit(20);
+    return (data || []).map(x => x.user_id);
+  } catch (e) { return []; }
+}
+async function userOr(q) {
+  const ids = await aliasUserIds(q);
+  return `username.ilike.%${q}%,display_name.ilike.%${q}%` + (ids.length ? `,id.in.(${ids.join(',')})` : '');
+}
+// Дополнительные юзернеймы (до 3, только Plus)
+async function renderAliases() {
+  const box = document.getElementById('aliasBox');
+  if (!box || !me) return;
+  const { data } = await sb.from('username_aliases').select('username').eq('user_id', me.id);
+  const list = (data || []).map(a => `<div class="tg-row" style="padding:8px 0"><div class="tg-txt"><div class="tg-name">@${esc(a.username)}</div></div><button class="tg-link" onclick="removeAlias('${esc(a.username)}')">Удалить</button></div>`).join('');
+  const add = isPlusNow()
+    ? '<div style="display:flex;gap:8px;margin-top:8px"><input id="aliasInput" placeholder="новый_юзернейм" maxlength="20" style="flex:1;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit"><button class="tg-link" onclick="addAlias()">Добавить</button></div>'
+    : '<div style="font-size:13px;color:var(--fg2);margin-top:6px">Доступно с подпиской Moonlit Plus</div>';
+  box.innerHTML = list + add;
+}
+async function addAlias() {
+  const v = document.getElementById('aliasInput').value.trim();
+  const { error } = await sb.rpc('add_username', { name: v });
+  if (error) return toast(error.message);
+  toast('Юзернейм добавлен');
+  renderAliases();
+}
+async function removeAlias(n) {
+  const { error } = await sb.rpc('remove_username', { name: n });
+  if (error) return toast(error.message);
+  renderAliases();
+}
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
 function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
 function closeGifts() { document.getElementById('giftModal').style.display = 'none'; }
@@ -3726,7 +3762,7 @@ function switchSettingsTab(tab) {
   const prev = curSetTab;
   curSetTab = tab;
   const show = () => {
-    if (tab === 'data') setTimeout(renderProfPreview, 0);
+    if (tab === 'data') { setTimeout(renderProfPreview, 0); renderAliases(); }
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
       el.style.display = key === tab ? '' : 'none';
@@ -3951,7 +3987,7 @@ function searchUsersInto(val, resId, onPick) {
     const q = val.replace('@', '').toLowerCase();
     const { data } = await sb.from('profiles')
       .select('id,display_name,username,pub_key')
-      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+      .or(await userOr(q))
       .neq('id', me.id).limit(10);
     res.innerHTML = '';
     if (!data?.length) {
@@ -4830,7 +4866,7 @@ async function searchUsers(val) {
     const q = val.replace('@','').toLowerCase();
     const { data } = await sb.from('profiles_view')
       .select('*')
-      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+      .or(await userOr(q))
       .neq('id', me.id)
       .limit(10);
     res.innerHTML = '';
