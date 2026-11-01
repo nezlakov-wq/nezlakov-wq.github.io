@@ -672,7 +672,7 @@ body::before {
 
 /* ── Звонки ── */
 .call-screen {
-  position: fixed; inset: 0; z-index: 80; background: #0b1638;
+  position: fixed; inset: 0; z-index: 80; background: radial-gradient(120% 70% at 50% 0%, #2a3f9a 0%, #13204f 45%, #070b1f 100%);
   display: flex; flex-direction: column; align-items: center; justify-content: space-between;
   padding: calc(40px + env(safe-area-inset-top, 0px)) 20px calc(30px + env(safe-area-inset-bottom, 0px));
   color: #fff;
@@ -683,15 +683,16 @@ body::before {
   object-fit: cover; border-radius: 12px; background: #111; z-index: 2;
 }
 .call-info, .call-actions { position: relative; z-index: 3; text-align: center; }
-.call-info #callName, #inName { font-size: 26px; font-weight: 700; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
-.call-info #callStatus, #inKind { font-size: 15px; opacity: 0.85; margin-top: 6px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
-.call-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.call-info #callName, #inName { font-size: 28px; font-weight: 700; letter-spacing: -0.3px; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
+.call-info #callStatus, #inKind { font-size: 14px; opacity: 0.75; margin-top: 6px; letter-spacing: .3px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); }
+.call-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; max-width: 340px; margin: 0 auto; }
 .call-actions button {
-  padding: 12px 18px; border: none; border-radius: 22px; font-size: 15px; font-family: inherit;
-  background: rgba(255, 255, 255, 0.18); color: #fff; cursor: pointer; backdrop-filter: blur(10px);
+  padding: 15px 12px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 18px; font-size: 14px; font-weight: 500; font-family: inherit;
+  background: rgba(255, 255, 255, 0.12); color: #fff; cursor: pointer; backdrop-filter: blur(12px); transition: transform .1s, background .15s;
 }
-.call-actions .call-end { background: #e85d75; }
-.call-actions .call-accept { background: #34c78a; }
+.call-actions button:active { transform: scale(.97); }
+.call-actions .call-end { grid-column: 1 / -1; background: linear-gradient(135deg, #ff5c7a, #e0475f); border-color: transparent; font-weight: 600; box-shadow: 0 10px 30px rgba(224, 71, 95, 0.35); }
+.call-actions .call-accept { background: linear-gradient(135deg, #3ddc97, #22b07a); border-color: transparent; font-weight: 600; box-shadow: 0 10px 30px rgba(34, 176, 122, 0.35); }
 
 /* ── Голосовое в стиле Telegram ── */
 .vp { display: flex; align-items: center; gap: 10px; min-width: 230px; }
