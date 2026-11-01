@@ -1045,7 +1045,7 @@ body::before {
         <button class="set-item" onclick="switchSettingsTab('devices')"><span class="set-ico" style="background:#ffb340"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span><span class="set-txt">Устройства</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('privacy')"><span class="set-ico" style="background:#8e8e93"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="set-txt">Конфиденциальность</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="pickBanner()"><span class="set-ico" style="background:#6d4fb3"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg></span><span class="set-txt">Баннер профиля</span><span class="set-chev">›</span></button>
-        <input type="file" id="bannerInput" accept="image/*" style="display:none" onchange="uploadBanner(this.files[0]); this.value=''">
+        <input type="file" id="bannerInput" accept="image/*,video/*" style="display:none" onchange="uploadBanner(this.files[0]); this.value=''">
         <button class="set-item" onclick="document.getElementById('profBgInput').click()"><span class="set-ico" style="background:#8b5cf6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg></span><span class="set-txt">Фон профиля</span><span class="set-chev">›</span></button>
         <input type="file" id="profBgInput" accept="image/*" style="display:none" onchange="uploadProfBg(this.files[0]); this.value=''">
         <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l3-3 3 3-3 3M3 21l9-9"/></svg></span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
@@ -2333,7 +2333,9 @@ async function openProfile() {
   });
   let bn = document.getElementById('pfBanner');
   if (!bn) { bn = document.createElement('div'); bn.id = 'pfBanner'; av.parentElement.insertBefore(bn, av); }
-  bn.style.cssText = 'height:220px;position:relative;background:' + (p.banner_url ? `url("${p.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)');
+  const vidB = isVideoUrl(p.banner_url);
+  bn.style.cssText = 'height:220px;position:relative;overflow:hidden;background:' + (p.banner_url && !vidB ? `url("${p.banner_url}") center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)');
+  bn.innerHTML = vidB ? bannerVideo(p.banner_url) : '';
   document.getElementById('pfName').textContent = name;
   document.getElementById('pfUsername').textContent = '@' + (p.username || '');
   const list = document.getElementById('pfGifts');
@@ -3652,13 +3654,14 @@ function renderProfPreview() {
   const box = document.getElementById('profPreview');
   if (!box || !me) return;
   // Одинарные кавычки: иначе двойные ломают атрибут style="..." в innerHTML
-  const banner = me.banner_url ? `url('${me.banner_url}') center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)';
+  const vidP = isVideoUrl(me.banner_url);
+  const banner = me.banner_url && !vidP ? `url('${me.banner_url}') center/cover no-repeat` : 'linear-gradient(135deg,#3b4d8f,#6d4fb3)';
   const ring = `box-shadow:0 0 0 3px ${onlineIds.has(me.id) ? '#22c55e' : '#64748b'};`;
   const av = me.avatar_url
     ? `<img src="${esc(me.avatar_url)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;${ring}">`
     : `<div style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;background:${colorFor(me.id)};${ring}">${esc((me.display_name || '?').charAt(0).toUpperCase())}</div>`;
   box.innerHTML = `
-    <div style="height:90px;background:${banner}"></div>
+    <div style="height:90px;position:relative;overflow:hidden;background:${banner}">${vidP ? bannerVideo(me.banner_url) : ''}</div>
     <div style="display:flex;flex-direction:column;align-items:center;margin-top:-36px;padding-bottom:14px">
       ${av}
       <div style="margin-top:8px;font-weight:600;font-size:16px">${esc(me.display_name || '')}</div>
@@ -3693,8 +3696,35 @@ function switchSettingsTab(tab) {
   }
 }
 // Баннер профиля (как обложка): картинка сжимается и хранится в том же хранилище, что и аватарки
+// Видео-баннер: короткий зацикленный ролик без звука (до 6 сек, до 8 МБ)
+function isVideoUrl(u) { return !!u && /\.(mp4|webm|mov)(\?|$)/i.test(u); }
+function bannerVideo(u) { return '<video src="' + esc(u) + '" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>'; }
+async function uploadBannerVideo(file) {
+  if (file.size > 8 * 1024 * 1024) return toast('Видео больше 8 МБ');
+  const dur = await new Promise(res => {
+    const v = document.createElement('video'); v.preload = 'metadata';
+    v.onloadedmetadata = () => { res(v.duration); URL.revokeObjectURL(v.src); };
+    v.onerror = () => res(NaN);
+    v.src = URL.createObjectURL(file);
+  });
+  if (!isFinite(dur)) return toast('Не удалось прочитать видео');
+  if (dur > 6) return toast('Видео длиннее 6 секунд');
+  toast('Загружаем видео…');
+  try {
+    const ext = /webm/i.test(file.type) ? 'webm' : (/quicktime|mov/i.test(file.type) || /\.mov$/i.test(file.name) ? 'mov' : 'mp4');
+    const path = `${me.id}/banner.${ext}`;
+    const { error } = await sb.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type || 'video/mp4' });
+    if (error) return toast('Ошибка: ' + error.message);
+    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?t=' + Date.now();
+    const { error: e2 } = await sb.from('profiles').update({ banner_url: url }).eq('id', me.id);
+    if (e2) return toast('Ошибка: ' + e2.message);
+    me.banner_url = url;
+    toast('Видео-баннер обновлён');
+  } catch (e) { toast(e.message || 'Не удалось загрузить видео'); }
+}
 async function uploadBanner(file) {
   if (!file || !me) return;
+  if (file.type.startsWith('video/')) return uploadBannerVideo(file);
   toast('Загружаем баннер…');
   try {
     const blob = await bannerBlob(file);
