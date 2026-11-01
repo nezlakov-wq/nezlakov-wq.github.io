@@ -373,12 +373,12 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .set-profile{display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0 16px}
 .set-av{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:600;color:#fff;background-size:cover;background-position:center;cursor:pointer;position:relative}
 .set-av::after{content:'📷';position:absolute;right:-2px;bottom:-2px;width:30px;height:30px;border-radius:50%;background:#5b7fff;font-size:14px;display:flex;align-items:center;justify-content:center}
-.set-username{font-size:16px;color:#9aa0b4}
-.set-tabs{display:flex;background:#2c2f3d;border-radius:10px;padding:4px;margin-bottom:12px}
-.set-tab{flex:1;padding:8px;border:none;background:none;color:#9aa0b4;border-radius:8px;font-size:14px;cursor:pointer}
-.set-tab.active{background:#5b7fff;color:#fff}
-.set-row{padding:12px 0;border-bottom:1px solid #2c2f3d;display:flex;flex-direction:column;gap:4px;color:#fff;font-size:15px}
-.set-label{font-size:12px;color:#9aa0b4}
+.set-username{font-size:16px;color:var(--fg2)}
+.set-tabs{display:flex;background:var(--input-bg);border-radius:10px;padding:4px;margin-bottom:12px}
+.set-tab{flex:1;padding:8px;border:none;background:none;color:var(--fg2);border-radius:8px;font-size:14px;cursor:pointer}
+.set-tab.active{background:var(--accent);color:#fff}
+.set-row{padding:12px 0;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:4px;color:var(--fg);font-size:15px}
+.set-label{font-size:12px;color:var(--fg2)}
 .blurred{filter:blur(6px);user-select:none;cursor:pointer}
 .set-logout{width:100%;margin-top:16px;padding:12px;border:none;border-radius:10px;background:#e85d75;color:#fff;font-size:15px;cursor:pointer}
 .gift-card{font-size:20px;padding:4px 2px}
@@ -798,7 +798,7 @@ body::before {
   display: flex; align-items: center; justify-content: center; font-size: 16px;
 }
 .set-txt { flex: 1; }
-.set-chev { color: #6b7090; font-size: 22px; line-height: 1; }
+.set-chev { color: var(--fg2); font-size: 22px; line-height: 1; }
 
 /* ── Приветствие перед входом ── */
 #welcome{position:fixed;inset:0;z-index:600;background:var(--bg);display:none;opacity:0;transition:opacity .35s ease}
@@ -973,7 +973,7 @@ body::before {
   <div class="modal" style="position:relative">
     <button class="modal-close" onclick="closeNewChat()">✕</button>
     <div class="modal-title">Новый чат</div>
-    <button class="set-logout" style="margin:0 0 12px;background:#34c78a;color:#fff" onclick="openNewGroup()">+ Создать группу</button>
+    <button class="set-logout" style="margin:0 0 12px;background:var(--accent);color:#fff" onclick="openNewGroup()">+ Создать группу</button>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
   </div>
@@ -989,7 +989,7 @@ body::before {
     <div id="groupMembers" style="margin-bottom:8px"></div>
     <input type="text" id="groupSearch" placeholder="Найти по @username или имени…" oninput="searchGroupUsers(this.value)">
     <div class="user-results" id="groupResults" style="max-height:30vh"></div>
-    <button class="set-logout" style="background:#34c78a" onclick="createGroup()">Создать группу</button>
+    <button class="set-logout" style="background:var(--accent)" onclick="createGroup()">Создать группу</button>
   </div>
 </div>
 
