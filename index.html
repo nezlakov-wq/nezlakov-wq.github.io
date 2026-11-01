@@ -4337,10 +4337,10 @@ async function loadConversations() {
   loadStories();
   if(!me) return;
   // Get my conversation ids
-  const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived, label, label_color').eq('user_id', me.id);
+  const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived, pinned, label, label_color').eq('user_id', me.id);
   if(!memberships?.length) { renderChatList(); return; }
   const ids = memberships.map(m=>m.conversation_id);
-  const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived, label: m.label, label_color: m.label_color }]));
+  const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived, pinned: !!m.pinned, label: m.label, label_color: m.label_color }]));
   // Get conversations
   const { data: convs, error: cErr } = await sb.from('conversations').select('*').in('id', ids);
   // For each conversation get members and last message
@@ -4369,11 +4369,13 @@ async function loadConversations() {
       lastMsg: lastMsgs?.[0] || null,
       muted: !!flags[conv.id]?.muted,
       archived: !!flags[conv.id]?.archived,
+      pinned: !!flags[conv.id]?.pinned,
       label: flags[conv.id]?.label || null,
       label_color: flags[conv.id]?.label_color || null,
     });
   }
   built.sort((a,b)=>{
+    if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
     const ta = a.lastMsg?.created_at || a.created_at;
     const tb = b.lastMsg?.created_at || b.created_at;
     return new Date(tb) - new Date(ta);
@@ -4518,6 +4520,7 @@ function openChatSheet(conv) {
   ov.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center';
   const btn = (label, fn) => `<button class="act" style="width:100%;padding:14px;margin:4px 0;border-radius:12px;background:var(--input-bg);color:inherit;border:0;font-size:16px" data-a="${fn}">${label}</button>`;
   ov.innerHTML = `<div style="width:100%;max-width:480px;padding:16px;background:var(--sidebar);border-radius:18px 18px 0 0">
+    ${btn(conv.pinned ? 'Открепить чат' : 'Закрепить чат наверху', 'pin')}
     ${btn(conv.muted ? 'Включить уведомления' : 'Выключить уведомления', 'mute')}
     ${btn(conv.archived ? 'Вернуть из архива' : 'В архив', 'arch')}
     ${btn('Исчезающие сообщения: ' + ttlLabel(conv.ttl_seconds), 'ttl')}
@@ -4530,6 +4533,16 @@ function openChatSheet(conv) {
     if (!a) return;
     ov.remove();
     if (a === 'cancel') return;
+    if (a === 'pin') {
+      const v = !conv.pinned;
+      const target = conversations.find(c => c.id === conv.id);
+      if (target) target.pinned = v;
+      renderChatList(document.getElementById('chatSearch')?.value || '');
+      const { error } = await sb.rpc('set_chat_pinned', { conv: conv.id, val: v });
+      if (error) toast(error.message.includes('не больше') ? error.message : 'Не удалось сохранить');
+      await loadConversations();
+      return;
+    }
     if (a === 'label') {
       const text = prompt('Ярлык для чата (пусто — убрать)', conv.label || '');
       if (text === null) return;
