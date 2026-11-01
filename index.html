@@ -501,6 +501,10 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 
 .pv-val{margin-left:auto;margin-right:6px;opacity:.6;font-size:15px}
 .pv-note{font-size:13px;opacity:.6;padding:8px 14px 16px}
+.msg-menu-overlay{opacity:0;transition:opacity .22s ease}
+.msg-menu-overlay.show{opacity:1}
+.msg-menu-overlay > div{transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.msg-menu-overlay.show > div{transform:none}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -2241,9 +2245,11 @@ function openMsgMenu(msg) {
   document.getElementById('msgMenuBody').innerHTML =
     (isDeleted ? '' : `<div class="msg-menu-reacts">${reacts}</div>`) + actions +
     `<button class="act" onclick="closeMsgMenu()">Отмена</button>`;
-  document.getElementById('msgMenu').style.display = 'flex';
+  showMenuOverlay('msgMenu');
 }
-function closeMsgMenu() { document.getElementById('msgMenu').style.display = 'none'; menuMsg = null; }
+function showMenuOverlay(id) { const el = document.getElementById(id); clearTimeout(el._t); el.style.display = 'flex'; requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show'))); }
+function hideMenuOverlay(id) { const el = document.getElementById(id); el.classList.remove('show'); clearTimeout(el._t); el._t = setTimeout(() => { el.style.display = 'none'; }, 240); }
+function closeMsgMenu() { hideMenuOverlay('msgMenu'); menuMsg = null; }
 async function reactFromMenu(emoji) { const id = menuMsg.id; closeMsgMenu(); await toggleReaction(id, emoji); }
 async function toggleReaction(id, emoji) {
   const { error } = await sb.rpc('toggle_reaction', { msg: id, emoji });
@@ -4546,6 +4552,7 @@ function renderMessages(msgs, area) {
   const isGroupChat = !!currentConv()?.is_group;
   // Запоминаем, читает ли человек историю: если да, не прыгаем вниз при новых сообщениях
   const prevTop = area.scrollTop;
+  const prevDist = area.scrollHeight - area.scrollTop; // расстояние от низа: при перерисовке не прыгаем
   const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 120;
   area.innerHTML = '';
   const byId = Object.fromEntries(msgs.map(m => [m.id, m]));
@@ -4603,7 +4610,7 @@ function renderMessages(msgs, area) {
   hydrateFiles(area, msgs);
   hydratePreviews(area);
   renderPinBar();
-  area.scrollTop = wasAtBottom || !prevTop ? area.scrollHeight : prevTop;
+  area.scrollTop = wasAtBottom || !prevTop ? area.scrollHeight : Math.max(0, area.scrollHeight - prevDist);
 }
 
 async function deleteMsg(msgId) { await setDeleted(msgId, true); }
