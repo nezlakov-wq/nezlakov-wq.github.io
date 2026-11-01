@@ -617,6 +617,22 @@ body::before {
   box-shadow: 0 6px 20px rgba(91, 127, 255, 0.3);
 }
 
+/* ── Компьютер (широкий экран): колонка сообщений по центру, шире список чатов ── */
+@media (min-width: 1024px) {
+  .sidebar { width: 360px; min-width: 320px; }
+  .msgs, .chat-header, .input-area, .search-row {
+    padding-left: max(24px, calc(50% - 430px)) !important;
+    padding-right: max(24px, calc(50% - 430px)) !important;
+  }
+  .bubble { max-width: min(62%, 540px) !important; }
+  .chat-header, .input-area { box-sizing: border-box; }
+}
+@media (min-width: 1600px) {
+  .sidebar { width: 400px; }
+  .chat-name { font-size: 15px; }
+  .chat-prev { font-size: 13px; }
+}
+
 /* ── Стиль как в Telegram: список чатов и настройки ── */
 .chat-list { padding: 4px 0; }
 .chat-item {
