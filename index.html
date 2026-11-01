@@ -624,6 +624,14 @@ body::before {
   box-shadow: 0 6px 20px rgba(91, 127, 255, 0.3);
 }
 
+/* ── ЛУНИ НА ГЛАВНОМ ЭКРАНЕ ── */
+#luni { position: fixed; z-index: 140; width: 96px; height: 96px; touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; display: none; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+#luni.drag { cursor: grabbing; }
+#luni .luni-body { width: 100%; height: 100%; animation: luniBob 3s ease-in-out infinite; }
+#luni.talk .luni-body { animation: luniHop .5s ease; }
+@keyframes luniBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes luniHop { 0% { transform: scale(1); } 40% { transform: scale(1.08,.94); } 100% { transform: scale(1); } }
+#luniBubble { position: fixed; z-index: 141; max-width: 220px; padding: 10px 14px; border-radius: 16px; background: var(--bg3); color: var(--fg); font-size: 14px; line-height: 1.35; box-shadow: 0 10px 30px rgba(0,0,0,.35); border: 1px solid var(--border); display: none; pointer-events: none; }
 /* ── Компьютер (широкий экран): колонка сообщений по центру, шире список чатов ── */
 @media (min-width: 1024px) {
   .sidebar { width: 360px; min-width: 320px; }
@@ -912,6 +920,8 @@ body::before {
 </div>
 
 <!-- APP -->
+<div id="luni" title="Луни"><div class="luni-body"><svg viewBox="0 0 800 800" width="100%" height="100%"><defs><radialGradient id="lf" cx="0.38" cy="0.3" r="0.75"><stop offset="0" stop-color="#b9d4ff"/><stop offset="0.45" stop-color="#5f93ff"/><stop offset="1" stop-color="#2a4fc4"/></radialGradient><radialGradient id="lb" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#e8f1ff"/><stop offset="1" stop-color="#9fc0ff"/></radialGradient><radialGradient id="le" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9e6ff"/></radialGradient></defs><path d="M597.0,470.0 L595.8,478.5 L592.8,486.9 L589.4,494.9 L587.1,503.0 L586.5,511.3 L586.9,520.1 L586.9,528.9 L585.1,537.4 L581.1,545.0 L575.4,551.8 L569.4,558.2 L564.5,565.0 L561.1,572.6 L558.5,581.0 L555.5,589.3 L550.9,596.6 L544.5,602.4 L536.8,606.8 L529.1,610.8 L522.1,615.5 L516.3,621.6 L511.0,628.5 L505.3,635.3 L498.5,640.6 L490.5,643.8 L481.8,645.4 L473.1,646.5 L465.0,648.5 L457.4,652.2 L450.1,656.9 L442.4,661.3 L434.2,664.0 L425.6,664.3 L416.9,662.8 L408.3,660.8 L400.0,660.0 L391.7,660.8 L383.1,662.8 L374.4,664.3 L365.8,664.0 L357.6,661.3 L349.9,656.9 L342.6,652.2 L335.0,648.5 L326.9,646.5 L318.2,645.4 L309.5,643.8 L301.5,640.6 L294.7,635.3 L289.0,628.5 L283.7,621.6 L277.9,615.5 L270.9,610.8 L263.2,606.8 L255.5,602.4 L249.1,596.6 L244.5,589.3 L241.5,581.0 L238.9,572.6 L235.5,565.0 L230.6,558.2 L224.6,551.8 L218.9,545.0 L214.9,537.4 L213.1,528.9 L213.1,520.1 L213.5,511.3 L212.9,503.0 L210.6,494.9 L207.2,486.9 L204.2,478.5 L203.0,470.0 L204.2,461.5 L207.2,453.1 L210.6,445.1 L212.9,437.0 L213.5,428.7 L213.1,419.9 L213.1,411.1 L214.9,402.6 L218.9,395.0 L224.6,388.2 L230.6,381.8 L235.5,375.0 L238.9,367.4 L241.5,359.0 L244.5,350.7 L249.1,343.4 L255.5,337.6 L263.2,333.2 L270.9,329.2 L277.9,324.5 L283.7,318.4 L289.0,311.5 L294.7,304.7 L301.5,299.4 L309.5,296.2 L318.2,294.6 L326.9,293.5 L335.0,291.5 L342.6,287.8 L349.9,283.1 L357.6,278.7 L365.8,276.0 L374.4,275.7 L383.1,277.2 L391.7,279.2 L400.0,280.0 L408.3,279.2 L416.9,277.2 L425.6,275.7 L434.2,276.0 L442.4,278.7 L450.1,283.1 L457.4,287.8 L465.0,291.5 L473.1,293.5 L481.8,294.6 L490.5,296.2 L498.5,299.4 L505.3,304.7 L511.0,311.5 L516.3,318.4 L522.1,324.5 L529.1,329.2 L536.8,333.2 L544.5,337.6 L550.9,343.4 L555.5,350.7 L558.5,359.0 L561.1,367.4 L564.5,375.0 L569.4,381.8 L575.4,388.2 L581.1,395.0 L585.1,402.6 L586.9,411.1 L586.9,419.9 L586.5,428.7 L587.1,437.0 L589.4,445.1 L592.8,453.1 L595.8,461.5 Z" fill="url(#lf)"/><ellipse cx="400" cy="560" rx="115" ry="95" fill="url(#lb)" opacity="0.9"/><path d="M330 300 C 360 230, 470 220, 500 300 C 440 262, 380 266, 330 300 Z" fill="#7aa8ff"/><ellipse cx="330" cy="400" rx="50" ry="56" fill="url(#le)" stroke="#2a4fc4" stroke-width="4"/><ellipse cx="470" cy="400" rx="50" ry="56" fill="url(#le)" stroke="#2a4fc4" stroke-width="4"/><circle cx="340" cy="410" r="26" fill="#1b2d6e"/><circle cx="480" cy="410" r="26" fill="#1b2d6e"/><circle cx="348" cy="400" r="9" fill="#fff"/><circle cx="488" cy="400" r="9" fill="#fff"/><ellipse cx="270" cy="470" rx="26" ry="16" fill="#ff9ec0" opacity="0.6"/><ellipse cx="530" cy="470" rx="26" ry="16" fill="#ff9ec0" opacity="0.6"/><path d="M378 480 Q400 500 422 480" fill="none" stroke="#1b2d6e" stroke-width="6" stroke-linecap="round"/><ellipse cx="300" cy="660" rx="36" ry="26" fill="#4d7fe8"/><ellipse cx="500" cy="660" rx="36" ry="26" fill="#4d7fe8"/></svg></div></div>
+<div id="luniBubble"></div>
 <div id="app">
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
@@ -1398,6 +1408,7 @@ async function loadMe(uid) {
     document.getElementById('myUsername').innerHTML = '@' + esc(me.username) + ' · ' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
     renderMyAvatar();
     touchStreak();
+    luniShow(true);
   }
 }
 
@@ -1450,6 +1461,87 @@ async function restoreStreak() {
   } catch (e) {
     toast('Не удалось восстановить: ' + (e.message || 'ошибка'));
   }
+}
+// ── ЛУНИ: двигается по экрану, по нажатию говорит ──
+const LUNI_POS_KEY = 'moonlit-luni-pos';
+let luniDrag = null, luniBubbleTimer = null, luniLast = -1;
+function luniSaveVal(v) { try { localStorage.setItem(LUNI_POS_KEY, JSON.stringify(v)); } catch (e) {} }
+function luniLoadVal() { try { return JSON.parse(localStorage.getItem(LUNI_POS_KEY) || 'null'); } catch (e) { return null; } }
+function luniClamp(x, y) {
+  const w = 96, h = 96;
+  return { x: Math.min(Math.max(0, x), window.innerWidth - w), y: Math.min(Math.max(0, y), window.innerHeight - h) };
+}
+function luniPlace(p) {
+  const el = document.getElementById('luni');
+  if (!el) return;
+  const q = luniClamp(p.x, p.y);
+  el.style.left = q.x + 'px';
+  el.style.top = q.y + 'px';
+}
+function luniPhrases() {
+  const d = me?.streak_days || 0;
+  if (me?.streak_broken_day && me.streak_restored_day !== me.streak_broken_day) return ['Я немного скучал... Вернёшься? Серия ещё можно вернуть!'];
+  if (d >= 30) return ['Мы вместе уже ' + d + ' дней! Ты настоящий друг Луны', 'Я сияю от счастья, спасибо, что заходишь'];
+  if (d >= 7) return ['Мы вместе уже ' + d + ' дней! Продолжаем?', 'Ты молодец, что заходишь каждый день'];
+  if (d >= 1) return ['Привет! Серия ' + d + ' дн. Давай поболтаем', 'Хочешь что-нибудь написать друзьям?'];
+  return ['Привет! Я Луни. Напиши кому-нибудь!', 'Нажми на чат, и я расскажу, как тут всё работает'];
+}
+function luniSay() {
+  const list = luniPhrases();
+  let i = Math.floor(Math.random() * list.length);
+  if (list.length > 1 && i === luniLast) i = (i + 1) % list.length;
+  luniLast = i;
+  const text = list[i];
+  const b = document.getElementById('luniBubble');
+  const el = document.getElementById('luni');
+  b.textContent = text;
+  b.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  const left = Math.min(Math.max(8, r.left + r.width / 2 - 110), window.innerWidth - 228);
+  const top = r.top > 120 ? r.top - b.offsetHeight - 10 : r.bottom + 10;
+  b.style.left = left + 'px';
+  b.style.top = Math.max(8, top) + 'px';
+  el.classList.remove('talk'); void el.offsetWidth; el.classList.add('talk');
+  clearTimeout(luniBubbleTimer);
+  luniBubbleTimer = setTimeout(() => { b.style.display = 'none'; }, 3200);
+  try { if ('speechSynthesis' in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; u.rate = 1.05; u.pitch = 1.3; speechSynthesis.speak(u); } } catch (e) {}
+}
+function luniInit() {
+  const el = document.getElementById('luni');
+  if (!el || el.dataset.ready) return;
+  el.dataset.ready = '1';
+  const start = luniLoadVal() || { x: window.innerWidth - 110, y: window.innerHeight - 210 };
+  luniPlace(start);
+  el.addEventListener('pointerdown', e => {
+    const r = el.getBoundingClientRect();
+    luniDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('drag');
+  });
+  el.addEventListener('pointermove', e => {
+    if (!luniDrag) return;
+    if (Math.abs(e.clientX - luniDrag.sx) + Math.abs(e.clientY - luniDrag.sy) > 6) luniDrag.moved = true;
+    if (luniDrag.moved) luniPlace({ x: e.clientX - luniDrag.dx, y: e.clientY - luniDrag.dy });
+  });
+  const end = e => {
+    if (!luniDrag) return;
+    const wasTap = !luniDrag.moved;
+    luniDrag = null;
+    el.classList.remove('drag');
+    if (wasTap) { luniSay(); return; }
+    const r = el.getBoundingClientRect();
+    luniSaveVal({ x: r.left, y: r.top });
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  window.addEventListener('resize', () => { const r = el.getBoundingClientRect(); luniPlace({ x: r.left, y: r.top }); });
+}
+function luniShow(on) {
+  const el = document.getElementById('luni');
+  if (!el) return;
+  luniInit();
+  el.style.display = on ? 'block' : 'none';
+  if (!on) document.getElementById('luniBubble').style.display = 'none';
 }
 function renderMyAvatar() {
   if (!me) return;
