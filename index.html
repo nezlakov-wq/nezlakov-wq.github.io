@@ -4487,28 +4487,38 @@ async function loadConversations() {
   const { data: convs, error: cErr } = await sb.from('conversations').select('*').in('id', ids);
   // For each conversation get members and last message
   // Собираем во временный массив: параллельные вызовы не должны дублировать чаты
-  const built = [];
-  for(const conv of (convs||[])) {
-    const { data: members } = await sb.from('conversation_members')
-      .select('user_id, profiles(id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_avatar,hide_online,hide_gifts,last_seen)')
-      .eq('conversation_id', conv.id);
-    const { data: lastMsgs } = await sb.from('messages')
-      .select('*').eq('conversation_id', conv.id)
+  // Один запрос на все участники, один на все аватарки и параллельные запросы последних сообщений
+  const convList = convs || [];
+  const convIds = convList.map(c => c.id);
+  const { data: allMembers } = convIds.length
+    ? await sb.from('conversation_members')
+        .select('conversation_id, user_id, profiles(id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_avatar,hide_online,hide_gifts,last_seen)')
+        .in('conversation_id', convIds)
+    : { data: [] };
+  const membersByConv = {};
+  (allMembers || []).forEach(m => { (membersByConv[m.conversation_id] ||= []).push(m); });
+  const allOtherIds = [...new Set((allMembers || []).map(m => m.user_id).filter(id => id !== me.id))];
+  const visAv = {};
+  if (allOtherIds.length) {
+    const { data: vis } = await sb.from('profiles_view').select('id,avatar_url').in('id', allOtherIds);
+    (vis || []).forEach(v => { visAv[v.id] = v.avatar_url; });
+  }
+  const lastByConv = Object.fromEntries(await Promise.all(convIds.map(async id => {
+    const { data } = await sb.from('messages').select('*').eq('conversation_id', id)
       .order('created_at', {ascending:false}).limit(1);
+    return [id, data?.[0] || null];
+  })));
+  const built = [];
+  for(const conv of convList) {
+    const members = membersByConv[conv.id] || [];
     // Аватарки собеседников берём через защищённое представление: скрытые аватарки приходят пустыми
-    const otherIds = (members || []).map(m => m.user_id).filter(id => id !== me.id);
-    const visAv = {};
-    if (otherIds.length) {
-      const { data: vis } = await sb.from('profiles_view').select('id,avatar_url').in('id', otherIds);
-      (vis || []).forEach(v => { visAv[v.id] = v.avatar_url; });
-    }
-    (members || []).forEach(m => { if (m.profiles && m.user_id !== me.id) m.profiles.avatar_url = visAv[m.user_id] ?? null; });
-    const other = members?.find(m=>m.user_id !== me.id);
+    members.forEach(m => { if (m.profiles && m.user_id !== me.id) m.profiles.avatar_url = visAv[m.user_id] ?? null; });
+    const other = members.find(m=>m.user_id !== me.id);
     built.push({
       ...conv,
-      members: members||[],
+      members,
       other: conv.is_group ? null : (conv.name === SAVED_NAME ? savedProfile() : maskProfile(other?.profiles)),
-      lastMsg: lastMsgs?.[0] || null,
+      lastMsg: lastByConv[conv.id] || null,
       muted: !!flags[conv.id]?.muted,
       archived: !!flags[conv.id]?.archived,
       pinned: !!flags[conv.id]?.pinned,
