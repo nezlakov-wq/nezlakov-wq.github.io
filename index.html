@@ -1504,7 +1504,6 @@ function luniSay() {
   el.classList.remove('talk'); void el.offsetWidth; el.classList.add('talk');
   clearTimeout(luniBubbleTimer);
   luniBubbleTimer = setTimeout(() => { b.style.display = 'none'; }, 3200);
-  try { if ('speechSynthesis' in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'ru-RU'; u.rate = 1.05; u.pitch = 1.3; speechSynthesis.speak(u); } } catch (e) {}
 }
 function luniInit() {
   const el = document.getElementById('luni');
