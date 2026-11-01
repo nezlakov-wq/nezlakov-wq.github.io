@@ -1242,6 +1242,7 @@ function toast(msg) {
   setTimeout(()=>el.classList.remove('show'), 2500);
 }
 
+const COIN_IMG = '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9ImZhY2UiIGN4PSIzOCUiIGN5PSIzMiUiIHI9Ijc1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNmZmY2YzgiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI0NSUiIHN0b3AtY29sb3I9IiNmN2M5NDgiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjYjc3OTFmIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJyaW0iIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2ZmZTg5YSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM5YTZhMTIiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9Im1vb24iIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzdhNGEwMCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM0YTJhMDAiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjU2IiBmaWxsPSJ1cmwoI3JpbSkiLz4KICA8Y2lyY2xlIGN4PSI2MCIgY3k9IjYwIiByPSI0OSIgZmlsbD0idXJsKCNmYWNlKSIvPgogIDxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjQxIiBmaWxsPSJub25lIiBzdHJva2U9IiNiNzc5MWYiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtZGFzaGFycmF5PSIyIDMiIG9wYWNpdHk9Ii43Ii8+CiAgPCEtLSDQv9C+0LvRg9C80LXRgdGP0YY6INC+0YLRgdGL0LvQutCwINC6IE1vb25saXQgLS0+CiAgPHBhdGggZD0iTTY4IDM4IEEyNiAyNiAwIDEgMCA4MiA4MCBBMjEgMjEgMCAxIDEgNjggMzggWiIgZmlsbD0idXJsKCNtb29uKSIvPgogIDxjaXJjbGUgY3g9Ijg0IiBjeT0iMzYiIHI9IjIuNiIgZmlsbD0iIzdhNGEwMCIvPgogIDxjaXJjbGUgY3g9IjkyIiBjeT0iNTAiIHI9IjEuNiIgZmlsbD0iIzdhNGEwMCIvPgo8L3N2Zz4=" alt="" style="width:1.15em;height:1.15em;vertical-align:-0.22em;display:inline-block">';
 let me = null;
 let conversations = [];
 let activeChatId = null;
@@ -1341,7 +1342,7 @@ async function loadMe(uid) {
   if (me) {
     registerAccount(me);
     document.getElementById('myName').textContent = me.display_name;
-    document.getElementById('myUsername').textContent = '@' + me.username + ' · 🪙 ' + Number(me.balance || 0).toFixed(2);
+    document.getElementById('myUsername').innerHTML = '@' + esc(me.username) + ' · ' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
     renderMyAvatar();
   }
 }
@@ -1581,7 +1582,7 @@ function msgContent(text, msg) {
   const recName = msg && msg.sender_id === me.id ? (currentConv()?.is_group ? '' : (activeOther?.display_name || '')) : (me.display_name || '');
   if (msg) giftInfo[msg.id] = { text, created: msg.created_at, from, fromId: msg.sender_id };
   const price = g ? g.price : 0;
-  const svc = '<div class="gift-svc">' + esc(from) + ' отправил(а) ' + (gg ? 'всем получателям ' : 'Вам ') + 'подарок стоимостью <b>' + price + ' 🪙</b></div>';
+  const svc = '<div class="gift-svc">' + esc(from) + ' отправил(а) ' + (gg ? 'всем получателям ' : 'Вам ') + 'подарок стоимостью <b>' + price + ' ' + COIN_IMG + '</b></div>';
   const btn = msg ? ' onclick="openGiftView(\'' + msg.id + '\')"' : '';
   return '<div class="gift-msg">' + svc + '<div class="gift-msg-em">' + (g ? giftArt(g, { name: recName }) : '🎁') + '</div><div class="gift-msg-name">' + (g ? esc(g.name) : 'Подарок') + '</div><button class="gift-msg-btn"' + btn + '>Посмотреть</button></div>';
 }
@@ -1592,11 +1593,11 @@ async function openGifts() {
   document.getElementById('giftModal').style.display = 'flex';
 }
 function renderGiftList() {
-  document.getElementById('giftBalance').textContent = '🪙 ' + Number(me.balance || 0).toFixed(2);
+  document.getElementById('giftBalance').innerHTML = '' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
   document.getElementById('giftList').innerHTML = giftList.map(g => `
     <button class="gift-tile" onclick="pickGift('${g.id}')">
       <div class="gift-tile-em">${giftArt(g)}</div>
-      <div class="gift-tile-price">🪙 ${g.price}</div>
+      <div class="gift-tile-price">${COIN_IMG} ${g.price}</div>
     </button>`).join('');
 }
 // ── Анимированные подарки: SVG-сцены + CSS (без внешних файлов) ──
@@ -1857,10 +1858,10 @@ function updateGiftBtn() {
     const all = document.getElementById('gcAll');
     if (all) all.checked = n === document.querySelectorAll('#gcRecip .gc-chk').length;
     btn.disabled = n === 0;
-    btn.textContent = n ? 'Отправить за 🪙 ' + (g.price * n) + ' (' + n + ' чел.)' : 'Выбери получателей';
+    btn.innerHTML = n ? 'Отправить за ' + COIN_IMG + ' ' + (g.price * n) + ' (' + n + ' чел.)' : 'Выбери получателей';
   } else {
     btn.disabled = false;
-    btn.textContent = 'Отправить подарок за 🪙 ' + g.price;
+    btn.innerHTML = 'Отправить подарок за ' + COIN_IMG + ' ' + g.price;
   }
 }
 // Окно подарка: от кого, дата отправки, продажа в течение 10 дней
@@ -1885,7 +1886,7 @@ async function openGiftView(id) {
   if (own) action = '<div class="gv-note">Это подарок, который вы отправили</div>';
   else if (sold) action = '<div class="gv-note">✅ Продано</div>';
   else if (expired) action = '<div class="gv-note">Срок продажи истёк (10 дней)</div>';
-  else action = '<button class="gift-send-btn" onclick="sellGiftFromView(\'' + id + '\')">Продать за 🪙 ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
+  else action = '<button class="gift-send-btn" onclick="sellGiftFromView(\'' + id + '\')">Продать за ' + COIN_IMG + ' ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
   let ov = document.getElementById('giftView');
   if (!ov) {
     ov = document.createElement('div');
@@ -1899,7 +1900,7 @@ async function openGiftView(id) {
     '<div class="gift-confirm-card"><div class="gift-confirm-em">' + giftArt(g, { name: recName }) + '</div><div class="gift-confirm-name">' + esc(g.name) + '</div></div>' +
     '<div class="gv-row"><span>От</span><b>' + esc(info.from) + '</b></div>' +
     '<div class="gv-row"><span>Отправлен</span><b>' + fmt(created) + '</b></div>' +
-    '<div class="gv-row"><span>Стоимость</span><b>' + (g.price || 0) + ' 🪙</b></div>' +
+    '<div class="gv-row"><span>Стоимость</span><b>' + (g.price || 0) + ' ' + COIN_IMG + '</b></div>' +
     '<div style="margin-top:16px">' + action + '</div></div>';
   ov.style.display = 'flex';
 }
@@ -1907,7 +1908,7 @@ async function sellGiftFromView(id) {
   const { data, error } = await sb.rpc('sell_gift', { msg: id });
   if (error) return toast(error.message.includes('Уже') ? 'Уже продано' : (error.message || 'Ошибка'));
   me.balance = Number(data);
-  document.getElementById('myUsername').textContent = '@' + me.username + ' · 🪙 ' + me.balance.toFixed(2);
+  document.getElementById('myUsername').innerHTML = '@' + esc(me.username) + ' · ' + COIN_IMG + ' ' + me.balance.toFixed(2);
   document.getElementById('giftView').style.display = 'none';
   toast('Подарок продан: баланс ' + me.balance.toFixed(2));
   if (activeChatId) loadMessages(activeChatId);
