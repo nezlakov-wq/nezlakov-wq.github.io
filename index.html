@@ -1477,14 +1477,43 @@ function luniPlace(p) {
   const q = luniClamp(p.x, p.y);
   el.style.left = q.x + 'px';
   el.style.top = q.y + 'px';
+  luniPlaceBubble();
 }
+function luniPlaceBubble() {
+  const b = document.getElementById('luniBubble');
+  const el = document.getElementById('luni');
+  if (!b || !el || b.style.display !== 'block') return;
+  const r = el.getBoundingClientRect();
+  const left = Math.min(Math.max(8, r.left + r.width / 2 - b.offsetWidth / 2), window.innerWidth - b.offsetWidth - 8);
+  const top = r.top > b.offsetHeight + 24 ? r.top - b.offsetHeight - 10 : r.bottom + 10;
+  b.style.left = left + 'px';
+  b.style.top = Math.max(8, top) + 'px';
+}
+const LUNI_COMMON = [
+  'Хочешь кому-нибудь написать?',
+  'Сегодня отличный день для разговора',
+  'Не забывай про свои чаты',
+  'Нажми на чат, и мы поболтаем',
+  'Я охраняю твою приватность',
+  'Закрой лишнее: у тебя свобода выбора',
+  'Звонок другу? Я всё одобряю',
+  'Ты выглядишь отлично сегодня',
+  'Если что-то непонятно, спроси в поддержке',
+  'Я люблю, когда ты здесь',
+  'Загляни в контакты, там могут быть друзья',
+  'Подарок другу сделает день ярче',
+  'Мы за свободу, и это мой любимый девиз',
+  'Пусть сегодня всё получится',
+  'Я тут тихонько слушаю твои истории',
+  'Не грусти, я всегда рядом'
+];
 function luniPhrases() {
   const d = me?.streak_days || 0;
-  if (me?.streak_broken_day && me.streak_restored_day !== me.streak_broken_day) return ['Я немного скучал... Вернёшься? Серия ещё можно вернуть!'];
-  if (d >= 30) return ['Мы вместе уже ' + d + ' дней! Ты настоящий друг Луны', 'Я сияю от счастья, спасибо, что заходишь'];
-  if (d >= 7) return ['Мы вместе уже ' + d + ' дней! Продолжаем?', 'Ты молодец, что заходишь каждый день'];
-  if (d >= 1) return ['Привет! Серия ' + d + ' дн. Давай поболтаем', 'Хочешь что-нибудь написать друзьям?'];
-  return ['Привет! Я Луни. Напиши кому-нибудь!', 'Нажми на чат, и я расскажу, как тут всё работает'];
+  if (me?.streak_broken_day && me.streak_restored_day !== me.streak_broken_day) return ['Я немного скучал... Вернёшься? Серию ещё можно вернуть!', 'Серия сбросилась, но её можно восстановить в течение суток'];
+  if (d >= 30) return ['Мы вместе уже ' + d + ' дней! Ты настоящий друг Луны', 'Я сияю от счастья, спасибо, что заходишь', 'Столько дней вместе, это же целая луна!'];
+  if (d >= 7) return ['Мы вместе уже ' + d + ' дней! Продолжаем?', 'Ты молодец, что заходишь каждый день', 'Ещё одна неделя, и я устрою салют'];
+  if (d >= 1) return ['Привет! Серия ' + d + ' дн. Давай поболтаем', 'Хочешь что-нибудь написать друзьям?', 'Заходи завтра, и серия вырастет'];
+  return ['Привет! Я Луни. Напиши кому-нибудь!', 'Нажми на чат, и я расскажу, как тут всё работает'].concat(LUNI_COMMON.slice(0, 3));
 }
 function luniSay() {
   const list = luniPhrases();
@@ -1496,11 +1525,7 @@ function luniSay() {
   const el = document.getElementById('luni');
   b.textContent = text;
   b.style.display = 'block';
-  const r = el.getBoundingClientRect();
-  const left = Math.min(Math.max(8, r.left + r.width / 2 - 110), window.innerWidth - 228);
-  const top = r.top > 120 ? r.top - b.offsetHeight - 10 : r.bottom + 10;
-  b.style.left = left + 'px';
-  b.style.top = Math.max(8, top) + 'px';
+  luniPlaceBubble();
   el.classList.remove('talk'); void el.offsetWidth; el.classList.add('talk');
   clearTimeout(luniBubbleTimer);
   luniBubbleTimer = setTimeout(() => { b.style.display = 'none'; }, 3200);
@@ -1516,9 +1541,11 @@ function luniInit() {
     luniDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top, sx: e.clientX, sy: e.clientY, moved: false };
     el.setPointerCapture(e.pointerId);
     el.classList.add('drag');
+    const sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();
   });
   el.addEventListener('pointermove', e => {
     if (!luniDrag) return;
+    e.preventDefault();
     if (Math.abs(e.clientX - luniDrag.sx) + Math.abs(e.clientY - luniDrag.sy) > 6) luniDrag.moved = true;
     if (luniDrag.moved) luniPlace({ x: e.clientX - luniDrag.dx, y: e.clientY - luniDrag.dy });
   });
