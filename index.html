@@ -1293,7 +1293,7 @@ function renderWelcome() {
   const box = document.getElementById('wlStep');
   let html = '';
   if (wlStepIdx === 0) {
-    html = '<div class="wl-title">' + T.greet + '</div><div class="wl-sub">' + T.sub + '</div>' +
+    html = '<div class="wl-title">' + T.greet + '</div><div class="wl-sub" style="font-size:21px;color:var(--fg);opacity:.92;font-weight:500">' + T.sub + '</div>' +
       '<div class="wl-sub" style="margin-top:18px;font-size:13px">' + T.lang + '</div>' +
       '<div class="wl-langs"><button class="wl-lang ' + (lang === 'ru' ? 'on' : '') + '" onclick="wlSetLang(\'ru\')">Русский</button>' +
       '<button class="wl-lang ' + (lang === 'en' ? 'on' : '') + '" onclick="wlSetLang(\'en\')">English</button></div>';
