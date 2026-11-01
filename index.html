@@ -512,6 +512,20 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .shop-card span{font-size:13px;color:var(--fg2)}
 .shop-card button{padding:10px 14px;border:0;border-radius:12px;background:var(--bg2);color:var(--fg2);font:inherit;font-size:14px;white-space:nowrap;cursor:not-allowed}
 .plus-badge{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:999px;background:linear-gradient(90deg,#8b6cff,#f59e0b);color:#fff;font-size:12px;font-weight:600;vertical-align:middle}
+.tg-sec{font-size:13px;color:var(--fg2);letter-spacing:.3px;margin:20px 4px 8px}
+.tg-card{background:var(--bg3);border-radius:16px;overflow:hidden;margin-bottom:6px}
+.tg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.tg-card > :last-child{border-bottom:0}
+.tg-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 36px}
+.tg-av{width:40px;height:40px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex:0 0 40px}
+.tg-txt{flex:1;min-width:0}
+.tg-name{font-size:16px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg-sub{font-size:13px;color:var(--fg2);margin-top:2px}
+.tg-link{background:none;border:0;color:var(--accent);font:inherit;font-size:15px;cursor:pointer;padding:6px}
+.tg-red,.tg-add{width:100%;padding:14px 16px;background:none;border:0;border-top:1px solid var(--border);font:inherit;font-size:16px;text-align:left;cursor:pointer}
+.tg-red{color:var(--danger)}
+.tg-add{color:var(--accent)}
+.tg-foot{font-size:13px;color:var(--fg2);margin:6px 4px 10px}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1122,12 +1136,16 @@ body::before {
         <input type="checkbox" id="prGifts" onchange="savePrivacy('hide_gifts', this.checked)">
       </div>
     </div>
-    <div id="setDevices"    <div id="setDevices" style="display:none">
-      <div class="set-row"><div class="set-label">Текущее устройство</div><div id="setDevice"></div></div>
-      <div class="set-row"><div class="set-label">Вход выполнен</div><div id="setSignedIn"></div></div>
-      <div class="set-label" style="margin-top:14px">Аккаунты на этом устройстве (до 3)</div>
-      <div id="setAccounts"></div>
-      <button class="set-logout" onclick="logout()">Выйти из аккаунта</button>
+    <div id="setDevices" style="display:none">
+      <div class="tg-sec">ЭТО УСТРОЙСТВО</div>
+      <div class="tg-card">
+        <div class="tg-row"><div class="tg-ico" style="background:#3b82f6"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></div>
+          <div class="tg-txt"><div class="tg-name" id="setDevice"></div><div class="tg-sub">Вход: <span id="setSignedIn"></span></div></div></div>
+        <button class="tg-red" onclick="logout()">✋ Выйти из аккаунта</button>
+      </div>
+      <div class="tg-foot">Выход касается только этого устройства.</div>
+      <div class="tg-sec">АККАУНТЫ НА ЭТОМ УСТРОЙСТВЕ (ДО 3)</div>
+      <div class="tg-card" id="setAccounts"></div>
     </div>
   </div>
 </div>
@@ -3464,17 +3482,18 @@ function addAccount() {
 function renderAccounts() {
   const active = getActiveKey();
   const list = getAccounts();
-  const rows = list.map(a => `
-    <div class="set-row" style="flex-direction:row;align-items:center;justify-content:space-between">
-      <div>@${esc(a.username)}${a.key === active ? ' · текущий' : ''}</div>
-      ${a.key === active ? '' : `<button class="set-logout" style="width:auto;margin:0;padding:6px 12px;background:#5b7fff" onclick="switchAccount('${a.key}')">Войти</button>`}
-    </div>`).join('');
-  const addBtn = list.length < 3
-    ? `<button class="set-logout" style="background:#34c78a" onclick="addAccount()">+ Добавить аккаунт</button>` : '';
+  const rows = list.map(a => {
+    const isCur = a.key === active;
+    const letter = esc((a.username || '?').charAt(0).toUpperCase());
+    return `<div class="tg-row">
+      <div class="tg-av" style="background:${colorFor(a.key)}">${letter}</div>
+      <div class="tg-txt"><div class="tg-name">@${esc(a.username)}</div><div class="tg-sub">${isCur ? 'текущий аккаунт' : 'нажми «Войти», чтобы переключиться'}</div></div>
+      ${isCur ? '' : `<button class="tg-link" onclick="switchAccount('${a.key}')">Войти</button>`}
+    </div>`;
+  }).join('');
+  const addBtn = list.length < 3 ? '<button class="tg-add" onclick="addAccount()">+ Добавить аккаунт</button>' : '';
   document.getElementById('setAccounts').innerHTML = rows + addBtn;
 }
-
-// ── SETTINGS ──
 function deviceName() {
   const ua = navigator.userAgent;
   const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Другое';
