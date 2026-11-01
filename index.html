@@ -505,6 +505,8 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .msg-menu-overlay.show{opacity:1}
 .msg-menu-overlay > div{transform:translateY(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1)}
 .msg-menu-overlay.show > div{transform:none}
+#pfBgLayer{position:absolute !important;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center}
+#profileModal .modal > *:not(#pfBgLayer){position:relative;z-index:1}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -2324,8 +2326,13 @@ async function openProfile() {
   document.getElementById('pfStatus').textContent = onNow ? 'в сети' : (p.last_seen && !p.hide_online ? lastSeenText(p.last_seen) : '');
   // Фон карточки профиля (затемнён, чтобы текст читался)
   const pm = document.querySelector('#profileModal .modal');
-  if (pm) pm.style.backgroundImage = p.profile_bg_url ? `linear-gradient(rgba(10,14,30,.75),rgba(10,14,30,.9)), url('${p.profile_bg_url}')` : '';
-  if (pm) { pm.style.backgroundSize = 'cover'; pm.style.backgroundPosition = 'center'; }
+  // Фон профиля: отдельный слой под содержимым (раньше перекрывался фоном карточки)
+  if (pm) {
+    pm.style.backgroundImage = '';
+    let lay = document.getElementById('pfBgLayer');
+    if (!lay) { lay = document.createElement('div'); lay.id = 'pfBgLayer'; pm.insertBefore(lay, pm.firstChild); }
+    lay.style.backgroundImage = p.profile_bg_url ? 'linear-gradient(rgba(10,14,30,.6),rgba(10,14,30,.9)), url("' + p.profile_bg_url + '")' : 'none';
+  }
   // Блоки текста полупрозрачные поверх фона, как в Discord
   if (pm) pm.querySelectorAll('div[style*="border-radius:14px"]').forEach(d => {
     d.style.background = p.profile_bg_url ? 'rgba(15,20,40,.55)' : 'var(--input-bg)';
