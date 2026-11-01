@@ -511,6 +511,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .shop-card b{display:block;font-size:16px}
 .shop-card span{font-size:13px;color:var(--fg2)}
 .shop-card button{padding:10px 14px;border:0;border-radius:12px;background:var(--bg2);color:var(--fg2);font:inherit;font-size:14px;white-space:nowrap;cursor:not-allowed}
+.plus-badge{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:999px;background:linear-gradient(90deg,#8b6cff,#f59e0b);color:#fff;font-size:12px;font-weight:600;vertical-align:middle}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
@@ -1176,7 +1177,7 @@ body::before {
     <div class="shop-card"><div><b>500 токенов</b><span>выгоднее</span></div><button disabled>200 ₽ · Скоро</button></div>
     <div class="shop-card"><div><b>1000 токенов</b><span>максимальный пакет</span></div><button disabled>350 ₽ · Скоро</button></div>
     <div style="font-size:12px;letter-spacing:.5px;color:var(--fg2);margin:18px 0 8px">ПОДПИСКА</div>
-    <div class="shop-card"><div><b>Moonlit Plus</b><span>199 ₽ в месяц</span></div><button disabled>Скоро</button></div>
+    <div class="shop-card" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><b>Moonlit Plus</b><span>199 ₽ в месяц</span></div><button disabled>Скоро</button></div><div style="font-size:13px;color:var(--fg2);margin-top:10px;line-height:1.6">★ значок Plus в профиле<br>группы до 50 участников<br>10 историй в сутки вместо 5<br>видео-баннер до 15 секунд<br>50 токенов в подарок каждый месяц</div></div>
   </div>
 </div>
 <div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfile()">
@@ -1930,6 +1931,8 @@ async function confirmGift() {
   closeGiftConfirm();
   await buyGift(id);
 }
+// Активна ли у меня подписка Plus
+function isPlusNow() { return !!(me && me.plus_until && new Date(me.plus_until) > new Date()); }
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
 function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
 function closeGifts() { document.getElementById('giftModal').style.display = 'none'; }
@@ -2372,13 +2375,16 @@ async function openProfile() {
   // Проверка на сервере: скрыты ли подарки от меня
   // «О себе» и день рождения собеседника, с учётом его скрытия
   {
-    const { data: pi } = await sb.from('profiles').select('bio,birthday,hide_bio,hide_birthday').eq('id', p.id).maybeSingle();
+    const { data: pi } = await sb.from('profiles').select('bio,birthday,hide_bio,hide_birthday,plus_until').eq('id', p.id).maybeSingle();
     let info = document.getElementById('pfInfo');
     if (!info) { info = document.createElement('div'); info.id = 'pfInfo'; info.style.cssText = 'margin:10px 0;font-size:14px;text-align:left'; list.parentElement.insertBefore(info, list); }
     const rows = [];
     if (pi?.bio && !pi.hide_bio) rows.push(`<div style="margin-bottom:6px"><span style="opacity:.6">О себе: </span>${esc(pi.bio)}</div>`);
     if (pi?.birthday && !pi.hide_birthday) rows.push(`<div><span style="opacity:.6">День рождения: </span>${new Date(pi.birthday + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`);
     info.innerHTML = rows.join('');
+    if (pi?.plus_until && new Date(pi.plus_until) > new Date()) {
+      document.getElementById('pfName').insertAdjacentHTML('beforeend', ' <span class="plus-badge">★ Plus</span>');
+    }
   }
   const { data: giftCount } = await sb.rpc('gift_count_for', { owner: p.id });
   if (giftCount === null) {
@@ -3691,7 +3697,7 @@ function renderProfPreview() {
     <div style="height:90px;position:relative;overflow:hidden;background:${banner}">${vidP ? bannerVideo(me.banner_url) : ''}</div>
     <div style="display:flex;flex-direction:column;align-items:center;margin-top:-36px;padding-bottom:14px">
       ${av}
-      <div style="margin-top:8px;font-weight:600;font-size:16px">${esc(me.display_name || '')}</div>
+      <div style="margin-top:8px;font-weight:600;font-size:16px">${esc(me.display_name || '')}${isPlusNow() ? ' <span class="plus-badge">★ Plus</span>' : ''}</div>
       <div style="opacity:.6;font-size:13px">@${esc(me.username || '')}</div>
     </div>`;
 }
@@ -3735,7 +3741,8 @@ async function uploadBannerVideo(file) {
     v.src = URL.createObjectURL(file);
   });
   if (!isFinite(dur)) return toast('Не удалось прочитать видео');
-  if (dur > 6) return toast('Видео длиннее 6 секунд');
+  const maxSec = isPlusNow() ? 15 : 6;
+  if (dur > maxSec) return toast('Видео длиннее ' + maxSec + ' секунд');
   toast('Загружаем видео…');
   try {
     const ext = /webm/i.test(file.type) ? 'webm' : (/quicktime|mov/i.test(file.type) || /\.mov$/i.test(file.name) ? 'mov' : 'mp4');
@@ -3947,7 +3954,8 @@ async function createGroup() {
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название группы');
   if (!groupMembers.length) return toast('Добавь хотя бы одного участника');
-  if (groupMembers.length + 1 > 20) return toast('В группе не больше 20 участников');
+  const glim = isPlusNow() ? 50 : 20;
+  if (groupMembers.length + 1 > glim) return toast('В группе не больше ' + glim + ' участников');
   if (!me.pub_key) return toast('Нет ключа шифрования: войдите в аккаунт ещё раз');
   for (const m of groupMembers) if (await peerBlocks(m.id, 'hide_groups')) return toast(m.display_name + ': не принимает приглашения в группы');
   const convId = crypto.randomUUID();
@@ -4019,7 +4027,8 @@ async function addToGroup(u) {
   if (!u.pub_key) return toast('У этого пользователя ещё нет ключа');
   if (await peerBlocks(u.id, 'hide_groups')) return toast('Этот пользователь не принимает приглашения в группы');
   if ((conv.members || []).find(m => m.user_id === u.id)) return toast('Уже в группе');
-  if ((conv.members || []).length >= 20) return toast('В группе не больше 20 участников');
+  const glim2 = isPlusNow() ? 50 : 20;
+  if ((conv.members || []).length >= glim2) return toast('В группе не больше ' + glim2 + ' участников');
   const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
   if (error) return toast('Ошибка: ' + error.message);
   try {
