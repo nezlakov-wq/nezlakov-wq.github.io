@@ -3227,6 +3227,8 @@ function hydrateFiles(area, msgs) {
         // Длительность: если декодирование не дало её, берём из метаданных плеера (iPhone)
         const showDur = () => { if (isFinite(audio.duration) && audio.duration > 0) time.textContent = fmtTime(Math.round(audio.duration)); };
         if (!m.d) { audio.addEventListener('loadedmetadata', showDur); if (audio.readyState >= 1) showDur(); }
+        // Перемотка: нажатие по волне переводит на нужное место
+        el.querySelector('.vp-wave').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); if (isFinite(audio.duration) && audio.duration > 0) audio.currentTime = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1) * audio.duration; };
         btn.onclick = () => {
           if (audio.paused) {
             const p = audio.play();
