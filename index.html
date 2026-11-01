@@ -405,7 +405,14 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .tab-search{pointer-events:auto;width:56px;height:56px;border-radius:50%;border:0;background:rgba(28,30,40,.85);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;flex-shrink:0}
 #chatList{padding-bottom:96px}
 .sidebar-bottom{display:none !important}
-@media (min-width:641px){.tab-bar{display:none}}
+/* Компьютер: меню (Контакты, Звонки, Чаты, Настройки) встроено внизу списка чатов */
+@media (min-width:641px){
+  .tab-bar{position:static !important;display:flex !important;left:auto;right:auto;bottom:auto;transform:none;padding:8px 10px 10px;border-top:1px solid rgba(255,255,255,.07);background:transparent;flex-shrink:0}
+  .tab-bar .tab-pill{flex:1;display:flex;justify-content:space-around;background:none !important;box-shadow:none !important;border:0 !important;padding:0 !important}
+  .tab-bar .tab-search{display:none !important}
+  .tab-bar .tab-btn{flex:1;max-width:none}
+  #chatList{padding-bottom:12px}
+}
 
 /* ── Плавные переходы ── */
 @keyframes mFade { from { opacity: 0 } to { opacity: 1 } }
