@@ -270,10 +270,10 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 }
 .input-wrap{
   flex:1;background:var(--input-bg);border-radius:21px;
-  display:flex;align-items:flex-end;padding:5px 5px 5px 13px;gap:3px;
+  display:flex;align-items:center;padding:5px 5px 5px 13px;gap:3px;min-height:44px;box-sizing:border-box;
 }
 .msg-ta{
-  flex:1;min-width:0;border:none;background:transparent;
+  flex:1;min-width:0;border:none;background:transparent;caret-color:var(--accent);padding-left:6px !important;
   font-size:14px;font-family:inherit;color:var(--fg);
   outline:none;resize:none;max-height:110px;line-height:1.5;
   padding:4px 0;scrollbar-width:none;
@@ -3128,6 +3128,9 @@ function hydrateFiles(area, msgs) {
         el.innerHTML = `<div class="vp"><button class="vp-play" type="button">${VP_PLAY}</button><div class="vp-wave">${bars.map(v => `<i style="height:${Math.max(12, Math.round(v * 100))}%"></i>`).join('')}</div><span class="vp-time">${fmtTime(m.d || 0)}</span><audio src="${url}" preload="metadata"></audio></div>`;
         const audio = el.querySelector('audio'), btn = el.querySelector('.vp-play');
         const ticks = el.querySelectorAll('.vp-wave i'), time = el.querySelector('.vp-time');
+        // Длительность: если декодирование не дало её, берём из метаданных плеера (iPhone)
+        const showDur = () => { if (isFinite(audio.duration) && audio.duration > 0) time.textContent = fmtTime(Math.round(audio.duration)); };
+        if (!m.d) { audio.addEventListener('loadedmetadata', showDur); if (audio.readyState >= 1) showDur(); }
         btn.onclick = () => {
           if (audio.paused) {
             const p = audio.play();
