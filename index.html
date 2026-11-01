@@ -4010,8 +4010,8 @@ function renderProfPreview() {
     ? `<img src="${esc(me.avatar_url)}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;${ring}">`
     : `<div style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:600;background:${colorFor(me.id)};${ring}">${esc((me.display_name || '?').charAt(0).toUpperCase())}</div>`;
   box.innerHTML = `
-    <div style="height:90px;position:relative;overflow:hidden;background:${banner}">${vidP ? bannerVideo(me.banner_url) : ''}</div>
-    <div style="display:flex;flex-direction:column;align-items:center;margin-top:-36px;padding-bottom:14px">
+    <div style="height:90px;position:relative;z-index:0;isolation:isolate;overflow:hidden;background:${banner}">${vidP ? bannerVideo(me.banner_url) : ''}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;margin-top:-36px;padding-bottom:14px;position:relative;z-index:2">
       ${av}
       <div style="margin-top:8px;font-weight:600;font-size:16px">${esc(me.display_name || '')}${isPlusNow() ? ' <span class="plus-badge">★ Plus</span>' : ''}</div>
       <div style="opacity:.6;font-size:13px">@${esc(me.username || '')}</div>
