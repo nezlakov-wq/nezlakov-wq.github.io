@@ -1260,6 +1260,7 @@ body::before {
     </div>
     <div style="margin:0 12px 12px;text-align:left;padding:12px 14px;border-radius:14px;background:var(--input-bg)">
       <div class="set-label">имя пользователя</div><div id="pfUsername"></div>
+      <div id="pfAliases" style="font-size:13px;opacity:.7;margin-top:4px"></div>
     </div>
     <div style="padding:0 12px 20px">
       <div class="set-label" style="margin:12px 0 8px;text-align:left">Подарки в этом чате</div>
@@ -2666,6 +2667,11 @@ async function openProfile() {
   bn.innerHTML = vidB ? bannerVideo(p.banner_url) : '';
   document.getElementById('pfName').textContent = name;
   document.getElementById('pfUsername').textContent = '@' + (p.username || '');
+  // Дополнительные юзернеймы собеседника (Plus) показываем под основным
+  const pfAl = document.getElementById('pfAliases');
+  if (pfAl) { pfAl.textContent = ''; sb.from('username_aliases').select('username').eq('user_id', p.id).then(({ data }) => {
+    if (data && data.length) pfAl.textContent = data.map(a => '@' + a.username).join('  ');
+  }).catch(() => {}); }
   loadContacts().then(paintContactBtn);
   const list = document.getElementById('pfGifts');
   list.innerHTML = '<div style="opacity:.6;font-size:13px">Загрузка…</div>';
