@@ -943,6 +943,18 @@ body::before {
     <div class="section-label">Сообщения</div>
     <div id="storiesStrip" class="stories-strip"></div>
       <input type="file" id="storyInput" accept="image/*,video/*" style="display:none" onchange="uploadStory(this.files[0]); this.value=''">
+      <div class="luni-row" aria-hidden="true">
+        <img class="luni-fig luni-sit" src="luni/sit.png" alt="">
+        <img class="luni-fig luni-stand" src="luni/stand.png" alt="">
+      </div>
+      <style>
+        /* Статичный Луни над списком чатов; старый шарик скрыт */
+        #luni { display: none !important; }
+        .luni-row { position: relative; height: 170px; margin: 0 16px; pointer-events: none; }
+        .luni-fig { position: absolute; bottom: 0; height: auto; display: block; }
+        .luni-stand { right: 12%; height: 160px; width: auto; transform: scaleX(-1); }
+        .luni-sit { left: 6%; height: 120px; width: auto; }
+      </style>
       <div class="chat-list" id="chatList"></div>
     <div class="sidebar-bottom">
       <div class="my-av" id="myAv"></div>
