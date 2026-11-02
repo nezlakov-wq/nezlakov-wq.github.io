@@ -1555,8 +1555,6 @@ function luniPaintWindow() {
   document.getElementById('luniAll').innerHTML = all.map((p, i) => '<div style="padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;color:' + (i === luniCur ? 'var(--accent)' : 'var(--fg)') + '">' + esc(p) + '</div>').join('');
 }
 function luniSay() {
-  luniOpenWindow();
-  return;
   const list = luniPhrases();
   let i = Math.floor(Math.random() * list.length);
   if (list.length > 1 && i === luniLast) i = (i + 1) % list.length;
