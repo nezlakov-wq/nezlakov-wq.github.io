@@ -4967,15 +4967,11 @@ function renderChatList(filter='') {
     sv.innerHTML = `<div class="av"><div class="av-img" style="background:linear-gradient(135deg,#5b8cff,#8b5cf6)">★</div></div><div class="chat-info"><div class="chat-name">Избранное</div><div class="chat-prev">Заметки для себя</div></div>`;
     sv.addEventListener('click', () => openSavedChat());
     list.appendChild(sv);
-    const ch = document.createElement('div');
-    ch.className = 'chat-item';
-    ch.innerHTML = `<div class="av"><div class="av-img" style="background:#0f172a url('icon-192.png') center/cover no-repeat"></div></div><div class="chat-info"><div class="chat-name">Обновления Moonlit</div><div class="chat-prev">Канал: только для чтения</div></div>`;
-    ch.addEventListener('click', () => openChannel());
-    list.appendChild(ch);
   }
   const filtered = conversations.filter(c => {
     const name = c.other?.display_name || c.name || '';
     if (c.name === SAVED_NAME) return false; // «Избранное» открывается кнопкой наверху списка
+    if (c.is_official) return false; // общий канал «Обновления Moonlit» убран из списка
     if (!!c.archived !== showArchive) return false;
     if (chatFolder === 'direct' && c.is_group) return false;
     if (chatFolder === 'groups' && !c.is_group) return false;
