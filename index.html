@@ -1519,41 +1519,6 @@ function luniPhrases() {
   if (d >= 1) return ['Привет! Серия ' + d + ' дн. Давай поболтаем', 'Хочешь что-нибудь написать друзьям?', 'Заходи завтра, и серия вырастет'];
   return ['Привет! Я Луни. Напиши кому-нибудь!', 'Нажми на чат, и я расскажу, как тут всё работает'].concat(LUNI_COMMON.slice(0, 3));
 }
-function luniAllPhrases() {
-  const streak = luniPhrases();
-  return streak.concat(LUNI_COMMON.filter(p => !streak.includes(p)));
-}
-function luniOpenWindow() {
-  let ov = document.getElementById('luniModal');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'luniModal';
-    ov.className = 'modal-overlay';
-    ov.innerHTML = '<div class="modal" style="max-width:380px;padding:0;overflow:hidden">'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0"><div class="modal-title" style="margin:0">Луни</div><button class="modal-close" id="luniClose" style="position:static">✕</button></div>'
-      + '<div style="display:flex;gap:14px;align-items:center;padding:12px 16px"><div style="width:84px;height:84px;flex:0 0 84px">' + "<svg viewBox=\"0 0 800 800\" width=\"100%\" height=\"100%\"><defs><radialGradient id=\"lf\" cx=\"0.38\" cy=\"0.3\" r=\"0.75\"><stop offset=\"0\" stop-color=\"#b9d4ff\"/><stop offset=\"0.45\" stop-color=\"#5f93ff\"/><stop offset=\"1\" stop-color=\"#2a4fc4\"/></radialGradient><radialGradient id=\"lb\" cx=\"0.5\" cy=\"0.4\" r=\"0.6\"><stop offset=\"0\" stop-color=\"#e8f1ff\"/><stop offset=\"1\" stop-color=\"#9fc0ff\"/></radialGradient><radialGradient id=\"le\" cx=\"0.4\" cy=\"0.35\" r=\"0.7\"><stop offset=\"0\" stop-color=\"#ffffff\"/><stop offset=\"1\" stop-color=\"#d9e6ff\"/></radialGradient></defs><path d=\"M597.0,470.0 L595.8,478.5 L592.8,486.9 L589.4,494.9 L587.1,503.0 L586.5,511.3 L586.9,520.1 L586.9,528.9 L585.1,537.4 L581.1,545.0 L575.4,551.8 L569.4,558.2 L564.5,565.0 L561.1,572.6 L558.5,581.0 L555.5,589.3 L550.9,596.6 L544.5,602.4 L536.8,606.8 L529.1,610.8 L522.1,615.5 L516.3,621.6 L511.0,628.5 L505.3,635.3 L498.5,640.6 L490.5,643.8 L481.8,645.4 L473.1,646.5 L465.0,648.5 L457.4,652.2 L450.1,656.9 L442.4,661.3 L434.2,664.0 L425.6,664.3 L416.9,662.8 L408.3,660.8 L400.0,660.0 L391.7,660.8 L383.1,662.8 L374.4,664.3 L365.8,664.0 L357.6,661.3 L349.9,656.9 L342.6,652.2 L335.0,648.5 L326.9,646.5 L318.2,645.4 L309.5,643.8 L301.5,640.6 L294.7,635.3 L289.0,628.5 L283.7,621.6 L277.9,615.5 L270.9,610.8 L263.2,606.8 L255.5,602.4 L249.1,596.6 L244.5,589.3 L241.5,581.0 L238.9,572.6 L235.5,565.0 L230.6,558.2 L224.6,551.8 L218.9,545.0 L214.9,537.4 L213.1,528.9 L213.1,520.1 L213.5,511.3 L212.9,503.0 L210.6,494.9 L207.2,486.9 L204.2,478.5 L203.0,470.0 L204.2,461.5 L207.2,453.1 L210.6,445.1 L212.9,437.0 L213.5,428.7 L213.1,419.9 L213.1,411.1 L214.9,402.6 L218.9,395.0 L224.6,388.2 L230.6,381.8 L235.5,375.0 L238.9,367.4 L241.5,359.0 L244.5,350.7 L249.1,343.4 L255.5,337.6 L263.2,333.2 L270.9,329.2 L277.9,324.5 L283.7,318.4 L289.0,311.5 L294.7,304.7 L301.5,299.4 L309.5,296.2 L318.2,294.6 L326.9,293.5 L335.0,291.5 L342.6,287.8 L349.9,283.1 L357.6,278.7 L365.8,276.0 L374.4,275.7 L383.1,277.2 L391.7,279.2 L400.0,280.0 L408.3,279.2 L416.9,277.2 L425.6,275.7 L434.2,276.0 L442.4,278.7 L450.1,283.1 L457.4,287.8 L465.0,291.5 L473.1,293.5 L481.8,294.6 L490.5,296.2 L498.5,299.4 L505.3,304.7 L511.0,311.5 L516.3,318.4 L522.1,324.5 L529.1,329.2 L536.8,333.2 L544.5,337.6 L550.9,343.4 L555.5,350.7 L558.5,359.0 L561.1,367.4 L564.5,375.0 L569.4,381.8 L575.4,388.2 L581.1,395.0 L585.1,402.6 L586.9,411.1 L586.9,419.9 L586.5,428.7 L587.1,437.0 L589.4,445.1 L592.8,453.1 L595.8,461.5 Z\" fill=\"url(#lf)\"/><ellipse cx=\"400\" cy=\"560\" rx=\"115\" ry=\"95\" fill=\"url(#lb)\" opacity=\"0.9\"/><path d=\"M330 300 C 360 230, 470 220, 500 300 C 440 262, 380 266, 330 300 Z\" fill=\"#7aa8ff\"/><ellipse cx=\"330\" cy=\"400\" rx=\"50\" ry=\"56\" fill=\"url(#le)\" stroke=\"#2a4fc4\" stroke-width=\"4\"/><ellipse cx=\"470\" cy=\"400\" rx=\"50\" ry=\"56\" fill=\"url(#le)\" stroke=\"#2a4fc4\" stroke-width=\"4\"/><circle cx=\"340\" cy=\"410\" r=\"26\" fill=\"#1b2d6e\"/><circle cx=\"480\" cy=\"410\" r=\"26\" fill=\"#1b2d6e\"/><circle cx=\"348\" cy=\"400\" r=\"9\" fill=\"#fff\"/><circle cx=\"488\" cy=\"400\" r=\"9\" fill=\"#fff\"/><ellipse cx=\"270\" cy=\"470\" rx=\"26\" ry=\"16\" fill=\"#ff9ec0\" opacity=\"0.6\"/><ellipse cx=\"530\" cy=\"470\" rx=\"26\" ry=\"16\" fill=\"#ff9ec0\" opacity=\"0.6\"/><path d=\"M378 480 Q400 500 422 480\" fill=\"none\" stroke=\"#1b2d6e\" stroke-width=\"6\" stroke-linecap=\"round\"/><ellipse cx=\"300\" cy=\"660\" rx=\"36\" ry=\"26\" fill=\"#4d7fe8\"/><ellipse cx=\"500\" cy=\"660\" rx=\"36\" ry=\"26\" fill=\"#4d7fe8\"/></svg>" + '</div><div><div id="luniMood" style="font-weight:700;font-size:17px"></div><div id="luniStreak" style="font-size:13px;opacity:.7;margin-top:4px"></div></div></div>'
-      + '<div id="luniCurrent" style="margin:0 16px 12px;padding:12px 14px;border-radius:14px;background:var(--input-bg);font-size:15px;line-height:1.4"></div>'
-      + '<div style="padding:0 16px 8px"><button id="luniMore" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer">Ещё фраза</button></div>'
-      + '<div style="font-size:12px;opacity:.6;padding:6px 16px 4px">Все фразы Луни</div>'
-      + '<div id="luniAll" style="max-height:34vh;overflow-y:auto;padding:0 16px 16px"></div></div>';
-    document.body.appendChild(ov);
-    ov.addEventListener('click', e => { if (e.target === ov || e.target.id === 'luniClose') ov.style.display = 'none'; });
-    document.getElementById('luniMore').addEventListener('click', () => { luniCur = (luniCur + 1) % luniAllPhrases().length; luniPaintWindow(); });
-  }
-  luniCur = Math.floor(Math.random() * luniAllPhrases().length);
-  luniPaintWindow();
-  ov.style.display = 'flex';
-}
-let luniCur = 0;
-function luniPaintWindow() {
-  const all = luniAllPhrases();
-  const d = me?.streak_days || 0;
-  const mood = streakMood(d);
-  document.getElementById('luniMood').textContent = mood;
-  document.getElementById('luniStreak').textContent = d ? 'Серия: ' + d + ' ' + (d === 1 ? 'день' : (d >= 2 && d <= 4) ? 'дня' : 'дней') : 'Серия ещё не начата';
-  document.getElementById('luniCurrent').textContent = all[luniCur] || '';
-  document.getElementById('luniAll').innerHTML = all.map((p, i) => '<div style="padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;color:' + (i === luniCur ? 'var(--accent)' : 'var(--fg)') + '">' + esc(p) + '</div>').join('');
-}
 function luniSay() {
   const list = luniPhrases();
   let i = Math.floor(Math.random() * list.length);
