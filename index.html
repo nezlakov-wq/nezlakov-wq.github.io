@@ -5237,12 +5237,14 @@ async function searchUsers(val) {
       res.innerHTML = '<div style="padding:16px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
       return;
     }
+    // Приоритет Plus: пользователи с подпиской выше в результатах поиска
+    data.sort((x, y) => (y.plus_active ? 1 : 0) - (x.plus_active ? 1 : 0));
     data.forEach(u => {
       const el = document.createElement('div');
       el.className = 'user-result-item';
       el.innerHTML = `
         <div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div>
-        <div><div class="u-name">${esc(u.display_name)}</div><div class="u-un">@${esc(u.username)}</div></div>`;
+        <div><div class="u-name">${esc(u.display_name)}${u.plus_active ? ' <span class="plus-badge">★ Plus</span>' : ''}</div><div class="u-un">@${esc(u.username)}</div></div>`;
       el.addEventListener('click', ()=>startChat(u));
       res.appendChild(el);
     });
