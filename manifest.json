@@ -1,11 +1,16 @@
 {
+  "id": "/",
   "name": "Moonlit",
   "short_name": "Moonlit",
+  "description": "Moonlit — мессенджер с личными и групповыми чатами, звонками и подписками.",
+  "lang": "ru",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#111111",
   "theme_color": "#111111",
+  "categories": ["social", "communication"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
