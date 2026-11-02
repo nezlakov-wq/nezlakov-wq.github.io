@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "ci.us.moonlit.twa",
+    "sha256_cert_fingerprints": ["80:F6:D9:02:DC:CB:1A:B2:75:F4:4B:C7:42:C9:0C:87:43:22:14:6D:09:6D:BC:6C:52:D5:6F:C7:97:FC:13:8F"]
+  }
+}]
