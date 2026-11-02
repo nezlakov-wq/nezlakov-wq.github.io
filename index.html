@@ -515,6 +515,11 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .msg-menu-overlay.show > div{transform:none}
 #pfBgLayer{position:absolute !important;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center}
 #profileModal .modal > *:not(#pfBgLayer){position:relative;z-index:1}
+/* Профиль на телефоне — на весь экран, без полей и рамки */
+@media (max-width: 640px) {
+  #profileModal { padding: 0 !important; }
+  #profileModal .modal { max-width: 100% !important; width: 100% !important; height: 100% !important; max-height: 100% !important; border-radius: 0 !important; border: none !important; }
+}
 .shop-card{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;border-radius:14px;background:var(--bg3)}
 .shop-card b{display:block;font-size:16px}
 .shop-card span{font-size:13px;color:var(--fg2)}
