@@ -1163,6 +1163,10 @@ body::before {
     </div>
     <div id="setPrivacy" class="privacy-row" style="display:none">
       <div class="set-row" style="padding:0;overflow:hidden">
+        <button class="set-item" onclick="togglePriv('ghost_mode')"><span class="set-txt">Скрытность ★ Plus</span><span class="pv-val" id="pv_ghost_mode"></span><span class="set-chev">›</span></button>
+      </div>
+      <div class="pv-note">Собеседники не увидят, что вы прочитали сообщения, а также ваш статус «в сети» и время захода.</div>
+      <div class="set-row" style="padding:0;overflow:hidden">
         <button class="set-item" onclick="togglePriv('hide_online')"><span class="set-txt">Время захода</span><span class="pv-val" id="pv_hide_online"></span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="togglePriv('hide_avatar')"><span class="set-txt">Фотографии профиля</span><span class="pv-val" id="pv_hide_avatar"></span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="togglePriv('hide_gifts')"><span class="set-txt">Подарки</span><span class="pv-val" id="pv_hide_gifts"></span><span class="set-chev">›</span></button>
@@ -2646,8 +2650,8 @@ async function openProfile() {
   const av = document.getElementById('pfAv');
   av.textContent = avText(p, name);
   av.style.cssText = 'width:120px;height:120px;font-size:44px;margin:0 auto;border:4px solid var(--sidebar);' + avStyle(p, activeChatId);
-  const onNow = onlineIds.has(p.id) && !p.hide_online;
-  document.getElementById('pfStatus').textContent = onNow ? 'в сети' : (p.last_seen && !p.hide_online ? lastSeenText(p.last_seen) : '');
+  const onNow = onlineIds.has(p.id) && !presenceHidden(p);
+  document.getElementById('pfStatus').textContent = onNow ? 'в сети' : (p.last_seen && !presenceHidden(p) ? lastSeenText(p.last_seen) : '');
   // Фон карточки профиля (затемнён, чтобы текст читался)
   const pm = document.querySelector('#profileModal .modal');
   // Фон профиля: отдельный слой под содержимым (раньше перекрывался фоном карточки)
@@ -2726,6 +2730,8 @@ async function openProfile() {
 }
 
 // ── PRIVACY ──
+// Время захода и статус «в сети» скрыты, если включено «Не показывать время захода» или режим скрытности (Plus)
+function presenceHidden(p) { return !!(p && (p.hide_online || p.ghost_mode)); }
 // Скрытие аватара применяем на стороне приложения: чужой аватар не подставляем
 function maskProfile(p) {
   if (!p) return null;
@@ -2753,9 +2759,12 @@ function renderPrivacyRows() {
     const el = document.getElementById('pv_' + f);
     if (el) el.textContent = me[f] ? 'Никто' : 'Все';
   });
+  const g = document.getElementById('pv_ghost_mode');
+  if (g) g.textContent = me.ghost_mode ? 'Вкл' : 'Выкл';
 }
 async function togglePriv(field) {
   if (!me) return;
+  if (field === 'ghost_mode' && !isPlusNow()) return toast('Скрытность доступна в подписке Plus');
   await savePrivacy(field, !me[field]);
   renderPrivacyRows();
 }
@@ -2763,8 +2772,8 @@ async function savePrivacy(field, val) {
   const { error } = await sb.from('profiles').update({ [field]: val }).eq('id', me.id);
   if (error) return toast('Ошибка: ' + error.message);
   me[field] = val;
-  if (field === 'hide_online' && presenceCh) {
-    if (val) await presenceCh.untrack();
+  if ((field === 'hide_online' || field === 'ghost_mode') && presenceCh) {
+    if (presenceHidden(me)) await presenceCh.untrack();
     else await presenceCh.track({ uid: me.id });
   }
   toast('Сохранено');
@@ -2817,7 +2826,7 @@ let typingNow = false;
 // Кольцо статуса вокруг аватарки: зелёное — в сети, серое — не в сети или статус скрыт
 function statusRing(p) {
   if (!p || p.id === me?.id) return '';
-  const on = onlineIds.has(p.id) && !p.hide_online;
+  const on = onlineIds.has(p.id) && !presenceHidden(p);
   return `box-shadow:0 0 0 3px ${on ? '#22c55e' : '#64748b'};`;
 }
 function refreshStatusLine() {
@@ -2834,7 +2843,7 @@ function refreshStatusLine() {
   const hav = document.getElementById('hAv');
   if (hav) hav.style.boxShadow = statusRing(activeOther).replace('box-shadow:','').replace(';','');
   const online = onlineIds.has(activeOther.id);
-  const seen = activeOther.last_seen && !activeOther.hide_online;
+  const seen = activeOther.last_seen && !presenceHidden(activeOther);
   st.textContent = online ? 'в сети' : (seen ? lastSeenText(activeOther.last_seen) : '@' + (activeOther.username || ''));
   st.className = 'h-status' + (online ? ' online' : '');
 }
@@ -2847,7 +2856,7 @@ function setupPresence() {
       renderChatList(document.getElementById('chatSearch')?.value || '');
     })
     .subscribe(async (status) => {
-      if (status === 'SUBSCRIBED' && me && !me.hide_online) await presenceCh.track({ uid: me.id });
+      if (status === 'SUBSCRIBED' && me && !presenceHidden(me)) await presenceCh.track({ uid: me.id });
     });
 }
 
@@ -4682,7 +4691,7 @@ async function loadConversations() {
   const convIds = convList.map(c => c.id);
   const { data: allMembers } = convIds.length
     ? await sb.from('conversation_members')
-        .select('conversation_id, user_id, profiles(id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_avatar,hide_online,hide_gifts,last_seen)')
+        .select('conversation_id, user_id, profiles(id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_avatar,hide_online,ghost_mode,hide_gifts,last_seen)')
         .in('conversation_id', convIds)
     : { data: [] };
   const membersByConv = {};
