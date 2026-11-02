@@ -551,6 +551,16 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .file-box{min-width:120px;font-size:14px}
 .file-box audio{width:220px;max-width:100%}
 #micBtn.rec{color:#e85d75}
+/* Контент 18+ */
+.adult-blur{position:relative;overflow:hidden;border-radius:10px;display:inline-block;max-width:100%}
+.adult-blur > img, .adult-blur > video, .adult-blur > a > img { filter: blur(22px); transition: filter .2s; }
+.adult-blur.revealed > img, .adult-blur.revealed > video, .adult-blur.revealed > a > img { filter: none; }
+.adult-blur .vnote-msg { filter: blur(22px); }
+.adult-blur.revealed .vnote-msg { filter: none; }
+.adult-cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.25);color:#fff;font-size:13px;z-index:2;text-align:center;padding:8px}
+.adult-blur.revealed > .adult-cover{display:none}
+.adult-cover button{font:inherit;font-size:13px;padding:7px 14px;border-radius:12px;border:none;background:rgba(0,0,0,.6);color:#fff;cursor:pointer}
+.adult-cover button:disabled{opacity:.7;cursor:default}
 /* Видео-кружки */
 .vnote-ov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;box-sizing:border-box}
 .vnote-wrap{width:min(70vw,300px);aspect-ratio:1/1;border-radius:50%;overflow:hidden;border:3px solid var(--accent,#5b7fff);background:#000}
@@ -1004,7 +1014,7 @@ body::before {
       <div id="emojiPanel"></div>
       <div class="input-area">
         <button class="ico-btn" title="Файл" onclick="document.getElementById('fileInput').click()"><svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2L9.9 17.6a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg></button>
-        <input type="file" id="fileInput" style="display:none" onchange="sendFile(this.files[0]); this.value=''">
+        <input type="file" id="fileInput" style="display:none" onchange="pickFile(this.files[0]); this.value=''">
         <div class="input-wrap">
           <textarea class="msg-ta" id="msgInput" rows="1" placeholder="Сообщение…"></textarea>
           <button class="ico-btn in-btn" title="Подарок" onclick="openGifts()"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8a3 3 0 1 1-3-3c2 0 3 3 3 3zM12 8a3 3 0 1 0 3-3c-2 0-3 3-3 3z"/></svg></button>
@@ -1049,6 +1059,8 @@ body::before {
   <div class="modal" style="position:relative;overflow-y:auto">
     <button class="modal-close" onclick="closeGroupInfo()">✕</button>
     <div class="modal-title" id="giTitle"></div>
+    <button class="set-logout" id="chanAvBtn" style="display:none;margin:0 0 12px" onclick="document.getElementById('chanAvInput').click()">Сменить аватарку канала</button>
+    <input type="file" id="chanAvInput" accept="image/*" style="display:none" onchange="uploadChannelAvatar(this.files[0]); this.value=''">
     <div class="set-label" style="margin-bottom:6px">Участники</div>
     <div id="giMembers"></div>
     <div class="set-label" style="margin:12px 0 6px">Добавить участника</div>
@@ -3565,6 +3577,17 @@ async function fileUrl(m, keyVersion = 0) {
   fileCache.set(m.p, url);
   return url;
 }
+// Контент 18+ скрыт размытием; открыть могут только пользователи, которым есть 18 лет по дате рождения в профиле
+function adultCover(el) {
+  const age = myAge();
+  const can = age !== null && age >= 18;
+  el.classList.add('adult-blur');
+  const cov = document.createElement('div');
+  cov.className = 'adult-cover';
+  cov.innerHTML = `<div style="font-weight:700">18+</div><button type="button" ${can ? '' : 'disabled'}>${can ? 'Показать' : (age === null ? 'Укажите дату рождения' : 'Недоступно до 18 лет')}</button>`;
+  cov.querySelector('button').onclick = e => { e.stopPropagation(); if (can) el.classList.add('revealed'); };
+  el.appendChild(cov);
+}
 function hydrateFiles(area, msgs) {
   area.querySelectorAll('.file-box').forEach(async el => {
     const msg = msgs.find(x => x.id === el.dataset.fid);
@@ -3574,6 +3597,7 @@ function hydrateFiles(area, msgs) {
     try {
       const url = await fileUrl(m, msg.key_version || 0);
       if (el.dataset.kind === 'img') {
+        // (контент 18+ размывается после отрисовки, см. adultCover)
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'vnote') {
         el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
@@ -3613,12 +3637,33 @@ function hydrateFiles(area, msgs) {
       } else {
         el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
+      if (m.a && (el.dataset.kind === 'img' || el.dataset.kind === 'vnote')) adultCover(el);
     } catch (e) {
       el.textContent = '🔒 Не удалось открыть файл';
     }
   });
 }
-async function sendFile(file) {
+// Возраст по дате рождения из профиля (null, если дата не указана)
+function myAge() {
+  if (!me?.birthday) return null;
+  const b = new Date(me.birthday + 'T00:00:00'), n = new Date();
+  let a = n.getFullYear() - b.getFullYear();
+  if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--;
+  return a;
+}
+// Фото и видео: спрашиваем, отметить ли как 18+. Пользователи до 18 лет такое не отправляют.
+async function pickFile(file) {
+  if (!file) return;
+  const media = (file.type || '').startsWith('image/') || (file.type || '').startsWith('video/');
+  if (!media) return sendFile(file, false);
+  const age = myAge();
+  if (age !== null && age < 18) {
+    return sendFile(file, false);
+  }
+  const adult = confirm('Это контент 18+? Такие фото и видео собеседник увидит скрытыми и сможет открыть, только если ему есть 18 лет.');
+  sendFile(file, adult);
+}
+async function sendFile(file, adult = false) {
   if (!file || !activeChatId) return;
   if (file.size > MAX_FILE) return toast('Файл больше 10 МБ');
   const conv = currentConv();
@@ -3638,7 +3683,7 @@ async function sendFile(file) {
   const { error: upErr } = await sb.storage.from('chat-media').upload(path, new Blob([ct]), { contentType: 'application/octet-stream' });
   if (upErr) return toast('Ошибка загрузки: ' + upErr.message);
   const info = (file.type || '').startsWith('audio/') ? await audioInfo(file) : null;
-  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv), ...(info || {}) });
+  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv), ...(adult ? { a: 1 } : {}), ...(info || {}) });
   let enc;
   try { enc = await encryptForConv(conv, meta, fileKv); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
@@ -4291,9 +4336,33 @@ async function uploadAvatar(file) {
   toast('Аватарка обновлена');
 }
 
+// Аватарка канала: меняет только создатель (проверка в функции set_channel_avatar на сервере)
+async function uploadChannelAvatar(file) {
+  const conv = currentConv();
+  if (!file || !conv?.is_channel || conv.created_by !== me.id) return;
+  if (file.size > 5 * 1024 * 1024) return toast('Файл больше 5 МБ');
+  toast('Загружаем…');
+  try {
+    const dataUrl = await compressImage(file, 512);
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${me.id}/channel-${conv.id}.jpg`;
+    const { error } = await sb.storage.from('avatars').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+    if (error) return toast('Ошибка: ' + error.message);
+    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl + '?t=' + Date.now();
+    const { error: e2 } = await sb.rpc('set_channel_avatar', { conv: conv.id, url });
+    if (e2) return toast('Ошибка: ' + e2.message);
+    conv.avatar_url = url;
+    await loadConversations();
+    renderGroupInfo(currentConv());
+    toast('Аватарка канала обновлена');
+  } catch (e) { toast('Ошибка: ' + e.message); }
+}
+
 // ── GROUPS (сообщения шифруются групповым ключом, он хранится в group_keys отдельно для каждого участника) ──
 const groupKeyCache = new Map(); // convId -> { keys: Map(version -> CryptoKey), raw: Map(version -> b64), latest }
 function currentConv() { return conversations.find(c => c.id === activeChatId) || null; }
+// Фон аватарки канала: своя картинка или значок приложения по умолчанию
+function chanBg(c) { return c.avatar_url ? `url('${c.avatar_url}') center/cover no-repeat` : "#0f172a url('icon-192.png') center/cover no-repeat"; }
 
 // Групповой ключ шифруется для участника его публичным ключом (ECIES): отправитель не нужен
 async function wrapGroupKey(memberPubJson, rawB64) {
@@ -4511,6 +4580,7 @@ function renderGroupInfo(c) {
   if (!c) return;
   document.getElementById('giTitle').textContent = c.name || 'Группа';
   const isCreator = c.created_by === me.id;
+  document.getElementById('chanAvBtn').style.display = (c.is_channel && isCreator) ? '' : 'none';
   document.getElementById('giMembers').innerHTML = (c.members || []).map(m => {
     const p = m.profiles || {};
     const role = m.user_id === c.created_by ? ' · создатель' : '';
@@ -4918,7 +4988,7 @@ function renderChatList(filter='') {
     item.dataset.id = conv.id;
     item.innerHTML = `
       <div class="av">
-        <div class="av-img" style="${conv.is_channel ? "background:#0f172a url('icon-192.png') center/cover no-repeat" : avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${conv.is_channel ? '' : avText(other, name)}</div>
+        <div class="av-img" style="${conv.is_channel ? 'background:' + chanBg(conv) : avStyle(other, conv.id)};${conv.is_group ? '' : statusRing(other)}">${conv.is_channel ? '' : avText(other, name)}</div>
       </div>
       <div class="chat-info">
         <div class="chat-name">${esc(name)}${conv.label ? ` <span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${LABEL_COLORS[conv.label_color] || "#64748b"};color:#fff;vertical-align:1px">${esc(conv.label)}</span>` : ''}${conv.muted ? ' <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.6;vertical-align:-2px"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 8A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M1 1l22 22"/></svg>' : ''}</div>
@@ -5084,7 +5154,7 @@ async function openChat(convId) {
   const color = colorFor(activeOther?.id || convId);
   const name = activeOther?.display_name || conv.name || 'Чат';
   document.getElementById('hAv').textContent = conv.is_channel ? '' : avText(activeOther, name);
-  document.getElementById('hAv').style.cssText = 'width:36px;height:36px;font-size:14px;' + (conv.is_channel ? "background:#0f172a url('icon-192.png') center/cover no-repeat" : avStyle(activeOther, convId));
+  document.getElementById('hAv').style.cssText = 'width:36px;height:36px;font-size:14px;' + (conv.is_channel ? 'background:' + chanBg(conv) : avStyle(activeOther, convId));
   document.getElementById('hName').textContent = name;
   refreshStatusLine();
   // В «Избранном» и канале звонков нет; обои в канале меняет только владелец
