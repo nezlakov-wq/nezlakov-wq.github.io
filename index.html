@@ -1024,6 +1024,7 @@ body::before {
     <button class="modal-close" onclick="closeNewChat()">✕</button>
     <div class="modal-title">Новый чат</div>
     <button class="set-logout" style="margin:0 0 12px;background:var(--accent);color:#fff" onclick="openNewGroup()">+ Создать группу</button>
+    <button class="set-logout" style="margin:0 0 12px" onclick="openNewChannel()">+ Создать канал</button>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
   </div>
@@ -1033,13 +1034,13 @@ body::before {
 <div class="modal-overlay" id="groupModal" onclick="if(event.target===this)closeNewGroup()">
   <div class="modal" style="position:relative;overflow-y:auto">
     <button class="modal-close" onclick="closeNewGroup()">✕</button>
-    <div class="modal-title">Новая группа</div>
+    <div class="modal-title" id="groupModalTitle">Новая группа</div>
     <input type="text" id="groupName" placeholder="Название группы" maxlength="60">
-    <div class="set-label" style="margin:4px 0 6px">Участники</div>
+    <div class="set-label" style="margin:4px 0 6px" id="groupMembersLabel">Участники</div>
     <div id="groupMembers" style="margin-bottom:8px"></div>
     <input type="text" id="groupSearch" placeholder="Найти по @username или имени…" oninput="searchGroupUsers(this.value)">
     <div class="user-results" id="groupResults" style="max-height:30vh"></div>
-    <button class="set-logout" style="background:var(--accent)" onclick="createGroup()">Создать группу</button>
+    <button class="set-logout" style="background:var(--accent)" id="groupSubmit" onclick="createGroup()">Создать группу</button>
   </div>
 </div>
 
@@ -4359,8 +4360,29 @@ async function encryptForConv(conv, text, version) {
 // Создание группы
 let groupMembers = [];
 let groupSearchTimer = null;
+// Режим окна создания: 'group' или 'channel' (канал: писать может только создатель, участники читают)
+let groupMode = 'group';
+function setGroupMode(mode) {
+  groupMode = mode;
+  const ch = mode === 'channel';
+  document.getElementById('groupModalTitle').textContent = ch ? 'Новый канал' : 'Новая группа';
+  document.getElementById('groupName').placeholder = ch ? 'Название канала' : 'Название группы';
+  document.getElementById('groupMembersLabel').textContent = ch ? 'Подписчики (необязательно)' : 'Участники';
+  document.getElementById('groupSubmit').textContent = ch ? 'Создать канал' : 'Создать группу';
+}
+function openNewChannel() {
+  closeNewChat();
+  setGroupMode('channel');
+  groupMembers = [];
+  document.getElementById('groupName').value = '';
+  document.getElementById('groupSearch').value = '';
+  document.getElementById('groupResults').innerHTML = '';
+  renderGroupMembers();
+  document.getElementById('groupModal').style.display = 'flex';
+}
 function openNewGroup() {
   closeNewChat();
+  setGroupMode('group');
   groupMembers = [];
   document.getElementById('groupName').value = '';
   document.getElementById('groupSearch').value = '';
@@ -4409,6 +4431,7 @@ function searchGroupUsers(val) { searchUsersInto(val, 'groupResults', addDraft);
 function searchAddMember(val) { searchUsersInto(val, 'giResults', addToGroup); }
 
 async function createGroup() {
+  if (groupMode === 'channel') return createChannel();
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название группы');
   if (!groupMembers.length) return toast('Добавь хотя бы одного участника');
@@ -4434,6 +4457,25 @@ async function createGroup() {
   closeNewGroup();
   await loadConversations();
   await openChat(convId);
+}
+
+// Канал: создатель пишет, подписчики читают. Сообщения в канале не шифруются (как в общем канале обновлений)
+async function createChannel() {
+  const name = document.getElementById('groupName').value.trim();
+  if (!name) return toast('Введи название канала');
+  if (!me) return;
+  const convId = crypto.randomUUID();
+  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, is_channel: true, name, created_by: me.id, key_version: 0 });
+  if (e1) return toast('Ошибка: ' + e1.message);
+  const { error: e2 } = await sb.from('conversation_members').insert([
+    { conversation_id: convId, user_id: me.id },
+    ...groupMembers.map(u => ({ conversation_id: convId, user_id: u.id }))
+  ]);
+  if (e2) return toast('Ошибка: ' + e2.message);
+  closeNewGroup();
+  await loadConversations();
+  await openChat(convId);
+  toast('Канал создан');
 }
 
 // Переименование группы: может любой участник (проверка на сервере, функция rename_group)
@@ -4489,14 +4531,16 @@ async function addToGroup(u) {
   if ((conv.members || []).length >= glim2) return toast('В группе не больше ' + glim2 + ' участников');
   const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
   if (error) return toast('Ошибка: ' + error.message);
-  try {
-    const entry = await loadGroupKeys(conv.id);
-    const raw = entry.raw.get(entry.latest);
-    if (!raw) throw new Error('нет ключа группы');
-    const wrapped = await wrapGroupKey(u.pub_key, raw);
-    const { error: e2 } = await sb.from('group_keys').insert({ conversation_id: conv.id, user_id: u.id, key_version: entry.latest, wrapped });
-    if (e2) throw new Error(e2.message);
-  } catch (e) { return toast('Ошибка: ' + e.message); }
+  if (!conv.is_channel) {
+    try {
+      const entry = await loadGroupKeys(conv.id);
+      const raw = entry.raw.get(entry.latest);
+      if (!raw) throw new Error('нет ключа группы');
+      const wrapped = await wrapGroupKey(u.pub_key, raw);
+      const { error: e2 } = await sb.from('group_keys').insert({ conversation_id: conv.id, user_id: u.id, key_version: entry.latest, wrapped });
+      if (e2) throw new Error(e2.message);
+    } catch (e) { return toast('Ошибка: ' + e.message); }
+  }
   document.getElementById('giSearch').value = '';
   document.getElementById('giResults').innerHTML = '';
   toast('Участник добавлен');
