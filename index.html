@@ -1149,7 +1149,6 @@ body::before {
         <div id="profPreview" style="margin:8px 12px 12px;border-radius:14px;overflow:hidden;background:var(--input-bg)"></div>
       </div>
       <div class="set-row"><div class="set-label">Имя</div><div id="setName"></div></div>
-      <div class="set-row"><div class="set-label">Серия Луни</div><div id="setStreak"></div></div>
       <div class="set-row"><div class="set-label">О себе</div><textarea id="setBio" maxlength="140" rows="2" onchange="saveProfileField('bio', this.value.trim().slice(0,140))" style="width:100%;box-sizing:border-box;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></textarea></div>
       <div class="set-row"><div class="set-label">Дополнительные юзернеймы (Plus, до 3)</div><div id="aliasBox" style="margin-top:6px"></div></div>
       <div class="set-row"><div class="set-label">День рождения</div><input type="date" id="setBirthday" onchange="saveProfileField('birthday', this.value || null)" style="background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit;margin-top:6px"></div>
@@ -1411,61 +1410,10 @@ async function loadMe(uid) {
     document.getElementById('myName').textContent = me.display_name;
     document.getElementById('myUsername').innerHTML = '@' + esc(me.username) + ' · ' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
     renderMyAvatar();
-    touchStreak();
     luniShow(true);
   }
 }
 
-// ── СЕРИЯ ЛУНИ: отметка дня, настроение и восстановление за 100 токенов ──
-function streakMood(d) {
-  if (d >= 30) return 'Сияет';
-  if (d >= 7) return 'Радуется';
-  if (d >= 1) return 'Спокойный';
-  return 'Ждёт тебя';
-}
-function dayStr(offsetDays) {
-  const tz = me?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Moscow';
-  return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString('en-CA', { timeZone: tz });
-}
-function canRestoreStreak() {
-  if (!me || !me.streak_broken_day) return false;
-  if (me.streak_restored_day === me.streak_broken_day) return false;
-  return me.streak_broken_day >= dayStr(-1);
-}
-function renderStreak() {
-  const el = document.getElementById('setStreak');
-  if (!el || !me) return;
-  const d = me.streak_days || 0;
-  let html = '<div style="font-size:16px;font-weight:600">' + d + ' ' + (d === 1 ? 'день' : (d >= 2 && d <= 4) ? 'дня' : 'дней') + ' · ' + streakMood(d) + '</div>';
-  if (canRestoreStreak()) {
-    const enough = Number(me.balance || 0) >= 100;
-    html += '<div style="font-size:13px;opacity:.75;margin-top:6px">Серия сброшена. Можно вернуть её в течение 24 часов.</div>'
-      + '<button onclick="restoreStreak()" ' + (enough ? '' : 'disabled ') + 'style="margin-top:8px;padding:10px 14px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-size:14px;cursor:pointer;opacity:' + (enough ? '1' : '.5') + '">Восстановить за 100 токенов</button>';
-    if (!enough) html += '<div style="font-size:12px;opacity:.6;margin-top:4px">Не хватает токенов</div>';
-  }
-  el.innerHTML = html;
-}
-async function touchStreak() {
-  if (!me) return;
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-    const { error } = await sb.rpc('touch_streak', { p_tz: tz });
-    if (error) throw error;
-    const { data } = await sb.from('profiles').select('streak_days,streak_last_day,streak_broken_day,streak_restored_day,timezone,balance').eq('id', me.id).single();
-    if (data) Object.assign(me, data);
-  } catch (e) {}
-  renderStreak();
-}
-async function restoreStreak() {
-  try {
-    const { error } = await sb.rpc('restore_streak');
-    if (error) throw error;
-    toast('Серия восстановлена');
-    await loadMe(me.id);
-  } catch (e) {
-    toast('Не удалось восстановить: ' + (e.message || 'ошибка'));
-  }
-}
 // ── ЛУНИ: двигается по экрану, по нажатию говорит ──
 const LUNI_POS_KEY = 'moonlit-luni-pos';
 let luniDrag = null, luniBubbleTimer = null, luniLast = -1;
@@ -1512,11 +1460,6 @@ const LUNI_COMMON = [
   'Не грусти, я всегда рядом'
 ];
 function luniPhrases() {
-  const d = me?.streak_days || 0;
-  if (me?.streak_broken_day && me.streak_restored_day !== me.streak_broken_day) return ['Я немного скучал... Вернёшься? Серию ещё можно вернуть!', 'Серия сбросилась, но её можно восстановить в течение суток'];
-  if (d >= 30) return ['Мы вместе уже ' + d + ' дней! Ты настоящий друг Луны', 'Я сияю от счастья, спасибо, что заходишь', 'Столько дней вместе, это же целая луна!'];
-  if (d >= 7) return ['Мы вместе уже ' + d + ' дней! Продолжаем?', 'Ты молодец, что заходишь каждый день', 'Ещё одна неделя, и я устрою салют'];
-  if (d >= 1) return ['Привет! Серия ' + d + ' дн. Давай поболтаем', 'Хочешь что-нибудь написать друзьям?', 'Заходи завтра, и серия вырастет'];
   return ['Привет! Я Луни. Напиши кому-нибудь!', 'Нажми на чат, и я расскажу, как тут всё работает'].concat(LUNI_COMMON.slice(0, 3));
 }
 function luniSay() {
@@ -4094,7 +4037,6 @@ async function uploadStory(file) {
 
 async function openSettings() {
   if (!me) return;
-  renderStreak();
   const { data: { user } } = await sb.auth.getUser();
   document.getElementById('setUsername').textContent = '@' + me.username;
   document.getElementById('setTitleName').textContent = me.display_name;
