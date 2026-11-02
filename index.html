@@ -925,8 +925,6 @@ body::before {
 </div>
 
 <!-- APP -->
-<div id="luni" title="Луни"><div class="luni-body"><img src="luni/stand.png" alt="Луни" draggable="false" style="width:100%;height:100%;object-fit:contain;display:block;pointer-events:none"></div></div>
-<div id="luniBubble"></div>
 <div id="app">
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
@@ -1416,7 +1414,6 @@ async function loadMe(uid) {
     document.getElementById('myName').textContent = me.display_name;
     document.getElementById('myUsername').innerHTML = '@' + esc(me.username) + ' · ' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
     renderMyAvatar();
-    luniShow(true);
   }
 }
 
