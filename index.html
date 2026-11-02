@@ -1046,6 +1046,7 @@ body::before {
     <button class="modal-close" onclick="closeNewGroup()">✕</button>
     <div class="modal-title" id="groupModalTitle">Новая группа</div>
     <input type="text" id="groupName" placeholder="Название группы" maxlength="60">
+    <input type="text" id="groupUsername" placeholder="Юзернейм канала (необязательно)" maxlength="32" style="display:none">
     <div class="set-label" style="margin:4px 0 6px" id="groupMembersLabel">Участники</div>
     <div id="groupMembers" style="margin-bottom:8px"></div>
     <input type="text" id="groupSearch" placeholder="Найти по @username или имени…" oninput="searchGroupUsers(this.value)">
@@ -4444,6 +4445,8 @@ function setGroupMode(mode) {
   const ch = mode === 'channel';
   document.getElementById('groupModalTitle').textContent = ch ? 'Новый канал' : 'Новая группа';
   document.getElementById('groupName').placeholder = ch ? 'Название канала' : 'Название группы';
+  document.getElementById('groupUsername').style.display = ch ? '' : 'none';
+  document.getElementById('groupUsername').value = '';
   document.getElementById('groupMembersLabel').textContent = ch ? 'Подписчики (необязательно)' : 'Участники';
   document.getElementById('groupSubmit').textContent = ch ? 'Создать канал' : 'Создать группу';
 }
@@ -4541,9 +4544,13 @@ async function createChannel() {
   if (!isPlusNow()) return toast('Создавать каналы может подписчик Plus');
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название канала');
+  // Юзернейм канала: без него канал не находится в поиске, попасть в него можно только по приглашению
+  const uname = document.getElementById('groupUsername').value.trim().toLowerCase().replace(/^@/, '');
+  if (uname && !/^[a-z0-9_]{4,32}$/.test(uname)) return toast('Юзернейм: 4–32 символа, латиница, цифры и _');
   if (!me) return;
   const convId = crypto.randomUUID();
-  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, is_channel: true, is_public: true, name, created_by: me.id, key_version: 0 });
+  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, is_channel: true, is_public: !!uname, username: uname || null, name, created_by: me.id, key_version: 0 });
+  if (e1 && /duplicate|unique/i.test(e1.message)) return toast('Такой юзернейм уже занят');
   if (e1) return toast('Ошибка: ' + e1.message);
   const { error: e2 } = await sb.from('conversation_members').insert([
     { conversation_id: convId, user_id: me.id },
@@ -5414,7 +5421,7 @@ async function searchUsers(val) {
       .neq('id', me.id)
       .limit(10);
     res.innerHTML = '';
-    const { data: chans } = await sb.from('conversations').select('id,name,avatar_url').eq('is_channel', true).eq('is_public', true).ilike('name', '%' + q + '%').limit(5);
+    const { data: chans } = q ? await sb.from('conversations').select('id,name,username,avatar_url').eq('is_channel', true).eq('is_public', true).eq('username', q).limit(1) : { data: [] };
     if(!data?.length && !chans?.length) {
       res.innerHTML = '<div style="padding:16px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
       return;
@@ -5433,7 +5440,7 @@ async function searchUsers(val) {
     (chans || []).forEach(c => {
       const el = document.createElement('div');
       el.className = 'user-result-item';
-      el.innerHTML = `<div class="u-av" style="background:${chanBg(c)}"></div><div><div class="u-name">${esc(c.name)}</div><div class="u-un">канал</div></div>`;
+      el.innerHTML = `<div class="u-av" style="background:${chanBg(c)}"></div><div><div class="u-name">${esc(c.name)}</div><div class="u-un">@${esc(c.username)} · канал</div></div>`;
       el.addEventListener('click', () => joinPublicChannel(c.id));
       res.appendChild(el);
     });
