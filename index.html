@@ -1034,7 +1034,7 @@ body::before {
     <button class="modal-close" onclick="closeNewChat()">✕</button>
     <div class="modal-title">Новый чат</div>
     <button class="set-logout" style="margin:0 0 12px;background:var(--accent);color:#fff" onclick="openNewGroup()">+ Создать группу</button>
-    <button class="set-logout" style="margin:0 0 12px" onclick="openNewChannel()">+ Создать канал</button>
+    <button class="set-logout" id="newChannelBtn" style="margin:0 0 12px" onclick="openNewChannel()">+ Создать канал (Plus)</button>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
   </div>
@@ -3945,6 +3945,14 @@ function deviceName() {
   return os + ' · ' + browser;
 }
 // Канал обновлений: нажатие подписывает (если ещё не подписан) и открывает канал
+// Вступить в публичный канал (любой пользователь)
+async function joinPublicChannel(id) {
+  const { error } = await sb.rpc('join_public_channel', { conv: id });
+  if (error) return toast('Не удалось вступить: ' + error.message);
+  closeNewChat();
+  await loadConversations();
+  openChat(id);
+}
 async function openChannel() {
   const { data: cid, error } = await sb.rpc('join_channel');
   if (error || !cid) return toast('Канал пока недоступен');
@@ -4530,11 +4538,12 @@ async function createGroup() {
 
 // Канал: создатель пишет, подписчики читают. Сообщения в канале не шифруются (как в общем канале обновлений)
 async function createChannel() {
+  if (!isPlusNow()) return toast('Создавать каналы может подписчик Plus');
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название канала');
   if (!me) return;
   const convId = crypto.randomUUID();
-  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, is_channel: true, name, created_by: me.id, key_version: 0 });
+  const { error: e1 } = await sb.from('conversations').insert({ id: convId, is_group: true, is_channel: true, is_public: true, name, created_by: me.id, key_version: 0 });
   if (e1) return toast('Ошибка: ' + e1.message);
   const { error: e2 } = await sb.from('conversation_members').insert([
     { conversation_id: convId, user_id: me.id },
@@ -5390,6 +5399,7 @@ function subscribeRealtime() {
 // ── NEW CHAT ──
 function openNewChat() {
   document.getElementById('newChatModal').style.display = 'flex';
+  document.getElementById('newChannelBtn').style.display = isPlusNow() ? '' : 'none';
   document.getElementById('userSearchInput').value = '';
   document.getElementById('userResults').innerHTML = '';
   setTimeout(()=>document.getElementById('userSearchInput').focus(), 100);
@@ -5408,7 +5418,8 @@ async function searchUsers(val) {
       .neq('id', me.id)
       .limit(10);
     res.innerHTML = '';
-    if(!data?.length) {
+    const { data: chans } = await sb.from('conversations').select('id,name,avatar_url').eq('is_channel', true).eq('is_public', true).ilike('name', '%' + q + '%').limit(5);
+    if(!data?.length && !chans?.length) {
       res.innerHTML = '<div style="padding:16px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
       return;
     }
@@ -5421,6 +5432,13 @@ async function searchUsers(val) {
         <div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div>
         <div><div class="u-name">${esc(u.display_name)}${u.plus_active ? ' <span class="plus-badge">★ Plus</span>' : ''}</div><div class="u-un">@${esc(u.username)}</div></div>`;
       el.addEventListener('click', ()=>startChat(u));
+      res.appendChild(el);
+    });
+    (chans || []).forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'user-result-item';
+      el.innerHTML = `<div class="u-av" style="background:${chanBg(c)}"></div><div><div class="u-name">${esc(c.name)}</div><div class="u-un">канал</div></div>`;
+      el.addEventListener('click', () => joinPublicChannel(c.id));
       res.appendChild(el);
     });
   }, 300);
