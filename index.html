@@ -4827,7 +4827,6 @@ function renderChatList(filter='') {
     // Одно нажатие открывает чат, долгое нажатие открывает меню (уведомления, архив)
     item.addEventListener('click', () => {
       if (item.dataset.lp) { delete item.dataset.lp; return; }
-      if (showArchive) return openChatSheet(conv); // в архиве одно нажатие открывает меню с кнопкой «Вернуть»
       openChat(conv.id);
     });
     attachChatLong(item, conv);
