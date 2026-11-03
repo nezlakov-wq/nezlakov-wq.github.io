@@ -1688,6 +1688,7 @@ function renderMyAvatar() {
 function showApp() {
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  if (me?.id) ensureDevice(me.id).catch(e => console.warn('ensureDevice failed', e));
   loadConversations();
   loadGifts();
   subscribeRealtime();
@@ -2328,6 +2329,39 @@ async function unlockPrivate(password, encJson) {
   const wrap = await deriveWrapKey(password, unb64(s));
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(i) }, wrap, unb64(d));
   return JSON.parse(cdec.decode(pt));
+}
+// ── УСТРОЙСТВА: у каждого устройства свой ключ, публичная часть лежит в user_devices ──
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem('moonlit-device-id');
+    if (!id) { id = crypto.randomUUID(); localStorage.setItem('moonlit-device-id', id); }
+    return id;
+  } catch (e) { return 'dev-' + Math.random().toString(36).slice(2); }
+}
+async function ensureDevice(userId) {
+  const did = getDeviceId();
+  const storeKey = 'moonlit-dev-priv-' + userId + '-' + did;
+  let pubJwk = null;
+  let privJwk = null;
+  try { privJwk = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) {}
+  if (!privJwk) {
+    const kp = await crypto.subtle.generateKey(ECDH_ALG, true, ['deriveKey']);
+    privJwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    pubJwk = await crypto.subtle.exportKey('jwk', kp.publicKey);
+    localStorage.setItem(storeKey, JSON.stringify(privJwk));
+  } else {
+    // Публичная часть вычисляется из приватной (x и y совпадают с приватным ключом)
+    const { d, ...pub } = privJwk;
+    pubJwk = { ...pub, key_ops: [] };
+  }
+  const { error } = await sb.from('user_devices').upsert({
+    user_id: userId,
+    device_id: did,
+    pub_key: JSON.stringify(pubJwk),
+    name: (navigator.userAgent || 'device').slice(0, 120),
+    last_seen_at: new Date().toISOString()
+  }, { onConflict: 'user_id,device_id' });
+  if (error) console.warn('ensureDevice:', error.message);
 }
 const sharedCache = new Map();
 async function sharedKeyWith(otherPubJson) {
