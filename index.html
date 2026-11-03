@@ -642,6 +642,18 @@ button:focus-visible, a:focus-visible {
 }
 .set-item { border-radius: 0; }
 .set-item:hover { background: rgba(255,255,255,.03); }
+/* ── Кружок (видеосообщение): без пузыря, круг ровно по размеру видео ── */
+.bubble:has(> .vnote-msg), .bubble:has(.vnote-msg) {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.vnote-msg { width: 220px !important; height: 220px !important; max-width: 70vw; max-height: 70vw; aspect-ratio: 1 / 1; }
+/* ── Поле ввода: без синей рамки при фокусе ── */
+.msg-ta:focus, .input-area textarea:focus, .input-area input:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
 /* ── Принудительная версия: «ПК» включает десктопный вид на любом экране, «Обычная» — узкую колонку ── */
 html.force-desktop #app { gap: 10px; padding: 10px; background: #0a0a10; }
 html.force-desktop .sidebar { width: 360px; min-width: 320px; }
