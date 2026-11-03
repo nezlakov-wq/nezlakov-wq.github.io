@@ -2384,6 +2384,7 @@ async function encryptFor(otherPubJson, text) {
   return 'e1:' + b64(iv) + ':' + b64(ct);
 }
 async function decryptFrom(otherPubJson, text) {
+  if (text && text.startsWith('e2:')) return decryptForDevices(text);
   if (!text || !text.startsWith('e1:')) return text;
   try {
     const [, i, d] = text.split(':');
@@ -4591,6 +4592,46 @@ async function decryptWith(key, text) {
     return cdec.decode(pt);
   } catch (e) { return '🔒 Не удалось расшифровать'; }
 }
+// ── Шифрование для всех устройств (формат e2): одно содержимое, ключ обёрнут для каждого устройства ──
+async function encryptForDevices(userIds, text) {
+  const { data: devs, error } = await sb.from('user_devices').select('user_id, device_id, pub_key').in('user_id', userIds);
+  if (error) throw error;
+  if (!devs || !devs.length) throw new Error('no devices');
+  const myDid = getDeviceId();
+  if (!devs.some(d => d.user_id === me.id && d.device_id === myDid)) throw new Error('my device not registered');
+  const ck = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', ck));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, ck, cenc.encode(text));
+  const wraps = [];
+  for (const d of devs) {
+    const pub = await crypto.subtle.importKey('jwk', JSON.parse(d.pub_key), ECDH_ALG, false, []);
+    const eph = await crypto.subtle.generateKey(ECDH_ALG, true, ['deriveKey']);
+    const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, eph.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+    const wi = crypto.getRandomValues(new Uint8Array(12));
+    const w = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: wi }, wk, raw);
+    wraps.push({ u: d.user_id, d: d.device_id, e: await crypto.subtle.exportKey('jwk', eph.publicKey), i: b64(wi), w: b64(w) });
+  }
+  const body = JSON.stringify({ v: 2, i: b64(iv), c: b64(ct), k: wraps });
+  return 'e2:' + b64(cenc.encode(body));
+}
+async function decryptForDevices(text) {
+  try {
+    const obj = JSON.parse(cdec.decode(unb64(text.slice(3))));
+    const myDid = getDeviceId();
+    const entry = obj.k.find(x => x.u === me.id && x.d === myDid);
+    if (!entry) return '🔒 Нет ключа для этого устройства';
+    const privJwk = JSON.parse(localStorage.getItem('moonlit-dev-priv-' + me.id + '-' + myDid) || 'null');
+    if (!privJwk) return '🔒 Нет ключа устройства';
+    const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
+    const eph = await crypto.subtle.importKey('jwk', entry.e, ECDH_ALG, false, []);
+    const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: eph }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(entry.i) }, wk, unb64(entry.w));
+    const ck = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['decrypt']);
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.i) }, ck, unb64(obj.c));
+    return cdec.decode(pt);
+  } catch (e) { return '🔒 Не удалось расшифровать'; }
+}
 // Единая точка шифрования: личный чат или группа. Возвращает payload и номер ключа.
 async function encryptForConv(conv, text, version) {
   // Канал обновлений: открытый текст, его читают все подписчики без ключей
@@ -4603,6 +4644,11 @@ async function encryptForConv(conv, text, version) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, cenc.encode(text));
     return { payload: 'e1:' + b64(iv) + ':' + b64(ct), key_version: v };
+  }
+  // Личный чат: сначала шифрование для всех устройств (e2), если устройства известны
+  if (conv?.other?.id && me?.id) {
+    try { return { payload: await encryptForDevices([me.id, conv.other.id], text), key_version: 0 }; }
+    catch (e) { console.warn('e2 fallback to e1:', e?.message || e); }
   }
   return { payload: await encryptFor(conv?.other?.pub_key, text), key_version: 0 };
 }
