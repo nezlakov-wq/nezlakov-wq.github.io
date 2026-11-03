@@ -4597,6 +4597,8 @@ async function encryptForDevices(userIds, text) {
   const { data: devs, error } = await sb.from('user_devices').select('user_id, device_id, pub_key').in('user_id', userIds);
   if (error) throw error;
   if (!devs || !devs.length) throw new Error('no devices');
+  // Каждый участник должен иметь хотя бы одно устройство, иначе он не сможет прочитать сообщение
+  if (!userIds.every(uid => devs.some(d => d.user_id === uid))) throw new Error('a member has no devices');
   const myDid = getDeviceId();
   if (!devs.some(d => d.user_id === me.id && d.device_id === myDid)) throw new Error('my device not registered');
   const ck = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
