@@ -644,6 +644,17 @@ button:focus-visible, a:focus-visible {
 }
 .set-item { border-radius: 0; }
 .set-item:hover { background: rgba(255,255,255,.03); }
+/* ── Принудительная версия: «ПК» включает десктопный вид на любом экране, «Обычная» — узкую колонку ── */
+html.force-desktop #app { gap: 10px; padding: 10px; background: #0a0a10; }
+html.force-desktop .sidebar { width: 360px; min-width: 320px; }
+html.force-desktop .sidebar, html.force-desktop #mainPane {
+  border-radius: 22px !important; background: #12121a !important; border: 1px solid #1f1f29;
+}
+html.force-desktop .folder-tabs { gap: 18px; border-bottom: 1px solid #1f1f29; }
+html.force-desktop .ftab { border-radius: 0 !important; background: none !important; box-shadow: none !important; }
+html.force-desktop .ftab.active { color: #d7ccff !important; box-shadow: inset 0 -2px 0 #a48bff !important; }
+html.force-mobile #app { max-width: 480px; margin: 0 auto; }
+html.force-mobile .sidebar { width: 100%; }
 /* ── Вариант по макету входа: сиреневый акцент, тёмная карточка, пилюля-переключатель ── */
 #authScreen { background: #0b0b12 !important; }
 .auth-box {
@@ -1336,6 +1347,10 @@ body::before {
           <input type="file" id="profBgInput" accept="image/*" style="display:none" onchange="uploadProfBg(this.files[0]); this.value=''">
         </div>
       </div>
+      <div class="set-row"><div class="set-label">Версия интерфейса</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">«Авто» выбирает по ширине экрана. Только на этом устройстве.</div>
+        <div id="setLayoutOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
       <div class="set-row"><div class="set-label">Тема</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Только на этом устройстве.</div>
         <div id="setThemeOpts" style="display:flex;flex-wrap:wrap;gap:6px"></div>
@@ -1758,6 +1773,23 @@ function showApp() {
   subscribeRealtime();
 }
 
+// ── ВЕРСИЯ ИНТЕРФЕЙСА: auto / mobile / desktop, хранится на устройстве ──
+const LAYOUT_OPTS = [['auto', 'Авто'], ['mobile', 'Обычная'], ['desktop', 'ПК']];
+function getLayout() { try { return localStorage.getItem('moonlit-layout') || 'auto'; } catch (e) { return 'auto'; } }
+function applyLayout() {
+  const m = getLayout();
+  document.documentElement.classList.toggle('force-desktop', m === 'desktop');
+  document.documentElement.classList.toggle('force-mobile', m === 'mobile');
+  const box = document.getElementById('setLayoutOpts');
+  if (box) box.innerHTML = LAYOUT_OPTS.map(([v, t]) =>
+    `<button class="set-logout" style="padding:8px 14px;border-radius:10px;border:1px solid ${m === v ? 'var(--accent)' : 'var(--border)'};background:${m === v ? 'rgba(107,139,255,.18)' : 'transparent'};color:inherit;cursor:pointer" onclick="setLayout('${v}')">${t}</button>`
+  ).join('');
+}
+function setLayout(v) {
+  try { localStorage.setItem('moonlit-layout', v); } catch (e) {}
+  applyLayout();
+}
+applyLayout();
 // ── AUTH ──
 function switchTab(tab) {
   document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',i===(tab==='login'?0:1)));
@@ -4457,6 +4489,7 @@ function switchSettingsTab(tab) {
   curSetTab = tab;
   const show = () => {
     if (tab === 'data') { setTimeout(renderProfPreview, 0); renderAliases(); }
+    if (tab === 'appearance') applyLayout();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
       el.style.display = key === tab ? '' : 'none';
