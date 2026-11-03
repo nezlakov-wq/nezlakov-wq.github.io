@@ -560,8 +560,6 @@ button:focus-visible, a:focus-visible {
 /* Новые сообщения и элементы списков появляются плавно */
 @keyframes msgEnter { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.msg-group { animation: msgEnter var(--dur) var(--ease-out); }
-.chat-item, .set-item { animation: fadeIn var(--dur) ease; }
 /* Тонкая тень для модальных окон и карточек */
 .modal { box-shadow: 0 24px 60px rgba(0,0,0,.45); }
 /* Уважать настройку «уменьшить движение» */
@@ -5269,7 +5267,15 @@ async function openSavedChat() {
   }
   if (saved) openChat(saved.id);
 }
+// Перерисовка списка сохраняет прокрутку, чтобы список не прыгал при каждом событии
 function renderChatList(filter='') {
+  const L = document.getElementById('chatList');
+  const keepTop = L ? L.scrollTop : 0;
+  _renderChatListInner(filter);
+  const L2 = document.getElementById('chatList');
+  if (L2) L2.scrollTop = keepTop;
+}
+function _renderChatListInner(filter='') {
   const list = document.getElementById('chatList');
   // Полоска историй — первая строка прокручиваемого списка. Ссылку берём до очистки списка,
   // иначе innerHTML её удаляет и больше не найти.
