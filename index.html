@@ -644,6 +644,70 @@ button:focus-visible, a:focus-visible {
 }
 .set-item { border-radius: 0; }
 .set-item:hover { background: rgba(255,255,255,.03); }
+/* ── Вариант по макету входа: сиреневый акцент, тёмная карточка, пилюля-переключатель ── */
+#authScreen { background: #0b0b12 !important; }
+.auth-box {
+  max-width: 380px;
+  background: #13131b !important;
+  border: 1px solid #21212c !important;
+  border-radius: 28px !important;
+  padding: 34px 30px !important;
+  box-shadow: 0 30px 80px rgba(0,0,0,.55) !important;
+}
+.auth-logo {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace !important;
+  font-size: 30px !important;
+  letter-spacing: -.5px !important;
+}
+.auth-logo span {
+  background: linear-gradient(90deg, #c9b8ff, #a48bff) !important;
+  -webkit-background-clip: text; background-clip: text;
+}
+.auth-sub { color: #8b8ba3 !important; }
+.auth-tabs {
+  background: #1b1b25 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 4px !important;
+}
+.auth-tab { border-radius: 999px !important; font-weight: 600 !important; color: #8b8ba3 !important; }
+.auth-tab.active {
+  background: linear-gradient(90deg, #c9b8ff, #a48bff) !important;
+  color: #171329 !important;
+  box-shadow: 0 6px 18px -8px rgba(164,139,255,.7) !important;
+}
+.auth-field label { color: #8b8ba3 !important; }
+.auth-field input {
+  background: #1b1b25 !important;
+  border: 1px solid #262633 !important;
+  border-radius: 14px !important;
+  padding: 13px 15px !important;
+}
+.auth-field input:focus { border-color: #a48bff !important; box-shadow: 0 0 0 4px rgba(164,139,255,.2) !important; }
+.auth-btn {
+  background: linear-gradient(90deg, #c9b8ff, #a48bff) !important;
+  color: #171329 !important;
+  border-radius: 14px !important;
+  padding: 14px 16px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 12px 28px -12px rgba(164,139,255,.75) !important;
+}
+.auth-alt { border-radius: 14px !important; background: #1b1b25 !important; }
+/* ── Десктоп: плавающие панели, как в макете ── */
+@media (min-width: 1024px) {
+  #app { gap: 10px; padding: 10px; background: #0a0a10; }
+  .sidebar, #mainPane {
+    border-radius: 22px !important;
+    background: #12121a !important;
+    border: 1px solid #1f1f29;
+  }
+  .folder-tabs { gap: 18px; border-bottom: 1px solid #1f1f29; }
+  .ftab { border-radius: 0 !important; background: none !important; box-shadow: none !important; }
+  .ftab.active { color: #d7ccff !important; box-shadow: inset 0 -2px 0 #a48bff !important; }
+  .chat-item { border-radius: 14px !important; margin: 2px 8px !important; }
+  .chat-item.active, .chat-item:hover { background: rgba(164,139,255,.14) !important; }
+  .sidebar-top { padding-top: 6px; }
+}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
