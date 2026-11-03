@@ -5311,7 +5311,7 @@ function renderChatList(filter='') {
     const color = colorFor(other?.id || conv.id);
     const lastMsg = conv.lastMsg;
     const isDeleted = lastMsg && lastMsg.deleted_by?.includes(me.id);
-    const preview = lastMsg ? (isDeleted ? '🗑 Удалено' : (lastMsg.text.startsWith('[gift:') || lastMsg.text.startsWith('[ggift:')) ? '🎁 Подарок' : lastMsg.text.startsWith('e1:') ? '🔒 Сообщение' : lastMsg.text) : 'Начни общение';
+    const preview = lastMsg ? (isDeleted ? '🗑 Удалено' : (lastMsg.text.startsWith('[gift:') || lastMsg.text.startsWith('[ggift:')) ? '🎁 Подарок' : (lastMsg.text.startsWith('e1:') || lastMsg.text.startsWith('e2:')) ? '🔒 Сообщение' : lastMsg.text) : 'Начни общение';
     const item = document.createElement('div');
     item.className = 'chat-item' + (conv.id===activeChatId?' active':'');
     item.dataset.id = conv.id;
