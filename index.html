@@ -932,9 +932,9 @@ body::before {
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
     <div id="regCodeBox" style="display:none">
-      <div class="auth-field"><label>Код из письма</label><input type="text" id="regCode" inputmode="numeric" autocomplete="one-time-code" placeholder="123456"></div>
-      <button class="auth-btn" onclick="confirmRegCode()">Подтвердить</button>
-      <button class="auth-btn" style="background:transparent;color:inherit;margin-top:8px;border:1px solid rgba(127,127,127,.4)" onclick="resendRegCode()">Отправить код ещё раз</button>
+      <p id="regWaitText" style="text-align:center;line-height:1.5;margin:8px 0 16px">Мы отправили письмо для подтверждения. Откройте ссылку в письме, и регистрация завершится.</p>
+      <button class="auth-btn" style="background:transparent;color:inherit;border:1px solid rgba(127,127,127,.4)" onclick="resendRegCode()">Отправить письмо ещё раз</button>
+      <button class="auth-btn" style="background:transparent;color:inherit;margin-top:8px;border:1px solid rgba(127,127,127,.4)" onclick="switchTab('register')">Изменить почту</button>
     </div>
     <div class="auth-error" id="authError"></div>
     <div style="text-align:center;margin:14px 0 8px;opacity:.6;font-size:13px">или</div>
@@ -1648,12 +1648,12 @@ async function register() {
     await loadMe(data.user.id);
     showApp();
   } else {
-    // Нужно подтверждение почты кодом из письма
+    // Нужно подтверждение почты по ссылке из письма: ждём, пока пользователь перейдёт по ней
     pendingReg = { email, pass };
     document.getElementById('registerForm').style.display = 'none';
     document.getElementById('regCodeBox').style.display = '';
+    document.getElementById('regWaitText').textContent = 'Мы отправили письмо на ' + email + '. Откройте ссылку в письме, и регистрация завершится. Если письма нет, проверьте папку «Спам».';
     document.getElementById('authError').style.display = 'none';
-    setTimeout(() => document.getElementById('regCode').focus(), 100);
   }
 }
 let pendingReg = null;
@@ -1681,20 +1681,6 @@ function resetCaptcha(id = 'tsWidget') {
     if (window.turnstile && el && el.dataset.wid) turnstile.reset(el.dataset.wid);
   } catch (e) {}
 }
-async function confirmRegCode() {
-  const token = document.getElementById('regCode').value.replace(/\s/g, '');
-  if (!/^\d{6,8}$/.test(token)) return authErr('Введи код из письма');
-  if (!pendingReg) return authErr('Начни регистрацию заново');
-  const { data, error } = await sb.auth.verifyOtp({ email: pendingReg.email, token, type: 'signup' });
-  if (error || !data?.user) return authErr('Неверный или просроченный код');
-  const pass = pendingReg.pass;
-  pendingReg = null;
-  if (!(await ensureProfile(data.user))) return;
-  try { await setupKeys(data.user, pass); }
-  catch (e) { return authErr('Ошибка ключей: ' + (e?.message || e)); }
-  await loadMe(data.user.id);
-  showApp();
-}
 // Удаление аккаунта: все данные стираются на сервере (функция delete_my_account)
 async function deleteAccount() {
   if (!me) return;
@@ -1712,7 +1698,7 @@ function renderResendBtn() {
   const left = Math.ceil((resendUntil - Date.now()) / 1000);
   b.disabled = left > 0;
   b.style.opacity = left > 0 ? '.5' : '1';
-  b.textContent = left > 0 ? 'Отправить ещё раз через ' + left + ' с' : 'Отправить код ещё раз';
+  b.textContent = left > 0 ? 'Отправить ещё раз через ' + left + ' с' : 'Отправить письмо ещё раз';
   if (left <= 0 && resendTimer) { clearInterval(resendTimer); resendTimer = null; }
 }
 async function resendRegCode() {
@@ -1725,7 +1711,7 @@ async function resendRegCode() {
   if (!resendTimer) resendTimer = setInterval(renderResendBtn, 1000);
   const { error } = await sb.auth.resend({ type: 'signup', email: pendingReg.email, options: { captchaToken } });
   resetCaptcha();
-  authErr(error ? 'Не удалось отправить: ' + error.message : 'Код отправлен ещё раз');
+  authErr(error ? 'Не удалось отправить: ' + error.message : 'Письмо отправлено ещё раз');
 }
 // Вход через Google/Apple: после возврата со страницы провайдера init() создаст профиль и попросит пароль шифрования
 async function oauthLogin(provider) {
@@ -2413,15 +2399,18 @@ function newPasswordFlow() {
   });
 }
 // Окно ввода пароля шифрования или резервного кода, если ключ для этой вкладки ещё не открыт
-function askUnlock(user) {
+async function askUnlock(user) {
+  // Аккаунт без ключей (только что подтвердили регистрацию по ссылке): просим придумать пароль шифрования
+  const { data: prof } = await sb.from('profiles').select('pub_key').eq('id', user.id).maybeSingle();
+  const isNew = !prof?.pub_key;
   return new Promise(resolve => {
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
     ov.style.display = 'flex';
     ov.style.zIndex = '300';
     ov.innerHTML = `<div class="modal" style="position:relative">
-      <div class="modal-title">Открыть переписку</div>
-      <p style="font-size:13px;line-height:1.5;opacity:.8">Введи пароль шифрования или резервный код. Без них старые сообщения не открыть.</p>
+      <div class="modal-title">${isNew ? 'Пароль шифрования' : 'Открыть переписку'}</div>
+      <p style="font-size:13px;line-height:1.5;opacity:.8">${isNew ? 'Придумай пароль шифрования (минимум 6 символов). Он нужен, чтобы открывать переписку на новых устройствах. Запомни его: восстановить его нельзя.' : 'Введи пароль шифрования или резервный код. Без них старые сообщения не открыть.'}</p>
       <input type="password" id="__unlockInp" placeholder="Пароль или резервный код" style="width:100%;box-sizing:border-box;margin-top:8px">
       <div id="__unlockErr" style="color:#e85d75;font-size:13px;min-height:18px;margin-top:6px"></div>
       <button class="auth-btn" id="__unlockBtn" style="margin-top:8px">Открыть</button>
@@ -2432,6 +2421,7 @@ function askUnlock(user) {
     const err = ov.querySelector('#__unlockErr');
     const go = async () => {
       if (!inp.value) return;
+      if (isNew && inp.value.length < 6) { err.textContent = 'Минимум 6 символов'; return; }
       try {
         await setupKeys(user, inp.value);
         ov.remove();
