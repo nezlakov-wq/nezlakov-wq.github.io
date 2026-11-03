@@ -4661,15 +4661,40 @@ async function unwrapGroupKey(wrapped) {
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.i) }, k, unb64(obj.c));
   return cdec.decode(pt);
 }
+// Строки ключа для одного участника: по одной на каждое его устройство + одна на ключ аккаунта.
+// Ключ аккаунта нужен, чтобы новое устройство сразу открыло группы, созданные до него.
+async function groupRowsForUser(userId, convId, ver, raw, accountPubJson) {
+  const rows = [];
+  const { data: devs } = await sb.from('user_devices').select('device_id, pub_key').eq('user_id', userId);
+  for (const d of devs || []) {
+    rows.push({ conversation_id: convId, user_id: userId, key_version: ver, device_id: d.device_id, wrapped: await wrapGroupKey(d.pub_key, raw) });
+  }
+  if (accountPubJson) rows.push({ conversation_id: convId, user_id: userId, key_version: ver, device_id: null, wrapped: await wrapGroupKey(accountPubJson, raw) });
+  return rows;
+}
+async function unwrapGroupKeyWith(privJwk, wrapped) {
+  const obj = JSON.parse(cdec.decode(unb64(wrapped.slice(3))));
+  const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
+  const eph = await crypto.subtle.importKey('jwk', obj.e, ECDH_ALG, false, []);
+  const k = await crypto.subtle.deriveKey({ name: 'ECDH', public: eph }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.i) }, k, unb64(obj.c));
+  return cdec.decode(pt);
+}
 async function loadGroupKeys(convId) {
   let entry = groupKeyCache.get(convId);
   if (!entry) { entry = { keys: new Map(), raw: new Map(), latest: 0 }; groupKeyCache.set(convId, entry); }
-  const { data } = await sb.from('group_keys').select('key_version, wrapped')
+  const { data } = await sb.from('group_keys').select('key_version, wrapped, device_id')
     .eq('conversation_id', convId).eq('user_id', me.id);
-  for (const row of data || []) {
+  const myDid = getDeviceId();
+  const accountPriv = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
+  const devicePriv = JSON.parse(localStorage.getItem('moonlit-dev-priv-' + me.id + '-' + myDid) || 'null');
+  // Сначала строки этого устройства, потом ключ аккаунта
+  const ordered = [...(data || [])].sort((a, b) => (b.device_id === myDid) - (a.device_id === myDid));
+  for (const row of ordered) {
     if (entry.keys.has(row.key_version)) continue;
+    if (row.device_id && row.device_id !== myDid) continue;
     try {
-      const rawB64 = await unwrapGroupKey(row.wrapped);
+      const rawB64 = row.device_id ? await unwrapGroupKeyWith(devicePriv, row.wrapped) : await unwrapGroupKeyWith(accountPriv, row.wrapped);
       if (!rawB64) continue;
       entry.keys.set(row.key_version, await crypto.subtle.importKey('raw', unb64(rawB64), { name: 'AES-GCM' }, true, ['encrypt', 'decrypt']));
       entry.raw.set(row.key_version, rawB64);
@@ -4844,8 +4869,8 @@ async function createGroup() {
   ]);
   if (e2) return toast('Ошибка: ' + e2.message);
   try {
-    const rows = [{ conversation_id: convId, user_id: me.id, key_version: 1, wrapped: await wrapGroupKey(me.pub_key, raw) }];
-    for (const u of groupMembers) rows.push({ conversation_id: convId, user_id: u.id, key_version: 1, wrapped: await wrapGroupKey(u.pub_key, raw) });
+    const rows = await groupRowsForUser(me.id, convId, 1, raw, me.pub_key);
+    for (const u of groupMembers) rows.push(...await groupRowsForUser(u.id, convId, 1, raw, u.pub_key));
     const { error: e3 } = await sb.from('group_keys').insert(rows);
     if (e3) return toast('Ошибка: ' + e3.message);
   } catch (e) { return toast('Ошибка шифрования: ' + e.message); }
@@ -4937,8 +4962,8 @@ async function addToGroup(u) {
       const entry = await loadGroupKeys(conv.id);
       const raw = entry.raw.get(entry.latest);
       if (!raw) throw new Error('нет ключа группы');
-      const wrapped = await wrapGroupKey(u.pub_key, raw);
-      const { error: e2 } = await sb.from('group_keys').insert({ conversation_id: conv.id, user_id: u.id, key_version: entry.latest, wrapped });
+      const rows = await groupRowsForUser(u.id, conv.id, entry.latest, raw, u.pub_key);
+      const { error: e2 } = await sb.from('group_keys').insert(rows);
       if (e2) throw new Error(e2.message);
     } catch (e) { return toast('Ошибка: ' + e.message); }
   }
@@ -4963,7 +4988,7 @@ async function removeFromGroup(uid) {
     for (const m of (conv.members || []).filter(x => x.user_id !== uid)) {
       const pub = m.user_id === me.id ? me.pub_key : m.profiles?.pub_key;
       if (!pub) continue;
-      rows.push({ conversation_id: conv.id, user_id: m.user_id, key_version: newVer, wrapped: await wrapGroupKey(pub, raw) });
+      rows.push(...await groupRowsForUser(m.user_id, conv.id, newVer, raw, pub));
     }
     if (rows.length) {
       const { error: e2 } = await sb.from('group_keys').insert(rows);
