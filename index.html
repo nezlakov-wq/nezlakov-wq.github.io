@@ -539,6 +539,40 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .tg-red{color:var(--danger)}
 .tg-add{color:var(--accent)}
 .tg-foot{font-size:13px;color:var(--fg2);margin:6px 4px 10px}
+/* ── Плавность интерфейса: единые переходы для интерактивных элементов ── */
+:root { --ease-out: cubic-bezier(.2,.8,.2,1); --dur-fast: .18s; --dur: .26s; }
+button, a, input, textarea, select, .chat-item, .set-item, .auth-btn, .send-btn, .act-btn, .tg-red, .tg-add, .tg-link {
+  transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease,
+              box-shadow var(--dur) ease, opacity var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out);
+}
+button:active, .auth-btn:active, .send-btn:active, .act-btn:active, .set-item:active, .chat-item:active {
+  transform: scale(.97);
+}
+.set-item:active { transform: scale(.995); }
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px rgba(91,127,255,.25);
+  outline: none;
+}
+button:focus-visible, a:focus-visible {
+  outline: 2px solid rgba(91,127,255,.6);
+  outline-offset: 2px;
+}
+/* Новые сообщения и элементы списков появляются плавно */
+@keyframes msgEnter { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.msg-group { animation: msgEnter var(--dur) var(--ease-out); }
+.chat-item, .set-item { animation: fadeIn var(--dur) ease; }
+/* Тонкая тень для модальных окон и карточек */
+.modal { box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+/* Уважать настройку «уменьшить движение» */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>
 <style>
 .reply-bar{display:none;align-items:center;gap:8px;padding:8px 12px;margin:0 10px 6px;background:var(--bubble-in);border-left:3px solid #5b7fff;border-radius:10px;font-size:13px}
