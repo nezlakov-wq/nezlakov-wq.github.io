@@ -3809,9 +3809,15 @@ function hydratePreviews(area) {
 const fileCache = new Map();
 async function fileUrl(m, keyVersion = 0) {
   if (fileCache.has(m.p)) return fileCache.get(m.p);
-  const key = keyVersion > 0
-    ? (await loadGroupKeys(activeChatId)).keys.get(keyVersion)
-    : await sharedKeyWith(activeOther?.pub_key);
+  let key;
+  if (m.k) {
+    // Файл личного чата: ключ лежит в зашифрованном сообщении (старые файлы без k — ниже)
+    key = await crypto.subtle.importKey('raw', unb64(m.k), { name: 'AES-GCM' }, false, ['decrypt']);
+  } else {
+    key = keyVersion > 0
+      ? (await loadGroupKeys(activeChatId)).keys.get(keyVersion)
+      : await sharedKeyWith(activeOther?.pub_key);
+  }
   if (!key) throw new Error('no key');
   const { data, error } = await sb.storage.from('chat-media').download(m.p);
   if (error || !data) throw new Error('download');
@@ -3910,13 +3916,15 @@ async function sendFile(file, adult = false) {
   if (!file || !activeChatId) return;
   if (file.size > MAX_FILE) return toast('Файл больше 10 МБ');
   const conv = currentConv();
-  let key, fileKv = 0;
+  let key, fileKv = 0, fileKeyB64 = null;
   if (conv?.is_group) {
     const entry = await loadGroupKeys(conv.id);
     fileKv = entry.latest;
     key = entry.keys.get(fileKv);
   } else {
-    key = await sharedKeyWith(activeOther?.pub_key).catch(() => null);
+    // Личный чат: у каждого файла свой случайный ключ, он уходит внутри сообщения (шифруется по устройствам)
+    key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    fileKeyB64 = b64(new Uint8Array(await crypto.subtle.exportKey('raw', key)));
   }
   if (!key) return toast('Нет ключа шифрования, введи пароль');
   toast('Отправляем…');
@@ -3926,7 +3934,7 @@ async function sendFile(file, adult = false) {
   const { error: upErr } = await sb.storage.from('chat-media').upload(path, new Blob([ct]), { contentType: 'application/octet-stream' });
   if (upErr) return toast('Ошибка загрузки: ' + upErr.message);
   const info = (file.type || '').startsWith('audio/') ? await audioInfo(file) : null;
-  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv), ...(adult ? { a: 1 } : {}), ...(info || {}) });
+  const meta = JSON.stringify({ __file: 1, p: path, n: file.name, m: file.type || 'application/octet-stream', i: b64(iv), ...(fileKeyB64 ? { k: fileKeyB64 } : {}), ...(adult ? { a: 1 } : {}), ...(info || {}) });
   let enc;
   try { enc = await encryptForConv(conv, meta, fileKv); }
   catch (e) { return toast('Нет ключа шифрования, введи пароль'); }
