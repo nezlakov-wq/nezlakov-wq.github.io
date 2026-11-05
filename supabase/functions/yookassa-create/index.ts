@@ -8,7 +8,9 @@ const PRODUCTS: Record<string, { amount: string; description: string; plusDays?:
   plus_month:   { amount: '199.00', description: 'Moonlit Plus, 1 месяц',  plusDays: 30 },
   plus_3m:      { amount: '537.00', description: 'Moonlit Plus, 3 месяца', plusDays: 90 },
   plus_12m:     { amount: '1910.00', description: 'Moonlit Plus, 12 месяцев', plusDays: 365 },
+  tokens_50:    { amount: '25.00',  description: '50 токенов Moonlit',    tokens: 50 },
   tokens_100:   { amount: '50.00',  description: '100 токенов Moonlit',   tokens: 100 },
+  tokens_200:   { amount: '90.00',  description: '200 токенов Moonlit',   tokens: 200 },
   tokens_500:   { amount: '200.00', description: '500 токенов Moonlit',   tokens: 500 },
   tokens_1000:  { amount: '350.00', description: '1000 токенов Moonlit',  tokens: 1000 },
 };

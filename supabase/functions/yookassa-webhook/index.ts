@@ -9,7 +9,9 @@ const PRODUCTS: Record<string, { amount: string; plusDays?: number; tokens?: num
   plus_month:  { amount: '199.00', plusDays: 30 },
   plus_3m:     { amount: '537.00', plusDays: 90 },
   plus_12m:    { amount: '1910.00', plusDays: 365 },
+  tokens_50:   { amount: '25.00',  tokens: 50 },
   tokens_100:  { amount: '50.00',  tokens: 100 },
+  tokens_200:  { amount: '90.00',  tokens: 200 },
   tokens_500:  { amount: '200.00', tokens: 500 },
   tokens_1000: { amount: '350.00', tokens: 1000 },
 };
