@@ -1583,13 +1583,13 @@ const WL_T = {
   ru: { greet: 'Приветствуем вас!', sub: 'Moonlit — свободный мессенджер.', lang: 'Выберите язык',
         f1: 'Личные и групповые чаты', f1t: 'Пишите друзьям, создавайте группы до 20 человек и канал обновлений.',
         f2: 'Звонки и истории', f2t: 'Голосовые и видеозвонки, истории в ленте чатов.',
-        f3: 'Подарки', f3t: 'Отправляйте подарки себе и друзьям и продавайте их в течение 10 дней.',
+        f3: 'Подарки', f3t: 'Отправляйте подарки себе и друзьям и продавайте их в течение 5 дней.',
         terms: 'Продолжая, вы принимаете <a href="terms.html" target="_blank">Условия использования</a> и <a href="privacy.html" target="_blank">Политику конфиденциальности</a>.',
         next: 'Далее', agree: 'Принять и продолжить', soon: 'Скоро' },
   en: { greet: 'Welcome!', sub: 'Moonlit — a free messenger.', lang: 'Choose language',
         f1: 'Private and group chats', f1t: 'Message friends, create groups up to 20 people and an updates channel.',
         f2: 'Calls and stories', f2t: 'Voice and video calls, and stories in your chat feed.',
-        f3: 'Gifts', f3t: 'Send gifts to yourself and friends, and sell them within 10 days.',
+        f3: 'Gifts', f3t: 'Send gifts to yourself and friends, and sell them within 5 days.',
         terms: 'By continuing you accept the <a href="terms.html" target="_blank">Terms of Use</a> and <a href="privacy.html" target="_blank">Privacy Policy</a>.',
         next: 'Next', agree: 'Accept and continue', soon: 'Soon' }
 };
@@ -2279,14 +2279,14 @@ function updateGiftBtn() {
     btn.innerHTML = 'Отправить подарок за ' + COIN_IMG + ' ' + g.price;
   }
 }
-// Окно подарка: от кого, дата отправки, продажа в течение 10 дней
+// Окно подарка: от кого, дата отправки, продажа в течение 5 дней
 async function openGiftView(id) {
   const info = giftInfo[id];
   if (!info) return toast('Подарок не найден');
   const gid = info.text.match(/^\[g?gift:(\w+)/)[1];
   const g = giftList.find(x => x.id === gid) || { emoji: '🎁', name: 'Подарок', price: 0 };
   const created = new Date(info.created);
-  const until = new Date(created.getTime() + 10 * 24 * 3600 * 1000);
+  const until = new Date(created.getTime() + 5 * 24 * 3600 * 1000);
   const expired = Date.now() > until.getTime();
   const own = info.fromId === me.id;
   const recName = own ? (activeOther?.display_name || '') : (me.display_name || '');
@@ -2300,7 +2300,7 @@ async function openGiftView(id) {
   let action = '';
   if (own) action = '<div class="gv-note">Это подарок, который вы отправили</div>';
   else if (sold) action = '<div class="gv-note">✅ Продано</div>';
-  else if (expired) action = '<div class="gv-note">Срок продажи истёк (10 дней)</div>';
+  else if (expired) action = '<div class="gv-note">Срок продажи истёк (5 дней)</div>';
   else action = '<button class="gift-send-btn" onclick="sellGiftFromView(\'' + id + '\')">Продать за ' + COIN_IMG + ' ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
   let ov = document.getElementById('giftView');
   if (!ov) {
@@ -2320,6 +2320,7 @@ async function openGiftView(id) {
   ov.style.display = 'flex';
 }
 async function sellGiftFromView(id) {
+  if (!confirm('Продать подарок? На баланс зачислится 50% его стоимости. Отменить продажу будет нельзя.')) return;
   const { data, error } = await sb.rpc('sell_gift', { msg: id });
   if (error) return toast(error.message.includes('Уже') ? 'Уже продано' : (error.message || 'Ошибка'));
   me.balance = Number(data);
