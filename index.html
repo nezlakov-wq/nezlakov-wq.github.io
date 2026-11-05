@@ -1,4 +1,3 @@
-<!-- проверка лимита -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1230,17 +1229,6 @@ body::before {
   </div>
 </div>
 
-<!-- МУЗЫКА: поиск Spotify и встроенный плеер (каждый слушает сам, синхронизации нет) -->
-<div class="modal-overlay" id="musicModal" onclick="if(event.target===this)closeMusic()">
-  <div class="modal" style="position:relative;overflow-y:auto">
-    <button class="modal-close" onclick="closeMusic()">✕</button>
-    <div class="modal-title">Музыка</div>
-    <div id="musicPlayer" style="margin-bottom:12px"></div>
-    <input type="text" id="musicSearch" placeholder="Поиск песни или исполнителя…" oninput="searchMusic(this.value)">
-    <div class="user-results" id="musicResults" style="max-height:40vh"></div>
-    <p style="font-size:12px;color:var(--fg2);margin:10px 0 0">Плеер открывается только у вас. Чтобы послушать вместе, отправьте название собеседнику.</p>
-  </div>
-</div>
 
 <!-- GROUP: создание -->
 <div class="modal-overlay" id="groupModal" onclick="if(event.target===this)closeNewGroup()">
@@ -4200,32 +4188,6 @@ function deviceName() {
   return os + ' · ' + browser;
 }
 // Канал обновлений: нажатие подписывает (если ещё не подписан) и открывает канал
-// Плеер Spotify: поиск по каталогу через серверную функцию spotify-search, проигрывание встроенным плеером
-let musicTimer = null;
-function openMusic() { document.getElementById('musicModal').style.display = 'flex'; setTimeout(() => document.getElementById('musicSearch').focus(), 100); }
-function closeMusic() { document.getElementById('musicModal').style.display = 'none'; }
-function playTrack(id) {
-  document.getElementById('musicPlayer').innerHTML = '<iframe src="https://open.spotify.com/embed/track/' + id + '" width="100%" height="152" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture" loading="lazy" style="border-radius:12px"></iframe>';
-}
-function searchMusic(v) {
-  clearTimeout(musicTimer);
-  const res = document.getElementById('musicResults');
-  const q = v.trim();
-  if (!q) { res.innerHTML = ''; return; }
-  musicTimer = setTimeout(async () => {
-    const { data, error } = await sb.functions.invoke('spotify-search', { body: { q } });
-    if (error || !data?.items) { res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Поиск недоступен</div>'; return; }
-    res.innerHTML = '';
-    if (!data.items.length) { res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Ничего не найдено</div>'; return; }
-    data.items.forEach(t => {
-      const el = document.createElement('div');
-      el.className = 'user-result-item';
-      el.innerHTML = `<div class="u-av" style="background:#1db954${t.image ? " url('" + t.image + "') center/cover" : ''}"></div><div><div class="u-name">${esc(t.name)}</div><div class="u-un">${esc(t.artist)}</div></div>`;
-      el.addEventListener('click', () => playTrack(t.id));
-      res.appendChild(el);
-    });
-  }, 350);
-}
 // Вступить в публичный канал (любой пользователь)
 async function joinPublicChannel(id) {
   const { error } = await sb.rpc('join_public_channel', { conv: id });
