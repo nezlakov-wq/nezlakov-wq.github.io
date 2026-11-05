@@ -2381,7 +2381,12 @@ async function removeAlias(n) {
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
 async function buyProduct(code) {
   const { data, error } = await sb.functions.invoke('yookassa-create', { body: { product: code } });
-  if (error || !data?.confirmation_url) return toast('Не удалось начать оплату. Попробуйте позже');
+  if (error || !data?.confirmation_url) {
+    // Показываем причину от сервера, чтобы её было видно при проверке
+    let reason = data?.error || error?.message || 'нет ссылки на оплату';
+    try { const j = await error?.context?.json(); if (j?.error) reason = j.error; } catch (e) {}
+    return toast('Не удалось начать оплату: ' + reason);
+  }
   location.href = data.confirmation_url;
 }
 function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
