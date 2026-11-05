@@ -523,6 +523,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .shop-card b{display:block;font-size:16px}
 .shop-card span{font-size:13px;color:var(--fg2)}
 .shop-card button{padding:10px 14px;border:0;border-radius:12px;background:var(--bg2);color:var(--fg2);font:inherit;font-size:14px;white-space:nowrap;cursor:not-allowed}
+.shop-card button:not([disabled]){background:linear-gradient(135deg,var(--accent,#5b7fff),var(--accent2,#7b5bff));color:#fff;cursor:pointer}
 .plus-badge{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:999px;background:linear-gradient(90deg,#8b6cff,#f59e0b);color:#fff;font-size:12px;font-weight:600;vertical-align:middle}
 .tg-sec{font-size:13px;color:var(--fg2);letter-spacing:.3px;margin:20px 4px 8px}
 .tg-card{background:var(--bg3);border-radius:16px;overflow:hidden;margin-bottom:6px}
@@ -1467,13 +1468,15 @@ body::before {
   <div class="modal" style="max-width:440px;width:100%;max-height:92vh;overflow-y:auto">
     <button class="modal-close" onclick="closeShop()" style="position:absolute;top:12px;right:12px">✕</button>
     <div class="modal-title">Магазин</div>
-    <div style="font-size:13px;color:var(--fg2);margin-bottom:14px">Токены — внутренняя единица Moonlit: их нельзя вывести в деньги. Оплата подключается, покупки станут доступны позже.</div>
+    <div style="font-size:13px;color:var(--fg2);margin-bottom:14px">Токены — внутренняя единица Moonlit: их нельзя вывести в деньги. Оплата через ЮKassa.</div>
     <div style="font-size:12px;letter-spacing:.5px;color:var(--fg2);margin:6px 0 8px">ТОКЕНЫ</div>
-    <div class="shop-card"><div><b>100 токенов</b><span>для подарков</span></div><button disabled>50 ₽ · Скоро</button></div>
-    <div class="shop-card"><div><b>500 токенов</b><span>выгоднее</span></div><button disabled>200 ₽ · Скоро</button></div>
-    <div class="shop-card"><div><b>1000 токенов</b><span>максимальный пакет</span></div><button disabled>350 ₽ · Скоро</button></div>
+    <div class="shop-card"><div><b>50 токенов</b><span>для подарков</span></div><button type="button" onclick="buyProduct('tokens_50')">25 ₽</button></div>
+    <div class="shop-card"><div><b>100 токенов</b><span>для подарков</span></div><button type="button" onclick="buyProduct('tokens_100')">50 ₽</button></div>
+    <div class="shop-card"><div><b>200 токенов</b><span></span></div><button type="button" onclick="buyProduct('tokens_200')">90 ₽</button></div>
+    <div class="shop-card"><div><b>500 токенов</b><span>выгоднее</span></div><button type="button" onclick="buyProduct('tokens_500')">200 ₽</button></div>
+    <div class="shop-card"><div><b>1000 токенов</b><span>максимальный пакет</span></div><button type="button" onclick="buyProduct('tokens_1000')">350 ₽</button></div>
     <div style="font-size:12px;letter-spacing:.5px;color:var(--fg2);margin:18px 0 8px">ПОДПИСКА</div>
-    <div class="shop-card" style="display:block"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><b>Moonlit Plus</b><span>199 ₽ в месяц</span></div><button disabled>Скоро</button></div><div style="font-size:13px;color:var(--fg2);margin-top:10px;line-height:1.6">★ значок Plus в профиле<br>группы до 50 участников<br>10 историй в сутки вместо 5<br>видео-баннер до 15 секунд<br>50 токенов в подарок каждый месяц</div></div>
+    <div class="shop-card" style="display:block"><div style="font-size:13px;color:var(--fg2);line-height:1.6">★ значок Plus в профиле<br>группы до 50 участников<br>10 историй в сутки вместо 5<br>видео-баннер до 15 секунд<br>50 токенов в подарок каждый месяц</div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 1 месяц</b><span></span></div><button type="button" onclick="buyProduct('plus_month')">199 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 3 месяца</b><span>скидка 10%</span></div><button type="button" onclick="buyProduct('plus_3m')">537 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 12 месяцев</b><span>скидка 20%</span></div><button type="button" onclick="buyProduct('plus_12m')">1910 ₽</button></div></div>
   </div>
 </div>
 <div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfile()">
@@ -2375,6 +2378,11 @@ async function removeAlias(n) {
   renderAliases();
 }
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
+async function buyProduct(code) {
+  const { data, error } = await sb.functions.invoke('yookassa-create', { body: { product: code } });
+  if (error || !data?.confirmation_url) return toast('Не удалось начать оплату. Попробуйте позже');
+  location.href = data.confirmation_url;
+}
 function closeShop() { document.getElementById('shopModal').style.display = 'none'; }
 function closeGifts() { document.getElementById('giftModal').style.display = 'none'; }
 async function buyGift(giftId) {
