@@ -863,6 +863,7 @@ body::before {
 
 /* ── Стиль как в Telegram: список чатов и настройки ── */
 .chat-list { padding: 4px 0; }
+.chat-section-label { padding: 12px 16px 4px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #8a8aa0; }
 .chat-item {
   border-radius: 0 !important;
   margin: 0 !important;
@@ -5319,7 +5320,20 @@ function _renderChatListInner(filter='') {
     list.insertAdjacentHTML('beforeend', '<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);font-size:13px">Нет чатов</div>');
     return;
   }
+  // Подписи секций: «Закреплённые» наверху, остальные ниже (только без поиска и в архиве не нужны)
+  const useSections = !filter && !showArchive && filtered.some(c => c.pinned);
+  let pinnedLabelDone = false, allLabelDone = false;
+  const addSection = title => {
+    const h = document.createElement('div');
+    h.className = 'chat-section-label';
+    h.textContent = title;
+    list.appendChild(h);
+  };
   filtered.forEach(conv => {
+    if (useSections) {
+      if (conv.pinned && !pinnedLabelDone) { addSection('Закреплённые'); pinnedLabelDone = true; }
+      if (!conv.pinned && !allLabelDone) { addSection('Все чаты'); allLabelDone = true; }
+    }
     const other = conv.other;
     const name = other?.display_name || conv.name || 'Чат';
     const color = colorFor(other?.id || conv.id);
