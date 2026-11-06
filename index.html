@@ -274,7 +274,7 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 }
 .msg-ta{
   flex:1;min-width:0;border:none;background:transparent;caret-color:var(--accent);padding-left:6px !important;
-  font-size:14px;font-family:inherit;color:var(--fg);
+  font-size:16px;font-family:inherit;color:var(--fg);
   outline:none;resize:none;max-height:110px;line-height:1.5;
   padding:4px 0;scrollbar-width:none;
 }
@@ -1175,6 +1175,10 @@ body::after {
 .bubble.in:has(.gift-msg), .bubble.out:has(.gift-msg) {
   background: transparent !important; border: 0 !important; box-shadow: none !important;
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+/* iOS увеличивает страницу при фокусе на поле меньше 16px и сдвигает весь экран: на телефоне поля не меньше 16px */
+@media (max-width: 1024px) {
+  input, textarea, select { font-size: 16px !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   body::after, .modal { animation: none !important; }
