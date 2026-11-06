@@ -5108,11 +5108,8 @@ async function renameGroup() {
 // Участники группы
 async function openGroupInfo() {
   if (!currentConv()) return;
-  if (currentConv().is_channel) {
-    // Список участников канала никому не показываем; владельцу — статистику
-    if (currentConv().created_by === me.id) return openChannelStats();
-    return;
-  }
+  // У канала нет списка участников: показываем окно канала (владельцу — редактирование и статистику)
+  if (currentConv().is_channel) return openChannelInfo();
   await loadConversations();
   renderGroupInfo(currentConv());
   const gt = document.getElementById('giTitle');
@@ -5122,6 +5119,63 @@ async function openGroupInfo() {
   document.getElementById('giSearch').value = '';
   document.getElementById('giResults').innerHTML = '';
   document.getElementById('groupInfoModal').style.display = 'flex';
+}
+// Окно канала: владелец меняет аватарку, название, описание и открывает статистику; остальные видят описание
+const escAttr = s => esc(s).replace(/"/g, '&quot;');
+function openChannelInfo() {
+  const conv = currentConv();
+  if (!conv?.is_channel) return;
+  const isOwner = conv.created_by === me.id;
+  let ov = document.getElementById('chanInfoModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'chanInfoModal';
+    ov.className = 'modal-overlay';
+    ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+    document.body.appendChild(ov);
+  }
+  const avStyleCss = 'width:96px;height:96px;border-radius:50%;margin:0 auto;background:' + chanBg(conv) + ';display:block';
+  const field = 'width:100%;box-sizing:border-box;padding:11px 14px;margin:0 0 10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:inherit;font:inherit;font-size:16px;text-align:left;outline:none';
+  const avatar = isOwner
+    ? '<button id="chiAvBtn" title="Сменить аватарку" style="border:0;background:none;padding:0;cursor:pointer;display:block;margin:6px auto 12px"><div style="' + avStyleCss + '"></div></button>'
+      + '<input type="file" id="chiAvInput" accept="image/*" style="display:none">'
+    : '<div style="margin:6px 0 12px"><div style="' + avStyleCss + '"></div></div>';
+  const body = isOwner
+    ? '<input id="chiName" maxlength="60" value="' + escAttr(conv.name || '') + '" placeholder="Название канала" style="' + field + '">'
+      + '<textarea id="chiDesc" maxlength="300" rows="4" placeholder="Описание канала" style="' + field + ';resize:none">' + esc(conv.description || '') + '</textarea>'
+      + '<button class="set-logout" id="chiSave" style="background:var(--accent);margin:0 0 10px">Сохранить</button>'
+      + '<button class="set-logout" id="chiStats" style="margin:0 0 6px">Статистика</button>'
+    : '<div style="font-size:18px;font-weight:600">' + esc(conv.name || 'Канал') + '</div>'
+      + '<div style="margin-top:8px;opacity:.8;white-space:pre-wrap;text-align:left">' + esc(conv.description || '') + '</div>';
+  ov.innerHTML = '<div class="modal" style="position:relative;max-width:380px;width:100%;text-align:center">'
+    + '<button class="modal-close" onclick="document.getElementById(\'chanInfoModal\').style.display=\'none\'">✕</button>'
+    + '<div class="modal-title">Канал</div>'
+    + avatar + body + '</div>';
+  ov.style.display = 'flex';
+  if (isOwner) {
+    document.getElementById('chiAvBtn').onclick = () => document.getElementById('chiAvInput').click();
+    document.getElementById('chiAvInput').onchange = async e => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      await uploadChannelAvatar(f);
+      openChannelInfo();
+    };
+    document.getElementById('chiSave').onclick = saveChannelInfo;
+    document.getElementById('chiStats').onclick = () => openChannelStats();
+  }
+}
+async function saveChannelInfo() {
+  const conv = currentConv();
+  if (!conv?.is_channel || conv.created_by !== me.id) return;
+  const name = (document.getElementById('chiName').value || '').trim().slice(0, 60);
+  const desc = (document.getElementById('chiDesc').value || '').trim().slice(0, 300);
+  if (!name) return toast('Введите название');
+  const { error } = await sb.rpc('update_channel', { conv: conv.id, new_name: name, new_description: desc });
+  if (error) return toast('Ошибка: ' + error.message);
+  await loadConversations();
+  if (activeChatId === conv.id) document.getElementById('hName').textContent = name;
+  document.getElementById('chanInfoModal').style.display = 'none';
+  toast('Сохранено');
 }
 function closeGroupInfo() { document.getElementById('groupInfoModal').style.display = 'none'; }
 // Статистика канала: только для владельца (проверяется на сервере)
