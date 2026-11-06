@@ -648,6 +648,7 @@ button:focus-visible, a:focus-visible {
   box-shadow: none !important;
   padding: 0 !important;
 }
+.bubble.vnote-bubble { background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; }
 .vnote-msg { width: 220px !important; height: 220px !important; max-width: 70vw; max-height: 70vw; aspect-ratio: 1 / 1; }
 /* ── Поле ввода: без синей рамки при фокусе ── */
 .msg-ta:focus, .input-area textarea:focus, .input-area input:focus {
@@ -3865,6 +3866,8 @@ function hydrateFiles(area, msgs) {
         el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'vnote') {
         el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
+        // Пузырь вокруг кружка убираем явным классом (надёжнее, чем :has)
+        el.closest('.bubble')?.classList.add('vnote-bubble');
         const v = el.querySelector('video');
         v.onclick = () => { if (v.paused) { v.play().catch(() => {}); } else v.pause(); };
         v.onended = () => { v.currentTime = 0; };
