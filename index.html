@@ -1176,6 +1176,8 @@ body::after {
   background: transparent !important; border: 0 !important; box-shadow: none !important;
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
+/* Настройки: над ними видно нижнее меню (кнопка «Закрыть» убрана, «‹ Назад» только в разделах) */
+#settingsModal { inset: env(safe-area-inset-top, 0px) 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important; }
 /* Контакты и Звонки: страница-вкладка над списком чатов, нижнее меню остаётся видимым */
 #contactsModal, #callsModal {
   inset: env(safe-area-inset-top, 0px) 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important;
@@ -1448,7 +1450,6 @@ body::after {
     <div class="set-topbar">
       <button id="setBack" style="display:none" onclick="switchSettingsTab('main')">‹ Назад</button>
       <span class="st-title" id="setTopTitle">Настройки</span>
-      <button onclick="closeSettings()">Закрыть</button>
     </div>
     <div id="setMain">
       <div class="set-profile">
