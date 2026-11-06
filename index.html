@@ -5107,7 +5107,10 @@ function getFont() { try { return localStorage.getItem('moonlit-font') || 'syste
 // Цвет рамки и шрифта сообщений, сохраняется на устройстве
 function bubbleCss() {
   let b = '', t = '';
-  try { b = localStorage.getItem('moonlit-bubble-border') || ''; t = localStorage.getItem('moonlit-bubble-text') || ''; } catch (e) {}
+  // Цвета пузыря — функция Plus: без подписки не применяются
+  if (isPlusNow()) {
+    try { b = localStorage.getItem('moonlit-bubble-border') || ''; t = localStorage.getItem('moonlit-bubble-text') || ''; } catch (e) {}
+  }
   let css = '';
   if (b) css += `.bubble { border: 1.5px solid ${b} !important; }`;
   if (t) css += `.bubble.out, .bubble.in { color: ${t} !important; }`;
@@ -5144,6 +5147,7 @@ function setFrameAnim(on) {
   applyBubbleStyle();
 }
 function setBubbleStyle(kind, color) {
+  if (!isPlusNow()) { toast('Цвета сообщений доступны в подписке Plus'); return applyBubbleStyle(); }
   try { localStorage.setItem(kind === 'border' ? 'moonlit-bubble-border' : 'moonlit-bubble-text', color); } catch (e) {}
   applyBubbleStyle();
 }
@@ -5478,7 +5482,7 @@ function openChatSheet(conv) {
       if (target) target.pinned = v;
       renderChatList(document.getElementById('chatSearch')?.value || '');
       const { error } = await sb.rpc('set_chat_pinned', { conv: conv.id, val: v });
-      if (error) toast(error.message.includes('не больше') ? error.message : 'Не удалось сохранить');
+      if (error) toast(/не больше/i.test(error.message) ? error.message : 'Не удалось сохранить');
       await loadConversations();
       return;
     }
