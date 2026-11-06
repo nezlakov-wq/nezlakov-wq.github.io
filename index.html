@@ -1091,6 +1091,91 @@ body::before {
 #authScreen.wl-fade{animation:wlFade .45s ease}
 @keyframes wlFade{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion: reduce){.wl-step,#authScreen.wl-fade{animation:none}#welcome{transition:none}}
+
+/* ══ Liquid Glass: стеклянный слой поверх текущего дизайна (только CSS, без изменения разметки и JS) ══ */
+:root {
+  --glass-fill: linear-gradient(135deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.04) 55%, rgba(255,255,255,.1) 100%);
+  --glass-edge: rgba(255,255,255,.2);
+  --glass-shadow: 0 12px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.25), inset 0 -1px 0 rgba(255,255,255,.05);
+  --glass-blur: blur(28px) saturate(180%);
+  --glass-glow: 0 0 28px rgba(120,150,255,.45);
+}
+/* Фон: медленно плывущие световые пятна поверх планеты */
+body::after {
+  content: ''; position: fixed; inset: -20%; z-index: -1; pointer-events: none; opacity: .6;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(120,140,255,.35) 0%, transparent 38%),
+    radial-gradient(circle at 30% 80%, rgba(180,110,255,.22) 0%, transparent 40%),
+    radial-gradient(circle at 62% 12%, rgba(80,220,230,.18) 0%, transparent 35%);
+  filter: blur(40px);
+  animation: glassBlobs 22s ease-in-out infinite alternate;
+}
+@keyframes glassBlobs { 0% { transform: translate3d(0,0,0) scale(1); } 100% { transform: translate3d(4%,-3%,0) scale(1.08); } }
+@keyframes glassIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* Панели: боковая, шапка, ввод, поиск */
+.sidebar, .chat-header, .input-area, .search-row {
+  background: var(--glass-fill), rgba(14,22,48,.5) !important;
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border-color: var(--glass-edge) !important;
+  box-shadow: var(--glass-shadow);
+}
+/* Всплывающие окна и вход */
+.auth-box, .modal {
+  background: var(--glass-fill), rgba(16,26,62,.6) !important;
+  backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+}
+.modal { animation: glassIn .28s cubic-bezier(.2,.8,.2,1); }
+
+/* Поля: стеклянная заливка, свечение при фокусе */
+.search-input, .auth-field input, .input-area textarea, .input-area input {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  transition: box-shadow .2s, border-color .2s;
+}
+.search-input:focus, .auth-field input:focus, .input-area textarea:focus, .input-area input:focus {
+  border-color: rgba(150,170,255,.6) !important;
+  box-shadow: 0 0 0 3px rgba(120,150,255,.2), var(--glass-glow);
+}
+
+/* Чаты: мягкое свечение при наведении, отклик при нажатии */
+.chat-item { transition: background .2s, box-shadow .25s, transform .15s; }
+.chat-item:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 0 24px rgba(91,127,255,.18); }
+.chat-item:active { transform: scale(.985); }
+
+/* Аватары: тонкий световой ободок */
+.av-img, .tg-av, .set-av, .u-av, .my-av, .call-ava {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.22), 0 6px 18px rgba(0,0,0,.3);
+}
+
+/* Сообщения: стекло без потери читаемости; круглые видео-кружки не трогаем */
+.bubble:not(.vnote-bubble):not(.deleted) {
+  backdrop-filter: blur(12px) saturate(160%); -webkit-backdrop-filter: blur(12px) saturate(160%);
+  box-shadow: 0 8px 22px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.bubble.out:not(.vnote-bubble) {
+  background: linear-gradient(135deg, rgba(130,160,255,.92), rgba(140,110,255,.84)) !important;
+  border: 1px solid rgba(255,255,255,.2);
+}
+.bubble.in:not(.vnote-bubble) {
+  background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.05)), rgba(40,60,130,.45) !important;
+  border: 1px solid rgba(255,255,255,.14);
+}
+
+/* Кнопки: свечение при наведении, сжатие при нажатии */
+.send-btn, .auth-btn, .gift-send-btn { transition: transform .15s, box-shadow .2s, filter .2s; }
+.send-btn:hover, .auth-btn:hover, .gift-send-btn:hover { box-shadow: 0 0 0 1px rgba(255,255,255,.25), var(--glass-glow); transform: translateY(-1px); }
+.send-btn:active, .auth-btn:active, .gift-send-btn:active { transform: scale(.94); filter: brightness(1.08); }
+.modal-close { transition: background .2s, transform .15s; border-radius: 50%; }
+.modal-close:hover { background: rgba(255,255,255,.12); }
+.modal-close:active { transform: scale(.9); }
+
+@media (prefers-reduced-motion: reduce) {
+  body::after, .modal { animation: none !important; }
+  .chat-item, .send-btn, .auth-btn, .gift-send-btn, .modal-close { transition: none !important; }
+}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
