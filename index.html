@@ -4961,7 +4961,11 @@ async function renameGroup() {
 // Участники группы
 async function openGroupInfo() {
   if (!currentConv()) return;
-  if (currentConv().is_channel) return; // список участников канала никому не показываем
+  if (currentConv().is_channel) {
+    // Список участников канала никому не показываем; владельцу — статистику
+    if (currentConv().created_by === me.id) return openChannelStats();
+    return;
+  }
   await loadConversations();
   renderGroupInfo(currentConv());
   const gt = document.getElementById('giTitle');
@@ -4973,6 +4977,35 @@ async function openGroupInfo() {
   document.getElementById('groupInfoModal').style.display = 'flex';
 }
 function closeGroupInfo() { document.getElementById('groupInfoModal').style.display = 'none'; }
+// Статистика канала: только для владельца (проверяется на сервере)
+async function openChannelStats() {
+  const conv = currentConv();
+  if (!conv) return;
+  const { data, error } = await sb.rpc('channel_stats', { conv: conv.id });
+  if (error) return toast('Не удалось загрузить статистику');
+  const rows = [
+    ['Подписчики', data.subscribers],
+    ['Пришло за 7 дней', data.joined_7d],
+    ['Пришло за 30 дней', data.joined_30d],
+    ['Постов за 7 дней', data.posts_7d],
+    ['Постов за 30 дней', data.posts_30d],
+    ['Всего постов', data.posts_total],
+  ];
+  let ov = document.getElementById('chanStatsModal');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'chanStatsModal';
+    ov.className = 'modal-overlay';
+    ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = '<div class="modal" style="position:relative;max-width:360px">' +
+    '<button class="modal-close" onclick="document.getElementById(\'chanStatsModal\').style.display=\'none\'">✕</button>' +
+    '<div class="modal-title">Статистика канала</div>' +
+    rows.map(r => '<div class="gv-row"><span>' + r[0] + '</span><b>' + Number(r[1] || 0) + '</b></div>').join('') +
+    '<div class="gv-note" style="margin-top:12px">Просмотры постов пока не считаются.</div></div>';
+  ov.style.display = 'flex';
+}
 function renderGroupInfo(c) {
   if (!c) return;
   document.getElementById('giTitle').textContent = c.name || 'Группа';
@@ -5827,7 +5860,7 @@ function subscribeRealtime() {
 // ── NEW CHAT ──
 function openNewChat() {
   document.getElementById('newChatModal').style.display = 'flex';
-  document.getElementById('newChannelBtn').style.display = isPlusNow() ? '' : 'none';
+  document.getElementById('newChannelBtn').style.display = '';
   document.getElementById('userSearchInput').value = '';
   document.getElementById('userResults').innerHTML = '';
   setTimeout(()=>document.getElementById('userSearchInput').focus(), 100);
