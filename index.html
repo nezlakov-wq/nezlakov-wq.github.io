@@ -2011,6 +2011,7 @@ function msgContent(text, msg) {
 }
 async function openGifts() {
   if (!activeChatId) return toast('Сначала открой чат');
+  if (currentConv()?.is_group) return toast('Подарки отправляются только в личных чатах');
   await loadGifts();
   renderGiftList();
   document.getElementById('giftModal').style.display = 'flex';
@@ -2244,48 +2245,23 @@ function pickGift(id) {
   const g = giftList.find(x => x.id === id);
   if (!g) return;
   pendingGiftId = id;
-  const conv = currentConv();
-  const isGroup = !!conv?.is_group;
   const gcE = document.getElementById('gcEmoji');
-  gcE.innerHTML = giftArt(g, { name: isGroup ? '' : (activeOther?.display_name || '') });
+  gcE.innerHTML = giftArt(g, { name: activeOther?.display_name || '' });
   gcE.className = 'gift-confirm-em';
   document.getElementById('gcName').textContent = g.name;
-  document.getElementById('gcWho').textContent = isGroup ? 'Группе «' + (conv.name || 'Группа') + '»' : 'Подарок для ' + (activeOther?.display_name || 'собеседника');
+  document.getElementById('gcWho').textContent = 'Подарок для ' + (activeOther?.display_name || 'собеседника');
   const box = document.getElementById('gcRecip');
-  if (isGroup) {
-    const members = (conv.members || []).filter(m => m.user_id !== me.id);
-    box.style.display = '';
-    box.innerHTML = '<label class="gc-row gc-all"><input type="checkbox" id="gcAll" checked onchange="toggleAllRecip(this.checked)"> Всем (' + members.length + ')</label>' +
-      members.map(m => '<label class="gc-row"><input type="checkbox" class="gc-chk" value="' + m.user_id + '" checked onchange="updateGiftBtn()"> ' + esc((m.profiles && m.profiles.display_name) || 'Участник') + '</label>').join('');
-  } else {
-    box.style.display = 'none';
-    box.innerHTML = '';
-  }
+  box.style.display = 'none';
+  box.innerHTML = '';
   updateGiftBtn();
   document.getElementById('giftConfirm').style.display = 'flex';
-}
-function selectedRecipients() {
-  return [...document.querySelectorAll('#gcRecip .gc-chk:checked')].map(c => c.value);
-}
-function toggleAllRecip(on) {
-  document.querySelectorAll('#gcRecip .gc-chk').forEach(c => { c.checked = on; });
-  updateGiftBtn();
 }
 function updateGiftBtn() {
   const g = giftList.find(x => x.id === pendingGiftId);
   const btn = document.getElementById('gcBtn');
   if (!g || !btn) return;
-  const conv = currentConv();
-  if (conv?.is_group) {
-    const n = selectedRecipients().length;
-    const all = document.getElementById('gcAll');
-    if (all) all.checked = n === document.querySelectorAll('#gcRecip .gc-chk').length;
-    btn.disabled = n === 0;
-    btn.innerHTML = n ? 'Отправить за ' + COIN_IMG + ' ' + (g.price * n) + ' (' + n + ' чел.)' : 'Выбери получателей';
-  } else {
-    btn.disabled = false;
-    btn.innerHTML = 'Отправить подарок за ' + COIN_IMG + ' ' + g.price;
-  }
+  btn.disabled = false;
+  btn.innerHTML = 'Отправить подарок за ' + COIN_IMG + ' ' + g.price;
 }
 // Окно подарка: от кого, дата отправки, продажа в течение 5 дней
 async function openGiftView(id) {
@@ -2341,18 +2317,6 @@ function closeGiftConfirm() { document.getElementById('giftConfirm').style.displ
 async function confirmGift() {
   if (!pendingGiftId) return;
   const id = pendingGiftId;
-  const conv = currentConv();
-  if (conv?.is_group) {
-    const recipients = selectedRecipients();
-    if (!recipients.length) return;
-    closeGiftConfirm();
-    const { error } = await sb.rpc('send_group_gift', { conv: conv.id, gift: id, recipients });
-    if (error) return toast(error.message.includes('Not enough') ? 'Недостаточно токенов' : 'Ошибка: ' + error.message);
-    await loadMe(me.id);
-    closeGifts();
-    toast('Подарок отправлен группе');
-    return;
-  }
   closeGiftConfirm();
   await buyGift(id);
 }
