@@ -3898,7 +3898,15 @@ function hydrateFiles(area, msgs) {
       } else if (el.dataset.kind === 'vnote') {
         el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
         // Пузырь вокруг кружка убираем явным классом (надёжнее, чем :has)
-        el.closest('.bubble')?.classList.add('vnote-bubble');
+        const vb = el.closest('.bubble');
+        if (vb) {
+          vb.classList.add('vnote-bubble');
+          // Пузырь кружка: прозрачный фон, без рамки и отступов (инлайн, чтобы не зависеть от порядка правил)
+          vb.style.setProperty('background', 'transparent', 'important');
+          vb.style.setProperty('box-shadow', 'none', 'important');
+          vb.style.setProperty('border', '0', 'important');
+          vb.style.setProperty('padding', '0', 'important');
+        }
         const v = el.querySelector('video');
         v.onclick = () => { if (v.paused) { v.play().catch(() => {}); } else v.pause(); };
         v.onended = () => { v.currentTime = 0; };
@@ -5107,8 +5115,8 @@ function bubbleCss() {
     const c1 = b || '#5b7fff';
     css += `@property --fr { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
     @keyframes frameSpin { to { --fr: 360deg; } }
-    body.frame-anim .bubble:not(.deleted) { position: relative; isolation: isolate; }
-    body.frame-anim .bubble:not(.deleted)::before { content: ''; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: -1;
+    body.frame-anim .bubble:not(.deleted):not(.vnote-bubble) { position: relative; isolation: isolate; }
+    body.frame-anim .bubble:not(.deleted):not(.vnote-bubble)::before { content: ''; position: absolute; inset: -2px; border-radius: inherit; padding: 2px; pointer-events: none; z-index: -1;
       background: conic-gradient(from var(--fr), ${c1}, #22d3ee, ${c1});
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
       mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
