@@ -5897,7 +5897,7 @@ async function loadMessages(convId, opts = {}) {
   // Тот же чат уже на экране: не очищаем список, чтобы не было мигания и сброса прокрутки
   const sameChat = renderedConv === convId && area.children.length > 0;
   if (!sameChat) {
-    renderedSig = null;
+    renderedSig = null; renderedCoreSig = null;
     area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
   }
   const { data: msgs, error } = await sb.from('messages')
@@ -5930,11 +5930,28 @@ async function loadMessages(convId, opts = {}) {
 }
 
 // Подпись отрисованного списка: если сообщения не менялись, не перерисовываем (без прыжков)
-let renderedSig = null, renderedConv = null, renderedIds = null;
+let renderedSig = null, renderedConv = null, renderedIds = null, renderedCoreSig = null;
+// Отметки «прочитано» и «прослушано» меняются часто: их обновляем точечно, без перерисовки чата
+function patchReadState(msgs, area) {
+  msgs.forEach(m => {
+    const bub = area.querySelector('.bubble[data-msg-id="' + m.id + '"]');
+    if (!bub) return;
+    const tick = bub.querySelector('.tick');
+    if (tick && m.sender_id === me.id) tick.outerHTML = tickHtml(m);
+    if (!isUnlistened(m, m.sender_id === me.id)) bub.querySelector('.unlisten-dot')?.remove();
+  });
+}
 function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
   const sig = JSON.stringify(msgs.map(m => { const c = { ...m }; delete c.profiles; return c; }));
   if (sig === renderedSig && renderedConv === activeChatId) return;
+  const coreSig = JSON.stringify(msgs.map(m => { const c = { ...m }; delete c.profiles; delete c.read_by; delete c.listened_by; return c; }));
+  if (coreSig === renderedCoreSig && renderedConv === activeChatId && area.children.length) {
+    patchReadState(msgs, area);
+    renderedSig = sig;
+    return;
+  }
+  renderedCoreSig = coreSig;
   const newChat = renderedConv !== activeChatId; // открыли другой чат: показываем с последнего сообщения
   const prevIds = renderedConv === activeChatId ? renderedIds : null;
   renderedSig = sig; renderedConv = activeChatId; renderedIds = new Set(msgs.map(m => m.id));
