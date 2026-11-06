@@ -4291,6 +4291,16 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', fitViewport);
   window.visualViewport.addEventListener('scroll', fitViewport);
 }
+// Если человек внизу чата, при изменении высоты (клавиатура, растущее поле ввода) остаёмся внизу
+(function stickToBottom() {
+  const area = document.getElementById('msgsArea');
+  if (!area || !('ResizeObserver' in window)) return;
+  let atBottom = true;
+  area.addEventListener('scroll', () => {
+    atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 40;
+  }, { passive: true });
+  new ResizeObserver(() => { if (atBottom) area.scrollTop = area.scrollHeight; }).observe(area);
+})();
 // Блокируем щипок и двойное касание для увеличения (iOS Safari иногда игнорирует meta)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
   document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
