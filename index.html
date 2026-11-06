@@ -1171,6 +1171,11 @@ body::after {
 .modal-close:hover { background: rgba(255,255,255,.12); }
 .modal-close:active { transform: scale(.9); }
 
+/* Подарки: пузырь прозрачный, видна только карточка подарка */
+.bubble.in:has(.gift-msg), .bubble.out:has(.gift-msg) {
+  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
 @media (prefers-reduced-motion: reduce) {
   body::after, .modal { animation: none !important; }
   .chat-item, .send-btn, .auth-btn, .gift-send-btn, .modal-close { transition: none !important; }
