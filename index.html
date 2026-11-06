@@ -650,6 +650,8 @@ button:focus-visible, a:focus-visible {
 }
 .bubble.vnote-bubble { background: transparent !important; box-shadow: none !important; border: 0 !important; padding: 0 !important; }
 .bubble.vnote-bubble::before { display: none !important; }
+@keyframes bubbleIn { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+.bubble-enter { animation: bubbleIn .28s cubic-bezier(.2,.8,.2,1) both; }
 .vnote-msg { width: 220px !important; height: 220px !important; max-width: 70vw; max-height: 70vw; aspect-ratio: 1 / 1; }
 /* ── Поле ввода: без синей рамки при фокусе ── */
 .msg-ta:focus, .input-area textarea:focus, .input-area input:focus {
@@ -5599,6 +5601,7 @@ async function loadMessages(convId, opts = {}) {
   const area = document.getElementById('msgsArea');
   // При обновлении (opts.silent) не очищаем экран, чтобы чат не мигал
   if (!opts.silent || !area.children.length) {
+    renderedSig = null;
     area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
   }
   const { data: msgs, error } = await sb.from('messages')
@@ -5630,8 +5633,14 @@ async function loadMessages(convId, opts = {}) {
   renderMessages(msgs||[], area);
 }
 
+// Подпись отрисованного списка: если сообщения не менялись, не перерисовываем (без прыжков)
+let renderedSig = null, renderedConv = null, renderedIds = null;
 function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
+  const sig = JSON.stringify(msgs.map(m => { const c = { ...m }; delete c.profiles; return c; }));
+  if (sig === renderedSig && renderedConv === activeChatId) return;
+  const prevIds = renderedConv === activeChatId ? renderedIds : null;
+  renderedSig = sig; renderedConv = activeChatId; renderedIds = new Set(msgs.map(m => m.id));
   const isGroupChat = !!currentConv()?.is_group;
   // Запоминаем, читает ли человек историю: если да, не прыгаем вниз при новых сообщениях
   const prevTop = area.scrollTop;
@@ -5677,6 +5686,8 @@ function renderMessages(msgs, area) {
       const bub = document.createElement('div');
       bub.className = 'bubble '+(isOut?'out':'in')+(isDeleted?' deleted':'');
       bub.dataset.msgId = msg.id;
+      // Новые сообщения плавно появляются (уже показанные не анимируем)
+      if (prevIds && !prevIds.has(msg.id)) bub.classList.add('bubble-enter');
       const delBtn = '';
       const voice = isVoiceMsg(msg);
       const dot = voice && isUnlistened(msg, isOut) ? '<span class="unlisten-dot"></span>' : '';
