@@ -3278,6 +3278,7 @@ function onCallMsg(p) {
     document.getElementById('inName').textContent = p.fromName || 'Собеседник';
     document.getElementById('inKind').textContent = p.video ? 'Видеозвонок' : 'Голосовой звонок';
     document.getElementById('incomingCall').style.display = 'flex';
+    startIncomingRing();
     return;
   }
   if (p.type === 'end' || p.type === 'decline') {
@@ -3363,18 +3364,36 @@ const CALL_SOUND_MODES = [
   { label: 'Звук: громче', gain: 2.5 },
   { label: 'Звук: тихо', gain: 0.25 }
 ];
-let callSoundMode = 0, callSoundGain = null, callSoundCtx = null;
-function setupCallSound(el) {
-  if (callSoundCtx || !el) return;
+let callSoundMode = 0, callSoundGain = null;
+// Общий аудиоконтекст: создаётся и разблокируется по касанию, иначе iOS не воспроизводит звук
+let sharedAudioCtx = null;
+function getAudioCtx() {
   try {
-    callSoundCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const src = callSoundCtx.createMediaElementSource(el);
-    callSoundGain = callSoundCtx.createGain();
-    callSoundGain.gain.value = CALL_SOUND_MODES[callSoundMode].gain;
-    src.connect(callSoundGain);
-    callSoundGain.connect(callSoundCtx.destination);
-    callSoundCtx.resume().catch(() => {});
-  } catch (e) { callSoundCtx = null; }
+    if (!sharedAudioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      sharedAudioCtx = new AC();
+    }
+    if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume().catch(() => {});
+    return sharedAudioCtx;
+  } catch (e) { return null; }
+}
+['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, getAudioCtx, { capture: true, passive: true }));
+// Голос собеседника: проводим через общий контекст, громкость меняем усилением
+function setupCallSound(el) {
+  if (!el) return;
+  const ctx = getAudioCtx();
+  const gain = CALL_SOUND_MODES[callSoundMode].gain;
+  if (!ctx) { el.volume = Math.min(1, gain); return; }
+  try {
+    if (!el._callSrc) {
+      el._callSrc = ctx.createMediaElementSource(el);
+      callSoundGain = ctx.createGain();
+      el._callSrc.connect(callSoundGain);
+      callSoundGain.connect(ctx.destination);
+    }
+    callSoundGain.gain.value = gain;
+  } catch (e) { el.volume = Math.min(1, gain); }
 }
 function cycleCallSound() {
   callSoundMode = (callSoundMode + 1) % CALL_SOUND_MODES.length;
@@ -3385,8 +3404,8 @@ function cycleCallSound() {
   if (b) b.textContent = m.label;
 }
 function resetCallSound() {
-  if (callSoundCtx) { callSoundCtx.close().catch(() => {}); }
-  callSoundCtx = null; callSoundGain = null; callSoundMode = 0;
+  callSoundMode = 0;
+  if (callSoundGain) callSoundGain.gain.value = CALL_SOUND_MODES[0].gain;
   const b = document.getElementById('callSound');
   if (b) b.textContent = CALL_SOUND_MODES[0].label;
 }
@@ -3406,7 +3425,7 @@ function showCallScreen(name, status, video) {
   document.getElementById('callScreen').style.display = 'flex';
 }
 function setCallStatus(t) { document.getElementById('callStatus').textContent = t; }
-function hideIncoming() { document.getElementById('incomingCall').style.display = 'none'; }
+function hideIncoming() { stopIncomingRing(); document.getElementById('incomingCall').style.display = 'none'; }
 
 async function startCallToActive(video) {
   const conv = currentConv();
@@ -3415,18 +3434,19 @@ async function startCallToActive(video) {
   await startCall(activeOther.id, activeOther.display_name, video);
 }
 // Гудки на время исходящего вызова (тихий тон 425 Гц: 1 с звук, 4 с пауза)
-let ringCtx = null, ringTimer = null, ringMaster = null;
+let ringTimer = null, ringMaster = null;
 function startRingback() {
   stopRingback();
+  const ctx = getAudioCtx();
+  if (!ctx) return;
   try {
-    ringCtx = new (window.AudioContext || window.webkitAudioContext)();
-    ringMaster = ringCtx.createGain();
+    ringMaster = ctx.createGain();
     ringMaster.gain.value = CALL_SOUND_MODES[callSoundMode].gain;
-    ringMaster.connect(ringCtx.destination);
+    ringMaster.connect(ctx.destination);
     const beep = () => {
-      if (!ringCtx) return;
-      const t = ringCtx.currentTime;
-      const o = ringCtx.createOscillator(), g = ringCtx.createGain();
+      if (!ringMaster) return;
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
       o.frequency.value = 425;
       o.connect(g); g.connect(ringMaster);
       g.gain.setValueAtTime(0, t);
@@ -3441,8 +3461,41 @@ function startRingback() {
 }
 function stopRingback() {
   clearInterval(ringTimer); ringTimer = null;
-  if (ringCtx) { ringCtx.close().catch(() => {}); ringCtx = null; }
+  if (ringMaster) { try { ringMaster.disconnect(); } catch (e) {} }
   ringMaster = null;
+}
+// Рингтон входящего звонка: два тона, пауза 2.4 с, вибрация если поддерживается
+let incomingRingTimer = null, incomingRingMaster = null;
+function startIncomingRing() {
+  stopIncomingRing();
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  incomingRingMaster = ctx.createGain();
+  incomingRingMaster.gain.value = 0.6;
+  incomingRingMaster.connect(ctx.destination);
+  const ring = () => {
+    if (!incomingRingMaster) return;
+    const t = ctx.currentTime;
+    [0, 0.6].forEach(off => {
+      const o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), g = ctx.createGain();
+      o1.frequency.value = 440; o2.frequency.value = 480;
+      o1.connect(g); o2.connect(g); g.connect(incomingRingMaster);
+      g.gain.setValueAtTime(0, t + off);
+      g.gain.linearRampToValueAtTime(0.2, t + off + 0.02);
+      g.gain.setValueAtTime(0.2, t + off + 0.4);
+      g.gain.linearRampToValueAtTime(0, t + off + 0.45);
+      o1.start(t + off); o2.start(t + off); o1.stop(t + off + 0.5); o2.stop(t + off + 0.5);
+    });
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400]);
+  };
+  ring();
+  incomingRingTimer = setInterval(ring, 3000);
+}
+function stopIncomingRing() {
+  clearInterval(incomingRingTimer); incomingRingTimer = null;
+  if (incomingRingMaster) { try { incomingRingMaster.disconnect(); } catch (e) {} }
+  incomingRingMaster = null;
+  if (navigator.vibrate) navigator.vibrate(0);
 }
 async function startCall(uid, name, video) {
   if (callState || pendingCall) return toast('Звонок уже идёт');
