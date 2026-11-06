@@ -5725,7 +5725,9 @@ const plainCache = new Map();
 async function loadMessages(convId, opts = {}) {
   const area = document.getElementById('msgsArea');
   // При обновлении (opts.silent) не очищаем экран, чтобы чат не мигал
-  if (!opts.silent || !area.children.length) {
+  // Тот же чат уже на экране: не очищаем список, чтобы не было мигания и сброса прокрутки
+  const sameChat = renderedConv === convId && area.children.length > 0;
+  if (!sameChat) {
     renderedSig = null;
     area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
   }
@@ -5764,11 +5766,11 @@ function renderMessages(msgs, area) {
   if(!area) area = document.getElementById('msgsArea');
   const sig = JSON.stringify(msgs.map(m => { const c = { ...m }; delete c.profiles; return c; }));
   if (sig === renderedSig && renderedConv === activeChatId) return;
+  const newChat = renderedConv !== activeChatId; // открыли другой чат: показываем с последнего сообщения
   const prevIds = renderedConv === activeChatId ? renderedIds : null;
   renderedSig = sig; renderedConv = activeChatId; renderedIds = new Set(msgs.map(m => m.id));
   const isGroupChat = !!currentConv()?.is_group;
   // Запоминаем, читает ли человек историю: если да, не прыгаем вниз при новых сообщениях
-  const prevTop = area.scrollTop;
   const prevDist = area.scrollHeight - area.scrollTop; // расстояние от низа: при перерисовке не прыгаем
   const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 120;
   area.innerHTML = '';
@@ -5829,7 +5831,7 @@ function renderMessages(msgs, area) {
   hydrateFiles(area, msgs);
   hydratePreviews(area);
   renderPinBar();
-  area.scrollTop = wasAtBottom || !prevTop ? area.scrollHeight : Math.max(0, area.scrollHeight - prevDist);
+  area.scrollTop = wasAtBottom || newChat ? area.scrollHeight : Math.max(0, area.scrollHeight - prevDist);
 }
 
 async function deleteMsg(msgId) { await setDeleted(msgId, true); }
