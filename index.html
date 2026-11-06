@@ -1237,7 +1237,7 @@ body::before {
     <button class="modal-close" onclick="closeNewChat()">✕</button>
     <div class="modal-title">Новый чат</div>
     <button class="set-logout" style="margin:0 0 12px;background:var(--accent);color:#fff" onclick="openNewGroup()">+ Создать группу</button>
-    <button class="set-logout" id="newChannelBtn" style="margin:0 0 12px" onclick="openNewChannel()">+ Создать канал (Plus)</button>
+    <button class="set-logout" id="newChannelBtn" style="margin:0 0 12px" onclick="openNewChannel()">+ Создать канал</button>
     <input type="text" id="userSearchInput" placeholder="Найти по @username или имени…" oninput="searchUsers(this.value)">
     <div class="user-results" id="userResults"></div>
   </div>
@@ -4923,7 +4923,6 @@ async function createGroup() {
 
 // Канал: создатель пишет, подписчики читают. Сообщения в канале не шифруются (как в общем канале обновлений)
 async function createChannel() {
-  if (!isPlusNow()) return toast('Создавать каналы может подписчик Plus');
   const name = document.getElementById('groupName').value.trim();
   if (!name) return toast('Введи название канала');
   // Юзернейм канала: без него канал не находится в поиске, попасть в него можно только по приглашению
