@@ -1177,7 +1177,9 @@ body::after {
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
 /* Настройки: над ними видно нижнее меню (кнопка «Закрыть» убрана, «‹ Назад» только в разделах) */
-#settingsModal { inset: env(safe-area-inset-top, 0px) 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important; }
+#settingsModal { inset: env(safe-area-inset-top, 0px) 0 0 0 !important; }
+#settingsModal .modal.set-page { height: 100% !important; max-height: none !important; padding-bottom: 120px !important; }
+#settingsModal .set-page > #setMain { padding-bottom: 120px !important; }
 /* Контакты и Звонки: страница-вкладка над списком чатов, нижнее меню остаётся видимым */
 #contactsModal, #callsModal {
   inset: env(safe-area-inset-top, 0px) 0 0 0 !important;
