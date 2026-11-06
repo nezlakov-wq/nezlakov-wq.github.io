@@ -6074,7 +6074,11 @@ async function sendMsg() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
   if(!text || !activeChatId) return;
+  // Если чат был внизу, после отправки остаёмся внизу (строка ввода при очистке меняет высоту)
+  const chatArea = document.getElementById('msgsArea');
+  const wasBottom = !chatArea || chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 120;
   input.value = ''; input.style.height = '';
+  if (wasBottom && chatArea) chatArea.scrollTop = chatArea.scrollHeight;
   input.focus(); // клавиатура остаётся открытой после отправки
   document.getElementById('sendBtn').disabled = true;
   let payload = null, keyVer = 0;
@@ -6097,6 +6101,10 @@ async function sendMsg() {
   await loadMe(me.id);
   await loadMessages(activeChatId);
   await loadConversations();
+  if (wasBottom && chatArea) {
+    chatArea.scrollTop = chatArea.scrollHeight;
+    requestAnimationFrame(() => { chatArea.scrollTop = chatArea.scrollHeight; });
+  }
 }
 
 // ── REALTIME ──
