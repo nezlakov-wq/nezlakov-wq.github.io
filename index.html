@@ -1180,7 +1180,7 @@ body::after {
 #settingsModal { inset: env(safe-area-inset-top, 0px) 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important; }
 /* Контакты и Звонки: страница-вкладка над списком чатов, нижнее меню остаётся видимым */
 #contactsModal, #callsModal {
-  inset: env(safe-area-inset-top, 0px) 0 calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important;
+  inset: env(safe-area-inset-top, 0px) 0 0 0 !important;
   position: fixed !important; z-index: 300 !important;
   background: transparent !important; backdrop-filter: none !important;
   align-items: stretch !important; justify-content: stretch !important;
@@ -1194,7 +1194,7 @@ body::after {
   display: flex; flex-direction: column;
 }
 #contactsModal .modal-close, #callsModal .modal-close { display: none !important; }
-#contactsBody, #callsBody { flex: 1; min-height: 0; max-height: none !important; overflow-y: auto; }
+#contactsBody, #callsBody { flex: 1; min-height: 0; max-height: none !important; overflow-y: auto; padding-bottom: 110px !important; }
 @media (min-width: 641px) {
   #contactsModal, #callsModal { inset: 0 auto calc(84px + env(safe-area-inset-bottom, 0px)) 0 !important; width: min(100vw, 360px) !important; }
 }
