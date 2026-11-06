@@ -944,6 +944,13 @@ body::before {
 .call-actions button:active { transform: scale(.97); }
 .call-actions .call-end { grid-column: 1 / -1; background: linear-gradient(135deg, #ff5c7a, #e0475f); border-color: transparent; font-weight: 600; box-shadow: 0 10px 30px rgba(224, 71, 95, 0.35); }
 .call-actions .call-accept { background: linear-gradient(135deg, #3ddc97, #22b07a); border-color: transparent; font-weight: 600; box-shadow: 0 10px 30px rgba(34, 176, 122, 0.35); }
+.call-actions .call-btn-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.call-actions .call-btn-wrap > span { color: #fff; font-size: 14px; opacity: .85; }
+.call-actions .call-round { width: 76px; height: 76px; border-radius: 50%; border: 0; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; grid-column: auto; box-shadow: 0 12px 30px rgba(0,0,0,.35); }
+.call-actions .call-round svg { width: 34px; height: 34px; fill: #fff; }
+.call-actions .call-round.call-end { background: #e5484d; box-shadow: 0 12px 30px rgba(229,72,77,.45); }
+.call-actions .call-round.call-accept { background: #30c35a; box-shadow: 0 12px 30px rgba(48,195,90,.45); }
+.call-actions .call-round:active { transform: scale(.95); }
 
 /* ── Голосовое в стиле Telegram ── */
 .vp { display: flex; align-items: center; gap: 10px; min-width: 230px; }
@@ -1281,8 +1288,14 @@ body::before {
 <div id="incomingCall" class="call-screen" style="display:none">
   <div class="call-info"><div id="inName"></div><div id="inKind"></div></div>
   <div class="call-actions">
-    <button class="call-end" onclick="declineCall()">Отклонить</button>
-    <button class="call-accept" onclick="acceptCall()">Ответить</button>
+    <div class="call-btn-wrap">
+      <button class="call-round call-end" onclick="declineCall()" aria-label="Сбросить"><svg viewBox="0 0 24 24" style="transform:rotate(135deg)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+      <span>Сбросить</span>
+    </div>
+    <div class="call-btn-wrap">
+      <button class="call-round call-accept" onclick="acceptCall()" aria-label="Ответить"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></button>
+      <span>Ответить</span>
+    </div>
   </div>
 </div>
 
