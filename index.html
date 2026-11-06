@@ -5129,6 +5129,25 @@ async function openGroupInfo() {
   document.getElementById('giResults').innerHTML = '';
   document.getElementById('groupInfoModal').style.display = 'flex';
 }
+// На телефоне нижнее меню поднимаем над окнами Контакты/Звонки/Настройки: пока одно из них открыто, меню переносим в конец страницы
+(function floatTabBarOverPages() {
+  const ids = ['contactsModal', 'callsModal', 'settingsModal'];
+  const sync = () => {
+    const bar = document.querySelector('.tab-bar');
+    if (!bar) return;
+    const open = ids.some(id => { const el = document.getElementById(id); return el && el.style.display && el.style.display !== 'none'; });
+    const mobile = window.matchMedia('(max-width: 640px)').matches;
+    if (open && mobile) {
+      if (bar.parentElement !== document.body) {
+        bar._home = bar.parentNode; bar._next = bar.nextSibling;
+        document.body.appendChild(bar);
+      }
+    } else if (bar.parentElement === document.body && bar._home) {
+      bar._home.insertBefore(bar, bar._next);
+    }
+  };
+  new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
+})();
 // Окно канала: владелец меняет аватарку, название, описание и открывает статистику; остальные видят описание
 const escAttr = s => esc(s).replace(/"/g, '&quot;');
 function openChannelInfo() {
