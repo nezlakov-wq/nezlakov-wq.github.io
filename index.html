@@ -5554,9 +5554,14 @@ async function openChat(convId) {
 }
 
 // ── MESSAGES ──
-async function loadMessages(convId) {
+// Кэш расшифрованных сообщений: при обновлении чата не расшифровываем всё заново
+const plainCache = new Map();
+async function loadMessages(convId, opts = {}) {
   const area = document.getElementById('msgsArea');
-  area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
+  // При обновлении (opts.silent) не очищаем экран, чтобы чат не мигал
+  if (!opts.silent || !area.children.length) {
+    area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Загрузка…</div>';
+  }
   const { data: msgs, error } = await sb.from('messages')
     .select('*, profiles:profiles!messages_sender_id_fkey(id,display_name,username)')
     .eq('conversation_id', convId)
@@ -5570,13 +5575,18 @@ async function loadMessages(convId) {
   const conv = conversations.find(c => c.id === convId);
   // Ошибка расшифровки одного сообщения не должна прятать всю переписку
   const safe = async (fn) => { try { return await fn(); } catch (e) { console.error('decrypt', e); return '🔒 не удалось расшифровать'; } };
+  const cached = (m, fn) => {
+    const key = convId + '|' + m.id + '|' + m.text;
+    if (plainCache.has(key)) return Promise.resolve(plainCache.get(key));
+    return safe(fn).then(v => { if (!String(v).startsWith('🔒') && typeof v === 'string') { if (plainCache.size > 5000) plainCache.clear(); plainCache.set(key, v); } return v; });
+  };
   if (conv?.is_group) {
     let entry = null;
     try { entry = await loadGroupKeys(convId); } catch (e) { console.error('group keys', e); }
-    for (const m of (msgs || [])) m.plain = await safe(() => decryptWith(entry.keys.get(m.key_version || 0), m.text));
+    for (const m of (msgs || [])) m.plain = await cached(m, () => decryptWith(entry.keys.get(m.key_version || 0), m.text));
   } else {
     const otherPub = activeOther?.pub_key;
-    for (const m of (msgs || [])) m.plain = await safe(() => decryptFrom(otherPub, m.text));
+    for (const m of (msgs || [])) m.plain = await cached(m, () => decryptFrom(otherPub, m.text));
   }
   renderMessages(msgs||[], area);
 }
@@ -5716,7 +5726,7 @@ function anyVoicePlaying() { return [...document.querySelectorAll('.file-box aud
 function reloadChatSafe() {
   if (anyVoicePlaying()) return setTimeout(reloadChatSafe, 2000);
   const id = activeChatId;
-  if (id) loadMessages(id).catch(() => {});
+  if (id) loadMessages(id, { silent: true }).catch(() => {});
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAfterResume(); });
 window.addEventListener('online', refreshAfterResume);
