@@ -3151,7 +3151,7 @@ async function toggleVoice() {
 
 // ── ВИДЕО-КРУЖКИ: до 1 минуты, с Plus до 2 минут ──
 let vrec = null, vrecChunks = [], vrecTimer = null, vrecStart = 0, vrecCancel = false;
-function vnoteLimit() { return isPlusNow() ? 120 : 60; }
+function vnoteLimit() { return isPlusNow() ? 180 : 60; }
 function fmtSec(t) { return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
 function vnoteMime() { return ['video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t)) || ''; }
 async function toggleVnote() {
