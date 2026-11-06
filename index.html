@@ -4370,15 +4370,38 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', fitViewport);
   window.visualViewport.addEventListener('scroll', fitViewport);
 }
-// Если человек внизу чата, при изменении высоты (клавиатура, растущее поле ввода) остаёмся внизу
+// Список сообщений не двигается: если человек читает историю, при любом изменении высоты (фото, подарки, реакции,
+// клавиатура) возвращаем на место тот элемент, который был в верхней части экрана. Внизу — остаёмся внизу.
 (function stickToBottom() {
   const area = document.getElementById('msgsArea');
   if (!area || !('ResizeObserver' in window)) return;
-  let atBottom = true;
+  let atBottom = true, anchorEl = null, anchorOff = 0;
+  const pickAnchor = () => {
+    const ar = area.getBoundingClientRect();
+    anchorEl = null;
+    for (const el of area.querySelectorAll('.msg-group, .date-div')) {
+      const r = el.getBoundingClientRect();
+      if (r.bottom > ar.top + 4) { anchorEl = el; anchorOff = r.top - ar.top; return; }
+    }
+  };
   area.addEventListener('scroll', () => {
     atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 40;
+    if (!atBottom) pickAnchor();
   }, { passive: true });
-  new ResizeObserver(() => { if (atBottom) area.scrollTop = area.scrollHeight; }).observe(area);
+  const keep = () => {
+    if (atBottom) { area.scrollTop = area.scrollHeight; return; }
+    if (!anchorEl || !anchorEl.isConnected) return pickAnchor();
+    const ar = area.getBoundingClientRect();
+    const d = (anchorEl.getBoundingClientRect().top - ar.top) - anchorOff;
+    if (Math.abs(d) > 0.5) area.scrollTop += d;
+  };
+  const sizeWatch = new ResizeObserver(keep);
+  sizeWatch.observe(area);
+  const watchGroups = () => area.querySelectorAll('.msg-group, .date-div').forEach(el => {
+    if (!el._watched) { el._watched = true; sizeWatch.observe(el); }
+  });
+  new MutationObserver(() => { watchGroups(); if (atBottom) keep(); }).observe(area, { childList: true });
+  watchGroups();
 })();
 // Блокируем щипок и двойное касание для увеличения (iOS Safari иногда игнорирует meta)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
