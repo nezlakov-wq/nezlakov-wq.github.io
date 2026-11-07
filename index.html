@@ -3126,11 +3126,12 @@ async function openProfile() {
     if (pi?.bio && !pi.hide_bio) rows.push(`<div style="margin-bottom:6px"><span style="opacity:.6">О себе: </span>${esc(pi.bio)}</div>`);
     if (pi?.birthday && !pi.hide_birthday) rows.push(`<div><span style="opacity:.6">День рождения: </span>${new Date(pi.birthday + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div>`);
     info.innerHTML = rows.join('');
-    if (pi?.plus_until && new Date(pi.plus_until) > new Date()) {
-      document.getElementById('pfName').insertAdjacentHTML('beforeend', ' <span class="plus-badge">★ Plus</span>');
-    }
+    // Бейджи собираем после всех await и пересоздаём имя, чтобы при повторном открытии ничего не дублировалось
     const pb = await badgeOf(p.id);
-    if (pb) document.getElementById('pfName').insertAdjacentHTML('beforeend', badgeHtml(pb));
+    const pfEl = document.getElementById('pfName');
+    pfEl.textContent = name;
+    if (pi?.plus_until && new Date(pi.plus_until) > new Date()) pfEl.insertAdjacentHTML('beforeend', ' <span class="plus-badge">★ Plus</span>');
+    if (pb) pfEl.insertAdjacentHTML('beforeend', badgeHtml(pb));
   }
   const { data: giftCount } = await sb.rpc('gift_count_for', { owner: p.id });
   if (giftCount === null) {
