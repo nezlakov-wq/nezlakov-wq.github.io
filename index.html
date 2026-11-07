@@ -526,6 +526,13 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .shop-card button:not([disabled]){background:linear-gradient(135deg,var(--accent,#5b7fff),var(--accent2,#7b5bff));color:#fff;cursor:pointer}
 .plus-badge{display:inline-block;margin-left:4px;padding:2px 8px;border-radius:999px;background:linear-gradient(90deg,#8b6cff,#f59e0b);color:#fff;font-size:12px;font-weight:600;vertical-align:middle}
 .tester-badge{background:linear-gradient(90deg,#22c55e,#06b6d4)}
+.badge-green{background:linear-gradient(90deg,#22c55e,#06b6d4)}
+.badge-purple{background:linear-gradient(90deg,#8b5cf6,#ec4899)}
+.badge-orange{background:linear-gradient(90deg,#f59e0b,#ef4444)}
+.badge-red{background:linear-gradient(90deg,#dc2626,#f43f5e)}
+.badge-blue{background:linear-gradient(90deg,#3b82f6,#06b6d4)}
+.badge-pink{background:linear-gradient(90deg,#ec4899,#f472b6)}
+.badge-gray{background:linear-gradient(90deg,#64748b,#94a3b8)}
 .tg-sec{font-size:13px;color:var(--fg2);letter-spacing:.3px;margin:20px 4px 8px}
 .tg-card{background:var(--bg3);border-radius:16px;overflow:hidden;margin-bottom:6px}
 .tg-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border)}
@@ -1512,6 +1519,9 @@ body::after {
         <div class="set-label">Выдать или снять бейдж</div>
         <input id="admUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
         <input id="admLabel" placeholder="текст бейджа (пусто — снять)" maxlength="20" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <select id="admColor" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+          <option value="green">Зелёный</option><option value="purple">Фиолетовый</option><option value="orange">Оранжевый</option><option value="red">Красный</option><option value="blue">Синий</option><option value="pink">Розовый</option><option value="gray">Серый</option>
+        </select>
         <button type="button" onclick="adminSetBadge()" style="padding:10px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Сохранить</button>
         <div id="admMsg" style="font-size:13px;opacity:.7"></div>
       </div>
@@ -2490,9 +2500,9 @@ async function confirmGift() {
 // Активна ли у меня подписка Plus
 function isPlusNow() { return !!(me && me.plus_until && new Date(me.plus_until) > new Date()); }
 // Именные бейджи (таблица user_badges): читает любой пользователь, пишет только администратор
-let myBadge = '';
-async function badgeOf(id) { try { const { data } = await sb.from('user_badges').select('label').eq('user_id', id).maybeSingle(); return data?.label || ''; } catch (e) { return ''; } }
-function badgeHtml(label) { return label ? ' <span class="plus-badge tester-badge">' + esc(label) + '</span>' : ''; }
+let myBadge = null;
+async function badgeOf(id) { try { const { data } = await sb.from('user_badges').select('label,color').eq('user_id', id).maybeSingle(); return data || null; } catch (e) { return null; } }
+function badgeHtml(b) { return b && b.label ? ' <span class="plus-badge badge-' + esc(b.color || 'green') + '">' + esc(b.label) + '</span>' : ''; }
 // Поиск: учитываем дополнительные юзернеймы (Plus)
 async function aliasUserIds(q) {
   if (!q) return [];
@@ -4762,15 +4772,16 @@ async function renderAdminList() {
   const { data, error } = await sb.rpc('admin_list_badges');
   if (error) { list.textContent = 'Ошибка: ' + error.message; return; }
   list.innerHTML = data && data.length
-    ? data.map(x => `<div style="padding:4px 0">@${esc(x.username)} — <span class="plus-badge tester-badge">${esc(x.label)}</span></div>`).join('')
+    ? data.map(x => `<div style="padding:4px 0">@${esc(x.username)} — <span class="plus-badge badge-${esc(x.color || 'green')}">${esc(x.label)}</span></div>`).join('')
     : 'Бейджей пока нет';
 }
 async function adminSetBadge() {
   const u = document.getElementById('admUser').value.trim().replace(/^@/, '');
   const l = document.getElementById('admLabel').value;
+  const c = document.getElementById('admColor').value;
   const msg = document.getElementById('admMsg');
   if (!u) { msg.textContent = 'Укажите логин'; return; }
-  const { data, error } = await sb.rpc('admin_set_badge', { target_username: u, badge: l });
+  const { data, error } = await sb.rpc('admin_set_badge', { target_username: u, badge: l, color: c });
   msg.textContent = error ? 'Ошибка: ' + error.message : data;
   if (!error) renderAdminList();
 }
@@ -6239,7 +6250,7 @@ async function searchUsers(val) {
     }
     // Именные бейджи для найденных пользователей
     const badgeMap = {};
-    if (data?.length) { const { data: bd } = await sb.from('user_badges').select('user_id,label').in('user_id', data.map(u => u.id)); (bd || []).forEach(b => { badgeMap[b.user_id] = b.label; }); }
+    if (data?.length) { const { data: bd } = await sb.from('user_badges').select('user_id,label,color').in('user_id', data.map(u => u.id)); (bd || []).forEach(b => { badgeMap[b.user_id] = { label: b.label, color: b.color }; }); }
     // Приоритет Plus: пользователи с подпиской выше в результатах поиска
     data.sort((x, y) => (y.plus_active ? 1 : 0) - (x.plus_active ? 1 : 0));
     data.forEach(u => {
