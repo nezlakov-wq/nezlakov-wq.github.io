@@ -3149,10 +3149,22 @@ async function openProfile() {
     list.innerHTML = '<div style="opacity:.6;font-size:13px">Подарков пока нет</div>';
     return;
   }
-  list.innerHTML = summary.map(g => {
+  const giftRow = g => {
     const label = `${g.emoji ? esc(g.emoji) + ' ' : ''}${esc(g.name || g.gift_id)}`;
     return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>${label}</span><span>× ${g.count}</span></div>`;
-  }).join('');
+  };
+  const shown = summary.slice(0, 3);
+  list.innerHTML = shown.map(giftRow).join('') + (summary.length > 3
+    ? `<div id="pfGiftsRest" style="display:none">${summary.slice(3).map(giftRow).join('')}</div>`
+      + `<button type="button" id="pfGiftsAll" style="margin-top:10px;width:100%;padding:10px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:14px;cursor:pointer">Все подарки (${summary.length})</button>`
+    : '');
+  const allBtn = document.getElementById('pfGiftsAll');
+  if (allBtn) allBtn.onclick = () => {
+    const rest = document.getElementById('pfGiftsRest');
+    const open = rest.style.display !== 'none';
+    rest.style.display = open ? 'none' : 'block';
+    allBtn.textContent = open ? `Все подарки (${summary.length})` : 'Свернуть';
+  };
 }
 
 // ── PRIVACY ──
