@@ -1499,11 +1499,25 @@ body::after {
         <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l3-3 3 3-3 3M3 21l9-9"/></svg></span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
+        <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">Бейджи пользователей</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/></svg></span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff3b30"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21h4"/></svg></span><span class="set-txt">Уведомления</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
         <button class="set-item" onclick="logout()"><span class="set-ico" style="background:#ff453a"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M6.3 5.6a9 9 0 1 0 11.4 0"/></svg></span><span class="set-txt" style="color:#ff453a">Выйти из аккаунта</span></button>
+      </div>
+    </div>
+    <div id="setAdmin" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
+        <div class="set-label">Выдать или снять бейдж</div>
+        <input id="admUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <input id="admLabel" placeholder="текст бейджа (пусто — снять)" maxlength="20" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <button type="button" onclick="adminSetBadge()" style="padding:10px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Сохранить</button>
+        <div id="admMsg" style="font-size:13px;opacity:.7"></div>
+      </div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div class="set-label">Текущие бейджи</div>
+        <div id="admList" style="font-size:14px"></div>
       </div>
     </div>
     <div id="setAppearance" style="display:none">
@@ -4715,12 +4729,13 @@ async function openSettings() {
   document.getElementById('setBio').value = me.bio || '';
   document.getElementById('setBirthday').value = me.birthday || '';
   switchSettingsTab('main');
+  document.getElementById('setAdminBtn').style.display = me.id === ADMIN_ID ? '' : 'none';
   badgeOf(me.id).then(l => { myBadge = l; renderProfPreview(); });
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление' };
+const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'Бейджи пользователей' };
 // Предпросмотр профиля «как для других»: баннер, аватарка, имя, статус
 function renderProfPreview() {
   const box = document.getElementById('profPreview');
@@ -4740,12 +4755,32 @@ function renderProfPreview() {
       <div style="opacity:.6;font-size:13px">@${esc(me.username || '')}</div>
     </div>`;
 }
+// ── Бейджи пользователей (только владелец приложения; сервер тоже проверяет) ──
+const ADMIN_ID = '852d1d07-897e-4fb0-af14-8530b2c4dd8a';
+async function renderAdminList() {
+  const list = document.getElementById('admList');
+  const { data, error } = await sb.rpc('admin_list_badges');
+  if (error) { list.textContent = 'Ошибка: ' + error.message; return; }
+  list.innerHTML = data && data.length
+    ? data.map(x => `<div style="padding:4px 0">@${esc(x.username)} — <span class="plus-badge tester-badge">${esc(x.label)}</span></div>`).join('')
+    : 'Бейджей пока нет';
+}
+async function adminSetBadge() {
+  const u = document.getElementById('admUser').value.trim().replace(/^@/, '');
+  const l = document.getElementById('admLabel').value;
+  const msg = document.getElementById('admMsg');
+  if (!u) { msg.textContent = 'Укажите логин'; return; }
+  const { data, error } = await sb.rpc('admin_set_badge', { target_username: u, badge: l });
+  msg.textContent = error ? 'Ошибка: ' + error.message : data;
+  if (!error) renderAdminList();
+}
 let curSetTab = 'main';
 function switchSettingsTab(tab) {
   const prev = curSetTab;
   curSetTab = tab;
   const show = () => {
     if (tab === 'data') { setTimeout(renderProfPreview, 0); renderAliases(); }
+    if (tab === 'admin') renderAdminList();
     if (tab === 'appearance') applyLayout();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
