@@ -1666,7 +1666,7 @@ body::after {
       <div id="pfAliases" style="font-size:13px;opacity:.7;margin-top:4px"></div>
     </div>
     <div style="padding:0 12px 20px">
-      <div class="set-label" style="margin:12px 0 8px;text-align:left">Подарки в этом чате</div>
+      <div class="set-label" style="margin:12px 0 8px;text-align:left">Подарки</div>
       <div id="pfGifts" style="text-align:left"></div>
       <div class="set-label" style="margin:18px 0 8px;text-align:left">Только для этого человека</div>
       <label style="display:flex;gap:10px;align-items:center;text-align:left;font-size:14px;margin-bottom:8px">
@@ -3142,26 +3142,16 @@ async function openProfile() {
   document.getElementById('pvAvatar').checked = !!rule?.hide_avatar;
   document.getElementById('pvGifts').checked = !!rule?.hide_gifts;
   if (giftCount === null) return;
-  const { data } = await sb.from('messages')
-    .select('text')
-    .eq('conversation_id', convId)
-    .eq('sender_id', p.id)
-    .like('text', '[gift:%');
+  // Подарки пользователя по видам во всех общих с вами чатах (сервер учитывает скрытие)
+  const { data: summary } = await sb.rpc('gift_summary_for', { owner: p.id });
   if (convId !== activeChatId) return;
-  const counts = {};
-  (data || []).forEach(m => {
-    const id = m.text.slice(6, -1);
-    counts[id] = (counts[id] || 0) + 1;
-  });
-  const ids = Object.keys(counts);
-  if (!ids.length) {
-    list.innerHTML = '<div style="opacity:.6;font-size:13px">Подарков в этом чате пока нет</div>';
+  if (!summary || !summary.length) {
+    list.innerHTML = '<div style="opacity:.6;font-size:13px">Подарков пока нет</div>';
     return;
   }
-  list.innerHTML = ids.map(id => {
-    const g = giftList.find(x => x.id === id);
-    const label = g ? `${g.emoji} ${esc(g.name)}` : esc(id);
-    return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>${label}</span><span>× ${counts[id]}</span></div>`;
+  list.innerHTML = summary.map(g => {
+    const label = `${g.emoji ? esc(g.emoji) + ' ' : ''}${esc(g.name || g.gift_id)}`;
+    return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(127,127,127,.2)"><span>${label}</span><span>× ${g.count}</span></div>`;
   }).join('');
 }
 
