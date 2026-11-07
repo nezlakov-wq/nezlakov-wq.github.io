@@ -4846,9 +4846,6 @@ function pickBanner() { document.getElementById('bannerInput').click(); }
 async function uploadAvatar(file) {
   if (!file || !me) return;
   if (file.size > 5 * 1024 * 1024) return toast('Файл больше 5 МБ');
-  // Анимированная аватарка (GIF / анимированный WebP) — функция Plus
-  const animated = /image\/(gif|webp)/i.test(file.type) || /\.(gif|webp)$/i.test(file.name);
-  if (animated && !isPlusNow()) return toast('Анимированная аватарка доступна в подписке Plus');
   toast('Загружаем…');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${me.id}/avatar.${ext}`;
