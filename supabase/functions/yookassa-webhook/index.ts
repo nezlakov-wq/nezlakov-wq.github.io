@@ -19,6 +19,56 @@ const PRODUCTS: Record<string, { amount: string; plusDays?: number; tokens?: num
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
+// Возврат: проверяем у ЮKassa, что возврат полный и успешный, отмечаем платёж и откатываем выдачу.
+// Баланс не уходит ниже нуля; недостача пишется в лог (console.error) и видна в token_ledger.
+async function handleRefund(
+  refundId: string, SHOP_ID: string, SECRET: string, SUPABASE_URL: string,
+  dbHeaders: Record<string, string>,
+): Promise<Response> {
+  const auth = { authorization: 'Basic ' + btoa(`${SHOP_ID}:${SECRET}`) };
+  const rr = await fetch(`https://api.yookassa.ru/v3/refunds/${encodeURIComponent(refundId)}`, { headers: auth });
+  if (!rr.ok) return json({ error: 'provider check failed' }, 502);
+  const refund = await rr.json();
+  if (refund.status !== 'succeeded' || !refund.payment_id) return json({ ok: true, skipped: true });
+
+  const pr = await fetch(`https://api.yookassa.ru/v3/payments/${encodeURIComponent(refund.payment_id)}`, { headers: auth });
+  if (!pr.ok) return json({ error: 'provider check failed' }, 502);
+  const pay = await pr.json();
+  const meta = pay.metadata || {};
+  const product = PRODUCTS[meta.product];
+  if (!product || !meta.user_id) return json({ ok: true, skipped: true });
+
+  // Частичный возврат не откатываем автоматически: решаем вручную
+  if (refund.amount?.value !== pay.amount?.value || refund.amount?.currency !== 'RUB') {
+    console.error('partial refund, manual review', refund.payment_id, refund.amount?.value, pay.amount?.value);
+    return json({ ok: true, skipped: true });
+  }
+
+  // Идемпотентность: отмечаем платёж как возвращённый только один раз
+  const claim = await fetch(`${SUPABASE_URL}/rest/v1/payments?id=eq.${encodeURIComponent(refund.payment_id)}&status=eq.succeeded`, {
+    method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=representation' },
+    body: JSON.stringify({ status: 'refunded' }),
+  });
+  if (!claim.ok) return json({ error: 'db error' }, 500);
+  const claimed = await claim.json();
+  if (Array.isArray(claimed) && claimed.length === 0) return json({ ok: true, duplicate: true });
+
+  const revert = () => fetch(`${SUPABASE_URL}/rest/v1/payments?id=eq.${encodeURIComponent(refund.payment_id)}`, {
+    method: 'PATCH', headers: { ...dbHeaders, Prefer: 'return=minimal' }, body: JSON.stringify({ status: 'succeeded' }),
+  });
+
+  // Токены, которые выдавались за покупку: у Plus это 50 бонусных
+  const tokens = product.tokens ?? (product.plusDays ? 50 : 0);
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/revoke_purchase`, {
+    method: 'POST', headers: dbHeaders,
+    body: JSON.stringify({ uid: meta.user_id, days: product.plusDays ?? 0, tokens }),
+  });
+  if (!r.ok) { console.error('revoke failed', await r.text()); await revert(); return json({ error: 'revoke failed' }, 500); }
+  const shortfall = Number(await r.json());
+  if (shortfall > 0) console.error('refund shortfall', refund.payment_id, meta.user_id, shortfall);
+  return json({ ok: true, shortfall });
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
 
@@ -30,6 +80,9 @@ Deno.serve(async (req) => {
 
   let note: { event?: string; object?: { id?: string } };
   try { note = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  if (note.event === 'refund.succeeded' && note.object?.id) {
+    return await handleRefund(note.object.id, SHOP_ID, SECRET, SUPABASE_URL, dbHeaders);
+  }
   if (note.event !== 'payment.succeeded' || !note.object?.id) return json({ ok: true, skipped: true });
 
   // 1. Перепроверяем платёж у ЮKassa, а не верим уведомлению
