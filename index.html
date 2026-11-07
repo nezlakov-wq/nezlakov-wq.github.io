@@ -1194,6 +1194,7 @@ body::after {
 #settingsModal { inset: env(safe-area-inset-top, 0px) 0 0 0 !important; }
 #settingsModal .modal.set-page { height: 100% !important; max-height: none !important; padding-bottom: 120px !important; }
 #settingsModal .set-page > #setMain { padding-bottom: 120px !important; }
+#shopModal .modal { max-height: 86vh; max-height: 86dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 130px !important; }
 /* Контакты и Звонки: страница-вкладка над списком чатов, нижнее меню остаётся видимым */
 #contactsModal, #callsModal {
   inset: env(safe-area-inset-top, 0px) 0 0 0 !important;
@@ -1643,7 +1644,7 @@ body::after {
     <div class="shop-card"><div><b>500 токенов</b><span>выгоднее</span></div><button type="button" onclick="buyProduct('tokens_500')">200 ₽</button></div>
     <div class="shop-card"><div><b>1000 токенов</b><span>максимальный пакет</span></div><button type="button" onclick="buyProduct('tokens_1000')">350 ₽</button></div>
     <div style="font-size:12px;letter-spacing:.5px;color:var(--fg2);margin:18px 0 8px">ПОДПИСКА</div>
-    <div class="shop-card" style="display:block"><div style="font-size:13px;color:var(--fg2);line-height:1.6">★ значок Plus в профиле<br>группы до 50 участников<br>10 историй в сутки вместо 5<br>видео-баннер до 15 секунд<br>50 токенов в подарок каждый месяц</div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 1 месяц</b><span></span></div><button type="button" onclick="buyProduct('plus_month')">199 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 3 месяца</b><span>скидка 10%</span></div><button type="button" onclick="buyProduct('plus_3m')">537 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 12 месяцев</b><span>скидка 20%</span></div><button type="button" onclick="buyProduct('plus_12m')">1910 ₽</button></div></div>
+    <div class="shop-card" style="display:block"><div style="font-size:13px;color:var(--fg2);line-height:1.6">★ значок Plus в профиле<br>группы до 50 участников<br>10 историй в сутки вместо 5<br>видео-баннер до 15 секунд<br>50 токенов в подарок каждый месяц<br>скрытность: собеседники не видят прочтения и статус «в сети»<br>свои цвета сообщений<br>кружки до 3 минут вместо 1</div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 1 месяц</b><span></span></div><button type="button" onclick="buyProduct('plus_month')">199 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 3 месяца</b><span>скидка 10%</span></div><button type="button" onclick="buyProduct('plus_3m')">537 ₽</button></div><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:8px"><div><b>Moonlit Plus, 12 месяцев</b><span>скидка 20%</span></div><button type="button" onclick="buyProduct('plus_12m')">1910 ₽</button></div></div>
   </div>
 </div>
 <div class="modal-overlay" id="profileModal" onclick="if(event.target===this)closeProfile()">
