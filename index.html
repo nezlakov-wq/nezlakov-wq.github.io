@@ -1048,6 +1048,11 @@ body::before {
   cursor: pointer; padding: 8px 4px; font-family: inherit;
 }
 #settingsModal .set-page > div:not(.set-topbar) { padding-left: 14px; padding-right: 14px; }
+/* На ПК кнопка закрытия настроек (на телефоне её нет по дизайну) */
+#settingsModal .set-close-pc { display: none; }
+@media (min-width: 641px) {
+  #settingsModal .set-close-pc { display: inline-block; margin-left: auto; font-size: 20px; line-height: 1; }
+}
 #settingsModal .set-page > #setMain { padding-bottom: 40px; }
 #settingsModal .set-name { font-size: 22px; font-weight: 700; color: #fff; text-align: center; margin-top: 4px; }
 .set-group {
@@ -1485,6 +1490,7 @@ body::after {
     <div class="set-topbar">
       <button id="setBack" style="display:none" onclick="switchSettingsTab('main')">‹ Назад</button>
       <span class="st-title" id="setTopTitle">Настройки</span>
+      <button class="set-close-pc" type="button" title="Закрыть" onclick="closeSettings()">✕</button>
     </div>
     <div id="setMain">
       <div class="set-profile">
