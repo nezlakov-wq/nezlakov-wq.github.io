@@ -5091,13 +5091,17 @@ async function encryptForDevices(userIds, text) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, ck, cenc.encode(text));
   const wraps = [];
-  for (const d of devs) {
-    const pub = await crypto.subtle.importKey('jwk', JSON.parse(d.pub_key), ECDH_ALG, false, []);
+  // Ключ аккаунта (из profiles.pub_key): открывает сообщения на любом устройстве, где введён пароль
+  const { data: accs } = await sb.from('profiles').select('id, pub_key').in('id', userIds);
+  const targets = [...devs.map(d => ({ u: d.user_id, d: d.device_id, pub: d.pub_key }))];
+  for (const a of accs || []) if (a.pub_key) targets.push({ u: a.id, d: 'acct', pub: a.pub_key });
+  for (const t of targets) {
+    const pub = await crypto.subtle.importKey('jwk', JSON.parse(t.pub), ECDH_ALG, false, []);
     const eph = await crypto.subtle.generateKey(ECDH_ALG, true, ['deriveKey']);
     const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, eph.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
     const wi = crypto.getRandomValues(new Uint8Array(12));
     const w = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: wi }, wk, raw);
-    wraps.push({ u: d.user_id, d: d.device_id, e: await crypto.subtle.exportKey('jwk', eph.publicKey), i: b64(wi), w: b64(w) });
+    wraps.push({ u: t.u, d: t.d, e: await crypto.subtle.exportKey('jwk', eph.publicKey), i: b64(wi), w: b64(w) });
   }
   const body = JSON.stringify({ v: 2, i: b64(iv), c: b64(ct), k: wraps });
   return 'e2:' + b64(cenc.encode(body));
@@ -5106,10 +5110,16 @@ async function decryptForDevices(text) {
   try {
     const obj = JSON.parse(cdec.decode(unb64(text.slice(3))));
     const myDid = getDeviceId();
-    const entry = obj.k.find(x => x.u === me.id && x.d === myDid);
+    let entry = obj.k.find(x => x.u === me.id && x.d === myDid);
+    let privJwk = null;
+    if (entry) {
+      privJwk = JSON.parse(localStorage.getItem('moonlit-dev-priv-' + me.id + '-' + myDid) || 'null');
+    } else {
+      entry = obj.k.find(x => x.u === me.id && x.d === 'acct');
+      privJwk = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
+    }
     if (!entry) return '🔒 Нет ключа для этого устройства';
-    const privJwk = JSON.parse(localStorage.getItem('moonlit-dev-priv-' + me.id + '-' + myDid) || 'null');
-    if (!privJwk) return '🔒 Нет ключа устройства';
+    if (!privJwk) return '🔒 Откройте переписку и введите пароль шифрования';
     const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
     const eph = await crypto.subtle.importKey('jwk', entry.e, ECDH_ALG, false, []);
     const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: eph }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
