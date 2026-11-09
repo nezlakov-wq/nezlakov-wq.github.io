@@ -1,7 +1,25 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-// Сеть напрямую, без кеша: нужен обработчик fetch, чтобы сайт считался установимым (PWA, APK через PWABuilder)
-self.addEventListener('fetch', () => {});
+// Кеш оболочки приложения: сначала сеть, при отсутствии сети — сохранённая копия.
+// Запросы к другим сайтам (Supabase и т.д.) и не-GET не кешируем: данные переписки всегда свежие.
+const SHELL_CACHE = 'moonlit-shell-v1';
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  e.respondWith((async () => {
+    const cache = await caches.open(SHELL_CACHE);
+    try {
+      const res = await fetch(req);
+      if (res && res.ok && res.type === 'basic') cache.put(req, res.clone());
+      return res;
+    } catch (err) {
+      const cached = await cache.match(req) || (req.mode === 'navigate' ? await cache.match('./index.html') || await cache.match('index.html') : null);
+      if (cached) return cached;
+      throw err;
+    }
+  })());
+});
 // Push с сервера: показываем уведомление, если приложение не открыто на экране
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
