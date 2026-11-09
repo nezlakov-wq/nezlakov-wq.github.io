@@ -1,5 +1,7 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+// Сеть напрямую, без кеша: нужен обработчик fetch, чтобы сайт считался установимым (PWA, APK через PWABuilder)
+self.addEventListener('fetch', () => {});
 // Push с сервера: показываем уведомление, если приложение не открыто на экране
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
