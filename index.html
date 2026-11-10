@@ -1556,6 +1556,10 @@ body::after {
         <div class="set-label">Текущие бейджи</div>
         <div id="admList" style="font-size:14px"></div>
       </div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div class="set-label">Журнал</div>
+        <div id="admLog" style="font-size:13px;line-height:1.6">Загрузка…</div>
+      </div>
     </div>
     <div id="setAppearance" style="display:none">
       <div class="set-row"><div class="set-label">Профиль</div>
@@ -4852,12 +4856,36 @@ async function renderAdminStats() {
 }
 async function renderAdminList() {
   renderAdminStats();
+  renderAdminLog();
   const list = document.getElementById('admList');
   const { data, error } = await sb.rpc('admin_list_badges');
   if (error) { list.textContent = 'Ошибка: ' + error.message; return; }
   list.innerHTML = data && data.length
     ? data.map(x => `<div style="padding:4px 0">@${esc(x.username)} — <span class="plus-badge badge-${esc(x.color || 'green')}">${esc(x.label)}</span></div>`).join('')
     : 'Бейджей пока нет';
+}
+// Журнал: выдача/снятие бейджей и откаты при возвратах
+async function renderAdminLog() {
+  const box = document.getElementById('admLog');
+  const { data, error } = await sb.rpc('admin_list_log', { lim: 100 });
+  if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)' };
+  if (!data || !data.length) { box.textContent = 'Записей пока нет'; return; }
+  box.innerHTML = data.map(x => {
+    const d = x.details || {};
+    let extra = '';
+    if (x.action === 'badge_set') extra = `«${esc(d.label || '')}», ${esc(d.color || '')}`;
+    if (x.action === 'refund') {
+      extra = `Plus −${Number(d.plus_days || 0)} дн., токены −${Number(d.tokens || 0)}` +
+        (Number(d.shortfall) > 0 ? `, недостача ${Number(d.shortfall)}` : '');
+    }
+    const when = new Date(x.created_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return `<div style="padding:6px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
+      `<div style="opacity:.6;font-size:12px">${esc(when)}</div>` +
+      `<div>${esc(names[x.action] || x.action)}${x.username ? ' — @' + esc(x.username) : ''}</div>` +
+      (extra ? `<div style="opacity:.75;font-size:12px">${extra}</div>` : '') +
+      `</div>`;
+  }).join('');
 }
 async function adminSetBadge() {
   const u = document.getElementById('admUser').value.trim().replace(/^@/, '');
