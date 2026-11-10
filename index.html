@@ -1537,10 +1537,24 @@ body::after {
       </div>
     </div>
     <div id="setAdmin" style="display:none">
-      <button class="set-item" onclick="switchSettingsTab('adminstats')"><span class="set-txt">Статистика</span><span class="set-chev">›</span></button>
-      <button class="set-item" onclick="switchSettingsTab('adminlog')"><span class="set-txt">Журнал</span><span class="set-chev">›</span></button>
-      <button class="set-item" onclick="switchSettingsTab('adminbadge')"><span class="set-txt">Бейджи</span><span class="set-chev">›</span></button>
+      <button class="set-item" id="admBtnStats" style="display:none" onclick="switchSettingsTab('adminstats')"><span class="set-txt">Статистика</span><span class="set-chev">›</span></button>
+      <button class="set-item" id="admBtnLog" style="display:none" onclick="switchSettingsTab('adminlog')"><span class="set-txt">Журнал</span><span class="set-chev">›</span></button>
+      <button class="set-item" id="admBtnBadge" style="display:none" onclick="switchSettingsTab('adminbadge')"><span class="set-txt">Бейджи</span><span class="set-chev">›</span></button>
       <button class="set-item" onclick="switchSettingsTab('adminban')"><span class="set-txt">Выдача банов</span><span class="set-chev">›</span></button>
+      <button class="set-item" id="admBtnMods" style="display:none" onclick="switchSettingsTab('adminmods')"><span class="set-txt">Добавить администратора</span><span class="set-chev">›</span></button>
+    </div>
+    <div id="setAdminMods" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
+        <div class="set-label">Администратор может выдавать и снимать баны. Статистику, журнал и бейджи видит только владелец.</div>
+        <input id="modUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <button type="button" onclick="adminSetMod(true)" style="padding:10px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Назначить администратором</button>
+        <button type="button" onclick="adminSetMod(false)" style="padding:10px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:15px;cursor:pointer">Снять права</button>
+        <div id="modMsg" style="font-size:13px;opacity:.7"></div>
+      </div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div class="set-label">Администраторы</div>
+        <div id="modList" style="font-size:14px"></div>
+      </div>
     </div>
     <div id="setAdminStats" style="display:none">
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
@@ -4835,13 +4849,34 @@ async function openSettings() {
   document.getElementById('setBio').value = me.bio || '';
   document.getElementById('setBirthday').value = me.birthday || '';
   switchSettingsTab('main');
-  document.getElementById('setAdminBtn').style.display = me.id === ADMIN_ID ? '' : 'none';
+  adminRole = null;
+  try { const { data } = await sb.rpc('admin_role'); adminRole = data || null; } catch (e) {}
+  document.getElementById('setAdminBtn').style.display = adminRole ? '' : 'none';
+  const isOwnerRole = adminRole === 'owner';
+  for (const id of ['admBtnStats', 'admBtnLog', 'admBtnBadge', 'admBtnMods']) {
+    document.getElementById(id).style.display = isOwnerRole ? '' : 'none';
+  }
   badgeOf(me.id).then(l => { myBadge = l; renderProfPreview(); });
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов' };
+const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan', adminmods: 'setAdminMods' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов', adminmods: 'Администраторы' };
+let adminRole = null; // 'owner' | 'mod' | null
+async function adminSetMod(make) {
+  const u = document.getElementById('modUser').value.trim().replace(/^@/, '');
+  const msg = document.getElementById('modMsg');
+  if (!u) { msg.textContent = 'Укажите логин'; return; }
+  const { data, error } = await sb.rpc('admin_set_mod', { target_username: u, make });
+  msg.textContent = error ? 'Ошибка: ' + error.message : data;
+  if (!error) renderAdminMods();
+}
+async function renderAdminMods() {
+  const box = document.getElementById('modList');
+  const { data, error } = await sb.rpc('admin_list_mods');
+  if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  box.innerHTML = data && data.length ? data.map(x => `<div style="padding:4px 0">@${esc(x.username)}</div>`).join('') : 'Администраторов пока нет';
+}
 // «Назад» из подраздела админки ведёт в меню АдминПанели, из меню — в настройки
 function setBackNav() { switchSettingsTab(curSetTab.startsWith('admin') && curSetTab !== 'admin' ? 'admin' : 'main'); }
 // Предпросмотр профиля «как для других»: баннер, аватарка, имя, статус
@@ -4896,7 +4931,7 @@ async function renderAdminLog() {
   const box = document.getElementById('admLog');
   const { data, error } = await sb.rpc('admin_list_log', { lim: 100 });
   if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
-  const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)', ban_set: 'Выдан бан', ban_removed: 'Снят бан' };
+  const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)', ban_set: 'Выдан бан', ban_removed: 'Снят бан', mod_added: 'Назначен администратор', mod_removed: 'Снят администратор' };
   if (!data || !data.length) { box.textContent = 'Записей пока нет'; return; }
   box.innerHTML = data.map(x => {
     const d = x.details || {};
@@ -4977,6 +5012,7 @@ function switchSettingsTab(tab) {
     if (tab === 'adminlog') renderAdminLog();
     if (tab === 'adminbadge') renderAdminList();
     if (tab === 'adminban') renderAdminBans();
+    if (tab === 'adminmods') renderAdminMods();
     if (tab === 'appearance') applyLayout();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
