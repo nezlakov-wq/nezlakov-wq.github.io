@@ -1541,7 +1541,18 @@ body::after {
       <button class="set-item" id="admBtnLog" style="display:none" onclick="switchSettingsTab('adminlog')"><span class="set-txt">Журнал</span><span class="set-chev">›</span></button>
       <button class="set-item" id="admBtnBadge" style="display:none" onclick="switchSettingsTab('adminbadge')"><span class="set-txt">Бейджи</span><span class="set-chev">›</span></button>
       <button class="set-item" onclick="switchSettingsTab('adminban')"><span class="set-txt">Выдача банов</span><span class="set-chev">›</span></button>
+      <button class="set-item" id="admBtnReports" style="display:none" onclick="switchSettingsTab('adminreports')"><span class="set-txt">Жалобы и апелляции</span><span class="set-chev">›</span></button>
       <button class="set-item" id="admBtnMods" style="display:none" onclick="switchSettingsTab('adminmods')"><span class="set-txt">Добавить администратора</span><span class="set-chev">›</span></button>
+    </div>
+    <div id="setAdminReports" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div class="set-label">Жалобы</div>
+        <div id="repList" style="font-size:14px"></div>
+      </div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div class="set-label">Апелляции заблокированных</div>
+        <div id="appList" style="font-size:14px"></div>
+      </div>
     </div>
     <div id="setAdminMods" style="display:none">
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
@@ -1690,6 +1701,9 @@ body::after {
         <button class="tg-red" onclick="logout()">✋ Выйти из аккаунта</button>
       </div>
       <div class="tg-foot">Выход касается только этого устройства.</div>
+      <div class="tg-sec">ВСЕ УСТРОЙСТВА АККАУНТА</div>
+      <div class="tg-card" id="devList"></div>
+      <div class="tg-foot">Отключённое устройство перестаёт получать новые сообщения. Чтобы поменять модель iPhone или iPad, нажмите «Переименовать» на этом устройстве.</div>
       <div class="tg-sec">АККАУНТЫ НА ЭТОМ УСТРОЙСТВЕ (ДО 3)</div>
       <div class="tg-card" id="setAccounts"></div>
     </div>
@@ -1835,6 +1849,8 @@ async function init() {
     if (await checkBanGate(session.user.id)) return;
     showApp();
     setTimeout(() => syncOwnWraps(), 4000);
+    setTimeout(() => staffSecurityCheck().catch(() => {}), 1500);
+    startBanWatch(session.user.id);
   } else {
     showWelcome();
   }
@@ -2100,6 +2116,8 @@ async function login() {
   if (await checkBanGate(data.user.id)) return;
   showApp();
   setTimeout(() => syncOwnWraps(), 4000);
+  setTimeout(() => staffSecurityCheck().catch(() => {}), 1500);
+  startBanWatch(data.user.id);
 }
 async function register() {
   const name = document.getElementById('regName').value.trim();
@@ -2706,7 +2724,7 @@ async function ensureDevice(userId) {
     user_id: userId,
     device_id: did,
     pub_key: JSON.stringify(pubJwk),
-    name: (navigator.userAgent || 'device').slice(0, 120),
+    name: (await deviceLabel()).slice(0, 120),
     last_seen_at: new Date().toISOString()
   }, { onConflict: 'user_id,device_id' });
   if (error) console.warn('ensureDevice:', error.message);
@@ -3208,6 +3226,17 @@ async function openProfile() {
   bn.innerHTML = vidB ? bannerVideo(p.banner_url) : '';
   document.getElementById('pfName').textContent = name;
   document.getElementById('pfUsername').textContent = '@' + (p.username || '');
+  let rb = document.getElementById('pfReportBtn');
+  if (!rb) {
+    rb = document.createElement('button');
+    rb.id = 'pfReportBtn';
+    rb.type = 'button';
+    rb.textContent = 'Пожаловаться';
+    rb.style.cssText = 'margin:8px auto 0;display:block;padding:8px 14px;border-radius:12px;border:0;background:rgba(255,69,58,.15);color:#ff453a;font-size:14px;cursor:pointer';
+    document.getElementById('pfUsername').parentElement.appendChild(rb);
+  }
+  rb.style.display = p.id === me.id ? 'none' : '';
+  rb.onclick = () => reportUser(p.username);
   // Дополнительные юзернеймы собеседника (Plus) показываем под основным
   const pfAl = document.getElementById('pfAliases');
   if (pfAl) { pfAl.textContent = ''; sb.from('username_aliases').select('username').eq('user_id', p.id).then(({ data }) => {
@@ -4562,11 +4591,74 @@ function renderAccounts() {
   const addBtn = list.length < 3 ? '<button class="tg-add" onclick="addAccount()">+ Добавить аккаунт</button>' : '';
   document.getElementById('setAccounts').innerHTML = rows + addBtn;
 }
-function deviceName() {
-  const ua = navigator.userAgent;
-  const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'Другое';
-  const browser = /CriOS|Chrome/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Браузер';
-  return os + ' · ' + browser;
+// ── Название устройства: ОС, версия, модель (если браузер её отдаёт), браузер ──
+// Название, которое задал пользователь вручную, важнее автоматического (например, «iPhone 15 Pro»)
+async function autoDeviceLabel() {
+  const ua = navigator.userAgent || '';
+  let os = '', model = '';
+  try {
+    if (navigator.userAgentData) {
+      const h = await navigator.userAgentData.getHighEntropyValues(['platform', 'platformVersion', 'model']);
+      const pv = parseFloat(h.platformVersion) || 0;
+      if (h.platform === 'Android') { os = 'Android ' + Math.floor(pv); model = h.model || ''; }
+      else if (h.platform === 'Windows') os = pv >= 13 ? 'Windows 11' : 'Windows 10';
+      else if (h.platform === 'macOS') os = 'macOS ' + h.platformVersion;
+      else if (h.platform === 'Linux') os = 'Linux';
+    }
+  } catch (e) {}
+  if (!os) {
+    const m = ua.match(/OS (\d+)[_.](\d+)/);
+    if (/iPhone/.test(ua)) { os = 'iOS ' + (m ? m[1] + '.' + m[2] : ''); model = ''; }
+    else if (/iPad/.test(ua)) { os = 'iPadOS ' + (m ? m[1] + '.' + m[2] : ''); model = ''; }
+    else if (/Android (\d+)/.test(ua)) {
+      os = 'Android ' + ua.match(/Android (\d+)/)[1];
+      const mm = ua.match(/Android [\d.]+; ([^;)]+)\)/);
+      model = mm ? mm[1].replace(/\s*Build\/.*$/, '').trim() : '';
+    }
+    else if (/Windows/.test(ua)) os = 'Windows';
+    else if (/Mac OS X/.test(ua)) os = 'macOS';
+    else if (/Linux/.test(ua)) os = 'Linux';
+  }
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /CriOS|Chrome/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Браузер';
+  return [os, model, browser].filter(Boolean).join(' · ');
+}
+async function deviceLabel() {
+  try { const custom = localStorage.getItem('moonlit-device-name'); if (custom) return custom.slice(0, 120); } catch (e) {}
+  return (await autoDeviceLabel()).slice(0, 120);
+}
+// Список всех устройств аккаунта: можно отключить старое или переименовать это
+async function renderDevicesList() {
+  const box = document.getElementById('devList');
+  if (!box || !me?.id) return;
+  const did = getDeviceId();
+  const { data, error } = await sb.from('user_devices').select('device_id, name, last_seen_at').eq('user_id', me.id).order('last_seen_at', { ascending: false });
+  if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  box.innerHTML = (data || []).map(d => {
+    const isThis = d.device_id === did;
+    const seen = d.last_seen_at ? new Date(d.last_seen_at).toLocaleString('ru-RU') : '—';
+    const act = isThis
+      ? `<button type="button" onclick="renameThisDevice()" class="tg-add" style="margin:6px 0 0">Переименовать</button>`
+      : `<button type="button" onclick="removeDevice('${esc(d.device_id)}')" class="tg-red" style="margin:6px 0 0">Отключить</button>`;
+    return `<div style="padding:12px 16px;border-bottom:1px solid rgba(127,127,127,.15)">` +
+      `<div style="font-weight:600">${esc(d.name || 'Устройство')}${isThis ? ' <span style="opacity:.6;font-weight:400">· это устройство</span>' : ''}</div>` +
+      `<div style="opacity:.6;font-size:12px">Был в сети: ${esc(seen)}</div>${act}</div>`;
+  }).join('') || '<div style="padding:12px 16px">Устройств нет</div>';
+}
+async function renameThisDevice() {
+  let current = '';
+  try { current = localStorage.getItem('moonlit-device-name') || ''; } catch (e) {}
+  if (!current) current = await autoDeviceLabel();
+  const n = (prompt('Название этого устройства, например «iPhone 15 Pro»', current) || '').trim();
+  if (!n) return;
+  try { localStorage.setItem('moonlit-device-name', n.slice(0, 120)); } catch (e) {}
+  await sb.from('user_devices').update({ name: n.slice(0, 120) }).eq('user_id', me.id).eq('device_id', getDeviceId());
+  renderDevicesList();
+}
+async function removeDevice(deviceId) {
+  if (!confirm('Отключить это устройство? Оно перестанет получать новые сообщения и ключи. Старые сообщения на нём останутся закрытыми, если не были перенесены.')) return;
+  const { error } = await sb.from('user_devices').delete().eq('user_id', me.id).eq('device_id', deviceId);
+  if (error) toast('Ошибка: ' + error.message); else toast('Устройство отключено');
+  renderDevicesList();
 }
 // Канал обновлений: нажатие подписывает (если ещё не подписан) и открывает канал
 // Вступить в публичный канал (любой пользователь)
@@ -4844,7 +4936,7 @@ async function openSettings() {
   emailEl.classList.add('blurred');
   document.getElementById('setCreated').textContent = new Date(me.created_at).toLocaleDateString('ru-RU');
   document.getElementById('setBalance').textContent = Number(me.balance || 0).toFixed(2) + ' токенов';
-  document.getElementById('setDevice').textContent = deviceName();
+  deviceLabel().then(t => { document.getElementById('setDevice').textContent = t; });
   document.getElementById('setSignedIn').textContent = user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('ru-RU') : '—';
   renderMyAvatar();
   renderAccounts();
@@ -4858,6 +4950,7 @@ async function openSettings() {
   adminRole = null;
   try { const { data } = await sb.rpc('admin_role'); adminRole = data || null; } catch (e) {}
   document.getElementById('setAdminBtn').style.display = adminRole ? '' : 'none';
+  document.getElementById('admBtnReports').style.display = adminRole ? '' : 'none';
   const isOwnerRole = adminRole === 'owner';
   for (const id of ['admBtnStats', 'admBtnLog', 'admBtnBadge', 'admBtnMods']) {
     document.getElementById(id).style.display = isOwnerRole ? '' : 'none';
@@ -4866,8 +4959,8 @@ async function openSettings() {
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan', adminmods: 'setAdminMods' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов', adminmods: 'Администраторы' };
+const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan', adminmods: 'setAdminMods', adminreports: 'setAdminReports' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов', adminmods: 'Администраторы', adminreports: 'Жалобы и апелляции' };
 let adminRole = null; // 'owner' | 'mod' | null
 async function adminSetMod(make) {
   const u = document.getElementById('modUser').value.trim().replace(/^@/, '');
@@ -5002,20 +5095,139 @@ async function adminRemoveBan() {
   msg.textContent = error ? 'Ошибка: ' + error.message : data;
   if (!error) renderAdminBans();
 }
+// ── Жалобы (пользователь подаёт, модератор разбирает) ──
+async function reportUser(username) {
+  const reason = prompt('Коротко опишите, что не так (до 300 символов)');
+  if (!reason || !reason.trim()) return;
+  const { data, error } = await sb.rpc('report_user', { target_username: username, reason });
+  toast(error ? error.message : data);
+}
+async function renderAdminReports() {
+  const rep = document.getElementById('repList');
+  const app = document.getElementById('appList');
+  const [r1, r2] = await Promise.all([sb.rpc('admin_list_reports'), sb.rpc('admin_list_appeals')]);
+  if (r1.error) rep.textContent = 'Ошибка: ' + r1.error.message;
+  else rep.innerHTML = r1.data && r1.data.length ? r1.data.map(x =>
+    `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
+    `<div>На @${esc(x.target)} от @${esc(x.reporter)}</div>` +
+    `<div style="opacity:.75;font-size:13px">${esc(x.reason)}</div>` +
+    `<div style="opacity:.6;font-size:12px">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div>` +
+    `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport('${esc(x.target)}')" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
+    `<button type="button" onclick="closeReport('${x.id}')" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
+    : 'Открытых жалоб нет';
+  if (r2.error) app.textContent = 'Ошибка: ' + r2.error.message;
+  else app.innerHTML = r2.data && r2.data.length ? r2.data.map(x =>
+    `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
+    `<div>@${esc(x.username)}</div>` +
+    `<div style="opacity:.75;font-size:13px">${esc(x.text)}</div>` +
+    `<button type="button" onclick="closeAppeal('${x.id}')" style="margin-top:6px;padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div>`).join('')
+    : 'Открытых апелляций нет';
+}
+async function closeReport(id) {
+  const { error } = await sb.rpc('admin_close_report', { rid: id });
+  if (error) toast(error.message); else renderAdminReports();
+}
+async function closeAppeal(id) {
+  const { error } = await sb.rpc('admin_close_appeal', { aid: id });
+  if (error) toast(error.message); else renderAdminReports();
+}
+function banFromReport(username) {
+  document.getElementById('banUser').value = username;
+  switchSettingsTab('adminban');
+}
+// ── Двухфакторная защита для владельца и модераторов ──
+// Без привязанного TOTP-приложения показываем напоминание; с привязкой — просим код при входе
+async function staffSecurityCheck() {
+  const { data: role } = await sb.rpc('admin_role');
+  adminRole = role || null;
+  if (!adminRole) return;
+  const { data: factors } = await sb.auth.mfa.listFactors();
+  const totp = (factors?.totp || []).filter(f => f.status === 'verified');
+  if (!totp.length) { showMfaEnrollPrompt(); return; }
+  const { data: aal } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal && aal.currentLevel === 'aal1' && aal.nextLevel === 'aal2') showMfaCodePrompt(totp[0].id);
+}
+function mfaOverlay(html) {
+  const el = document.createElement('div');
+  el.id = 'mfaScreen';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.8);color:#fff;display:flex;align-items:center;justify-content:center;padding:24px';
+  el.innerHTML = `<div style="background:#1c1c1e;border-radius:16px;padding:20px;max-width:360px;width:100%;text-align:center">${html}</div>`;
+  document.body.appendChild(el);
+  return el;
+}
+function showMfaEnrollPrompt() {
+  if (document.getElementById('mfaScreen')) return;
+  const el = mfaOverlay(`<div style="font-size:18px;font-weight:600;margin-bottom:10px">Включите двухфакторную защиту</div>` +
+    `<div style="opacity:.8;font-size:14px;margin-bottom:16px">Для доступа к админским функциям нужна защита входа. Привяжите приложение-аутентификатор (Google Authenticator, Aegis и подобные).</div>` +
+    `<div id="mfaBody"><button type="button" id="mfaStart" style="width:100%;padding:12px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Привязать</button></div>` +
+    `<button type="button" id="mfaLater" style="margin-top:10px;width:100%;padding:10px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:14px;cursor:pointer">Позже</button>`);
+  document.getElementById('mfaLater').onclick = () => el.remove();
+  document.getElementById('mfaStart').onclick = enrollMfa;
+}
+async function enrollMfa() {
+  const body = document.getElementById('mfaBody');
+  const { data, error } = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Moonlit admin' });
+  if (error) { body.textContent = 'Ошибка: ' + error.message; return; }
+  const qr = data.totp.qr_code.startsWith('<') ? 'data:image/svg+xml;utf8,' + encodeURIComponent(data.totp.qr_code) : data.totp.qr_code;
+  body.innerHTML = `<img src="${qr}" alt="QR" style="width:200px;height:200px;background:#fff;border-radius:10px;padding:6px">` +
+    `<div style="font-size:12px;opacity:.7;margin:8px 0;word-break:break-all">Или ключ вручную: ${esc(data.totp.secret)}</div>` +
+    `<input id="mfaCode" inputmode="numeric" maxlength="6" placeholder="6-значный код" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,.12);color:#fff;text-align:center;margin-bottom:8px">` +
+    `<button type="button" id="mfaConfirm" style="width:100%;padding:12px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Подтвердить</button>` +
+    `<div id="mfaMsg" style="font-size:13px;opacity:.8;margin-top:6px"></div>`;
+  document.getElementById('mfaConfirm').onclick = async () => {
+    const code = document.getElementById('mfaCode').value.trim();
+    const { error: e2 } = await sb.auth.mfa.challengeAndVerify({ factorId: data.id, code });
+    if (e2) { document.getElementById('mfaMsg').textContent = 'Код не подошёл: ' + e2.message; return; }
+    document.getElementById('mfaScreen')?.remove();
+    toast('Двухфакторная защита включена');
+  };
+}
+function showMfaCodePrompt(factorId) {
+  if (document.getElementById('mfaScreen')) return;
+  const el = mfaOverlay(`<div style="font-size:18px;font-weight:600;margin-bottom:12px">Код из приложения</div>` +
+    `<input id="mfaCode2" inputmode="numeric" maxlength="6" placeholder="6-значный код" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(255,255,255,.12);color:#fff;text-align:center;margin-bottom:8px">` +
+    `<button type="button" id="mfaVerify" style="width:100%;padding:12px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">Войти</button>` +
+    `<div id="mfaMsg2" style="font-size:13px;opacity:.8;margin-top:6px"></div>` +
+    `<button type="button" id="mfaOut" style="margin-top:10px;width:100%;padding:10px;border-radius:12px;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:14px;cursor:pointer">Выйти</button>`);
+  document.getElementById('mfaOut').onclick = () => logout();
+  document.getElementById('mfaVerify').onclick = async () => {
+    const code = document.getElementById('mfaCode2').value.trim();
+    const { error } = await sb.auth.mfa.challengeAndVerify({ factorId, code });
+    if (error) { document.getElementById('mfaMsg2').textContent = 'Код не подошёл'; return; }
+    el.remove();
+  };
+}
 // Проверка при входе: если бан активен, показываем экран блокировки вместо приложения
 async function checkBanGate(uid) {
   let row = null;
   try { const { data } = await sb.from('user_bans').select('reason,until').eq('user_id', uid).maybeSingle(); row = data; } catch (e) { return false; }
   if (!row || (row.until && new Date(row.until) <= new Date())) return false;
+  if (document.getElementById('banScreen')) return true;
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center';
+  el.id = 'banScreen';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;overflow:auto';
   el.innerHTML = `<div style="font-size:22px;font-weight:600;margin-bottom:12px">Аккаунт заблокирован</div>` +
     `<div style="opacity:.85;margin-bottom:8px">Причина: ${esc(row.reason)}</div>` +
-    `<div style="opacity:.7;margin-bottom:24px">${row.until ? 'До ' + esc(new Date(row.until).toLocaleString('ru-RU')) : 'Бессрочно'}</div>` +
+    `<div style="opacity:.7;margin-bottom:20px">${row.until ? 'До ' + esc(new Date(row.until).toLocaleString('ru-RU')) : 'Бессрочно'}</div>` +
+    `<div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:8px;margin-bottom:20px">` +
+    `<textarea id="banAppealText" maxlength="1000" placeholder="Если считаете бан ошибкой, опишите ситуацию" style="font-size:16px;padding:10px;border-radius:10px;border:0;min-height:90px;background:rgba(255,255,255,.12);color:#fff"></textarea>` +
+    `<button type="button" id="banAppealBtn" style="padding:10px;border-radius:12px;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:15px;cursor:pointer">Отправить апелляцию</button>` +
+    `<div id="banAppealMsg" style="font-size:13px;opacity:.8"></div></div>` +
     `<button type="button" id="banOutBtn" style="padding:12px 24px;border-radius:12px;border:0;background:#fff;color:#111;font-size:16px;cursor:pointer">Выйти</button>`;
   document.body.appendChild(el);
   document.getElementById('banOutBtn').onclick = () => logout();
+  document.getElementById('banAppealBtn').onclick = async () => {
+    const msg = document.getElementById('banAppealMsg');
+    const { data, error } = await sb.rpc('submit_appeal', { text_in: document.getElementById('banAppealText').value });
+    msg.textContent = error ? error.message : data;
+  };
   return true;
+}
+// Пока пользователь в приложении, бан подхватывается без перезахода (проверка раз в минуту)
+let banWatchTimer = null;
+function startBanWatch(uid) {
+  clearInterval(banWatchTimer);
+  banWatchTimer = setInterval(() => { if (!document.getElementById('banScreen')) checkBanGate(uid); }, 60000);
 }
 let curSetTab = 'main';
 function switchSettingsTab(tab) {
@@ -5028,6 +5240,8 @@ function switchSettingsTab(tab) {
     if (tab === 'adminbadge') renderAdminList();
     if (tab === 'adminban') renderAdminBans();
     if (tab === 'adminmods') renderAdminMods();
+    if (tab === 'adminreports') renderAdminReports();
+    if (tab === 'devices') renderDevicesList();
     if (tab === 'appearance') applyLayout();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
