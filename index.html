@@ -1528,7 +1528,7 @@ body::after {
         <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l3-3 3 3-3 3M3 21l9-9"/></svg></span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
-        <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">Бейджи пользователей</span><span class="set-chev">›</span></button>
+        <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">Администрирование</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/></svg></span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff3b30"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21h4"/></svg></span><span class="set-txt">Уведомления</span><span class="set-chev">›</span></button>
       </div>
@@ -1537,6 +1537,11 @@ body::after {
       </div>
     </div>
     <div id="setAdmin" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
+        <div class="set-label">Статистика</div>
+        <div id="admStats" style="font-size:14px;line-height:1.7">Загрузка…</div>
+        <button type="button" onclick="renderAdminStats()" style="padding:8px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:14px;cursor:pointer">Обновить</button>
+      </div>
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
         <div class="set-label">Выдать или снять бейдж</div>
         <input id="admUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
@@ -4805,7 +4810,7 @@ async function openSettings() {
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
 const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'Бейджи пользователей' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'Администрирование' };
 // Предпросмотр профиля «как для других»: баннер, аватарка, имя, статус
 function renderProfPreview() {
   const box = document.getElementById('profPreview');
@@ -4827,7 +4832,26 @@ function renderProfPreview() {
 }
 // ── Бейджи пользователей (только владелец приложения; сервер тоже проверяет) ──
 const ADMIN_ID = '852d1d07-897e-4fb0-af14-8530b2c4dd8a';
+async function renderAdminStats() {
+  const box = document.getElementById('admStats');
+  const { data, error } = await sb.rpc('admin_stats');
+  if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  const rub = v => Number(v || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
+  const rows = [
+    ['Пользователей всего', data.users_total],
+    ['Новых за 24 часа', data.users_new_24h],
+    ['Новых за 7 дней', data.users_new_7d],
+    ['Активных чатов за 7 дней', data.active_chats_7d],
+    ['Сообщений за 24 часа', data.messages_24h],
+    ['С подпиской Plus сейчас', data.plus_active],
+    ['Оплат за 24 часа', rub(data.paid_24h_rub)],
+    ['Оплат за 30 дней', rub(data.paid_30d_rub)],
+    ['Возвратов за 30 дней', data.refunds_30d],
+  ];
+  box.innerHTML = rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px"><span style="opacity:.75">${esc(k)}</span><span>${esc(String(v))}</span></div>`).join('');
+}
 async function renderAdminList() {
+  renderAdminStats();
   const list = document.getElementById('admList');
   const { data, error } = await sb.rpc('admin_list_badges');
   if (error) { list.textContent = 'Ошибка: ' + error.message; return; }
