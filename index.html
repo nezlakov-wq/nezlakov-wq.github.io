@@ -1504,7 +1504,7 @@ body::after {
 <div class="modal-overlay" id="settingsModal" onclick="if(event.target===this)closeSettings()">
   <div class="modal set-page">
     <div class="set-topbar">
-      <button id="setBack" style="display:none" onclick="switchSettingsTab('main')">‹ Назад</button>
+      <button id="setBack" style="display:none" onclick="setBackNav()">‹ Назад</button>
       <span class="st-title" id="setTopTitle">Настройки</span>
       <button class="set-close-pc" type="button" title="Закрыть" onclick="closeSettings()">✕</button>
     </div>
@@ -1528,7 +1528,7 @@ body::after {
         <button class="set-item" onclick="devCheck()"><span class="set-ico" style="background:#64748b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 7l3-3 3 3-3 3M3 21l9-9"/></svg></span><span class="set-txt">Проверка (разработчик)</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
-        <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">Администрирование</span><span class="set-chev">›</span></button>
+        <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">АдминПанель</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/></svg></span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff3b30"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21h4"/></svg></span><span class="set-txt">Уведомления</span><span class="set-chev">›</span></button>
       </div>
@@ -1537,11 +1537,23 @@ body::after {
       </div>
     </div>
     <div id="setAdmin" style="display:none">
+      <button class="set-item" onclick="switchSettingsTab('adminstats')"><span class="set-txt">Статистика</span><span class="set-chev">›</span></button>
+      <button class="set-item" onclick="switchSettingsTab('adminlog')"><span class="set-txt">Журнал</span><span class="set-chev">›</span></button>
+      <button class="set-item" onclick="switchSettingsTab('adminbadge')"><span class="set-txt">Бейджи</span><span class="set-chev">›</span></button>
+      <button class="set-item" onclick="switchSettingsTab('adminban')"><span class="set-txt">Выдача банов</span><span class="set-chev">›</span></button>
+    </div>
+    <div id="setAdminStats" style="display:none">
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
-        <div class="set-label">Статистика</div>
         <div id="admStats" style="font-size:14px;line-height:1.7">Загрузка…</div>
         <button type="button" onclick="renderAdminStats()" style="padding:8px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:14px;cursor:pointer">Обновить</button>
       </div>
+    </div>
+    <div id="setAdminLog" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+        <div id="admLog" style="font-size:13px;line-height:1.6">Загрузка…</div>
+      </div>
+    </div>
+    <div id="setAdminBadge" style="display:none">
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
         <div class="set-label">Выдать или снять бейдж</div>
         <input id="admUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
@@ -1556,9 +1568,22 @@ body::after {
         <div class="set-label">Текущие бейджи</div>
         <div id="admList" style="font-size:14px"></div>
       </div>
+    </div>
+    <div id="setAdminBan" style="display:none">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
+        <div class="set-label">Выдать или снять бан</div>
+        <input id="banUser" placeholder="логин пользователя (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <select id="banReason" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+          <option>Спам</option><option>Оскорбления и травля</option><option>Мошенничество</option><option>Угрозы</option><option>Нарушение правил</option><option>Другое</option>
+        </select>
+        <input id="banDays" type="number" min="1" placeholder="срок в днях (пусто — бессрочно)" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+        <button type="button" onclick="adminSetBan()" style="padding:10px;border-radius:12px;border:0;background:#ff453a;color:#fff;font-size:15px;cursor:pointer">Выдать бан</button>
+        <button type="button" onclick="adminRemoveBan()" style="padding:10px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:15px;cursor:pointer">Снять бан</button>
+        <div id="banMsg" style="font-size:13px;opacity:.7"></div>
+      </div>
       <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
-        <div class="set-label">Журнал</div>
-        <div id="admLog" style="font-size:13px;line-height:1.6">Загрузка…</div>
+        <div class="set-label">Активные баны</div>
+        <div id="banList" style="font-size:14px"></div>
       </div>
     </div>
     <div id="setAppearance" style="display:none">
@@ -1789,6 +1814,7 @@ async function init() {
     if (!(await ensureProfile(session.user))) { document.getElementById('authScreen').style.display = 'flex'; return; }
     if (!localStorage.getItem('moonlit-priv-' + session.user.id)) await askUnlock(session.user);
     await loadMe(session.user.id);
+    if (await checkBanGate(session.user.id)) return;
     showApp();
   } else {
     showWelcome();
@@ -2052,6 +2078,7 @@ async function login() {
     catch (e2) { return authErr('Ошибка ключей: ' + (e2?.message || e2)); }
   }
   await loadMe(data.user.id);
+  if (await checkBanGate(data.user.id)) return;
   showApp();
 }
 async function register() {
@@ -4813,8 +4840,10 @@ async function openSettings() {
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'Администрирование' };
+const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов' };
+// «Назад» из подраздела админки ведёт в меню АдминПанели, из меню — в настройки
+function setBackNav() { switchSettingsTab(curSetTab.startsWith('admin') && curSetTab !== 'admin' ? 'admin' : 'main'); }
 // Предпросмотр профиля «как для других»: баннер, аватарка, имя, статус
 function renderProfPreview() {
   const box = document.getElementById('profPreview');
@@ -4855,8 +4884,6 @@ async function renderAdminStats() {
   box.innerHTML = rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px"><span style="opacity:.75">${esc(k)}</span><span>${esc(String(v))}</span></div>`).join('');
 }
 async function renderAdminList() {
-  renderAdminStats();
-  renderAdminLog();
   const list = document.getElementById('admList');
   const { data, error } = await sb.rpc('admin_list_badges');
   if (error) { list.textContent = 'Ошибка: ' + error.message; return; }
@@ -4869,12 +4896,13 @@ async function renderAdminLog() {
   const box = document.getElementById('admLog');
   const { data, error } = await sb.rpc('admin_list_log', { lim: 100 });
   if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
-  const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)' };
+  const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)', ban_set: 'Выдан бан', ban_removed: 'Снят бан' };
   if (!data || !data.length) { box.textContent = 'Записей пока нет'; return; }
   box.innerHTML = data.map(x => {
     const d = x.details || {};
     let extra = '';
     if (x.action === 'badge_set') extra = `«${esc(d.label || '')}», ${esc(d.color || '')}`;
+    if (x.action === 'ban_set') extra = `${esc(d.reason || '')}, ` + (d.days ? `${Number(d.days)} дн.` : 'бессрочно');
     if (x.action === 'refund') {
       extra = `Plus −${Number(d.plus_days || 0)} дн., токены −${Number(d.tokens || 0)}` +
         (Number(d.shortfall) > 0 ? `, недостача ${Number(d.shortfall)}` : '');
@@ -4897,13 +4925,58 @@ async function adminSetBadge() {
   msg.textContent = error ? 'Ошибка: ' + error.message : data;
   if (!error) renderAdminList();
 }
+// ── Баны (только владелец; сервер тоже проверяет). Забаненному не даём открыть приложение и писать (политика в БД) ──
+async function renderAdminBans() {
+  const box = document.getElementById('banList');
+  const { data, error } = await sb.rpc('admin_list_bans');
+  if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  box.innerHTML = data && data.length
+    ? data.map(x => `<div style="padding:6px 0;border-bottom:1px solid rgba(127,127,127,.15)">@${esc(x.username)} — ${esc(x.reason)}<div style="opacity:.6;font-size:12px">${x.until ? 'до ' + esc(new Date(x.until).toLocaleString('ru-RU')) : 'бессрочно'}</div></div>`).join('')
+    : 'Активных банов нет';
+}
+async function adminSetBan() {
+  const u = document.getElementById('banUser').value.trim().replace(/^@/, '');
+  const r = document.getElementById('banReason').value;
+  const d = parseInt(document.getElementById('banDays').value, 10);
+  const msg = document.getElementById('banMsg');
+  if (!u) { msg.textContent = 'Укажите логин'; return; }
+  const { data, error } = await sb.rpc('admin_set_ban', { target_username: u, reason: r, days: d > 0 ? d : null });
+  msg.textContent = error ? 'Ошибка: ' + error.message : data;
+  if (!error) renderAdminBans();
+}
+async function adminRemoveBan() {
+  const u = document.getElementById('banUser').value.trim().replace(/^@/, '');
+  const msg = document.getElementById('banMsg');
+  if (!u) { msg.textContent = 'Укажите логин'; return; }
+  const { data, error } = await sb.rpc('admin_set_ban', { target_username: u, reason: null, days: null });
+  msg.textContent = error ? 'Ошибка: ' + error.message : data;
+  if (!error) renderAdminBans();
+}
+// Проверка при входе: если бан активен, показываем экран блокировки вместо приложения
+async function checkBanGate(uid) {
+  let row = null;
+  try { const { data } = await sb.from('user_bans').select('reason,until').eq('user_id', uid).maybeSingle(); row = data; } catch (e) { return false; }
+  if (!row || (row.until && new Date(row.until) <= new Date())) return false;
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center';
+  el.innerHTML = `<div style="font-size:22px;font-weight:600;margin-bottom:12px">Аккаунт заблокирован</div>` +
+    `<div style="opacity:.85;margin-bottom:8px">Причина: ${esc(row.reason)}</div>` +
+    `<div style="opacity:.7;margin-bottom:24px">${row.until ? 'До ' + esc(new Date(row.until).toLocaleString('ru-RU')) : 'Бессрочно'}</div>` +
+    `<button type="button" id="banOutBtn" style="padding:12px 24px;border-radius:12px;border:0;background:#fff;color:#111;font-size:16px;cursor:pointer">Выйти</button>`;
+  document.body.appendChild(el);
+  document.getElementById('banOutBtn').onclick = () => logout();
+  return true;
+}
 let curSetTab = 'main';
 function switchSettingsTab(tab) {
   const prev = curSetTab;
   curSetTab = tab;
   const show = () => {
     if (tab === 'data') { setTimeout(renderProfPreview, 0); renderAliases(); }
-    if (tab === 'admin') renderAdminList();
+    if (tab === 'adminstats') renderAdminStats();
+    if (tab === 'adminlog') renderAdminLog();
+    if (tab === 'adminbadge') renderAdminList();
+    if (tab === 'adminban') renderAdminBans();
     if (tab === 'appearance') applyLayout();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
