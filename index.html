@@ -1834,6 +1834,7 @@ async function init() {
     await loadMe(session.user.id);
     if (await checkBanGate(session.user.id)) return;
     showApp();
+    setTimeout(() => syncOwnWraps(), 4000);
   } else {
     showWelcome();
   }
@@ -2098,6 +2099,7 @@ async function login() {
   await loadMe(data.user.id);
   if (await checkBanGate(data.user.id)) return;
   showApp();
+  setTimeout(() => syncOwnWraps(), 4000);
 }
 async function register() {
   const name = document.getElementById('regName').value.trim();
@@ -5302,6 +5304,67 @@ async function decryptForDevices(text) {
     const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(obj.i) }, ck, unb64(obj.c));
     return cdec.decode(pt);
   } catch (e) { return '🔒 Не удалось расшифровать'; }
+}
+// ── Перенос ключей на новые устройства: старое онлайн-устройство добавляет обёртки для новых ──
+// Шифротекст не меняется, добавляется только обёртка ключа сообщения для каждого своего устройства.
+async function contentKeyRaw(obj) {
+  const myDid = getDeviceId();
+  let entry = obj.k.find(x => x.u === me.id && x.d === myDid);
+  let privJwk = null;
+  if (entry) privJwk = JSON.parse(localStorage.getItem('moonlit-dev-priv-' + me.id + '-' + myDid) || 'null');
+  else { entry = obj.k.find(x => x.u === me.id && x.d === 'acct'); privJwk = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null'); }
+  if (!entry || !privJwk) return null;
+  const priv = await crypto.subtle.importKey('jwk', privJwk, ECDH_ALG, false, ['deriveKey']);
+  const eph = await crypto.subtle.importKey('jwk', entry.e, ECDH_ALG, false, []);
+  const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: eph }, priv, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+  return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(entry.i) }, wk, unb64(entry.w)));
+}
+async function makeWrap(raw, pubJson, uid, did) {
+  const pub = await crypto.subtle.importKey('jwk', JSON.parse(pubJson), ECDH_ALG, false, []);
+  const eph = await crypto.subtle.generateKey(ECDH_ALG, true, ['deriveKey']);
+  const wk = await crypto.subtle.deriveKey({ name: 'ECDH', public: pub }, eph.privateKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const wi = crypto.getRandomValues(new Uint8Array(12));
+  const w = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: wi }, wk, raw);
+  return { u: uid, d: did, e: await crypto.subtle.exportKey('jwk', eph.publicKey), i: b64(wi), w: b64(w) };
+}
+let syncingWraps = false;
+async function syncOwnWraps() {
+  if (!me?.id || syncingWraps) return;
+  syncingWraps = true;
+  try {
+    const { data: devs } = await sb.from('user_devices').select('device_id, pub_key').eq('user_id', me.id);
+    if (!devs || devs.length < 2) return;
+    const { data: mems } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const convIds = (mems || []).map(x => x.conversation_id);
+    if (!convIds.length) return;
+    let updates = [];
+    const flush = async () => {
+      if (!updates.length) return;
+      const { error } = await sb.rpc('sync_message_wraps', { items: updates });
+      if (error) console.warn('sync_message_wraps:', error.message);
+      updates = [];
+    };
+    for (let page = 0; page < 10; page++) {
+      const { data: rows } = await sb.from('messages').select('id, text').in('conversation_id', convIds)
+        .like('text', 'e2:%').order('created_at', { ascending: false }).range(page * 200, page * 200 + 199);
+      if (!rows || !rows.length) break;
+      for (const r of rows) {
+        let obj;
+        try { obj = JSON.parse(cdec.decode(unb64(r.text.slice(3)))); } catch (e) { continue; }
+        if (!Array.isArray(obj.k)) continue;
+        const missing = devs.filter(d => !obj.k.some(x => x.u === me.id && x.d === d.device_id));
+        if (!missing.length) continue;
+        const raw = await contentKeyRaw(obj);
+        if (!raw) continue;
+        for (const d of missing) obj.k.push(await makeWrap(raw, d.pub_key, me.id, d.device_id));
+        updates.push({ id: r.id, text: 'e2:' + b64(cenc.encode(JSON.stringify(obj))) });
+        if (updates.length >= 50) await flush();
+      }
+      if (rows.length < 200) break;
+    }
+    await flush();
+  } catch (e) { console.warn('syncOwnWraps:', e?.message || e); }
+  finally { syncingWraps = false; }
 }
 // Единая точка шифрования: личный чат или группа. Возвращает payload и номер ключа.
 async function encryptForConv(conv, text, version) {
