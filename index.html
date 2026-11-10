@@ -1563,7 +1563,11 @@ body::after {
       </div>
     </div>
     <div id="setAdminLog" style="display:none">
-      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:14px">
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px">
+        <select id="logAction" onchange="drawAdminLog()" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
+          <option value="">Все действия</option><option value="badge_set">Выдан бейдж</option><option value="badge_removed">Снят бейдж</option><option value="ban_set">Выдан бан</option><option value="ban_removed">Снят бан</option><option value="refund">Возврат (откат)</option><option value="mod_added">Назначен администратор</option><option value="mod_removed">Снят администратор</option>
+        </select>
+        <input id="logUser" oninput="drawAdminLog()" placeholder="фильтр по логину (без @)" autocapitalize="none" style="font-size:16px;width:100%;padding:10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit">
         <div id="admLog" style="font-size:13px;line-height:1.6">Загрузка…</div>
       </div>
     </div>
@@ -4927,10 +4931,19 @@ async function renderAdminList() {
     : 'Бейджей пока нет';
 }
 // Журнал: выдача/снятие бейджей и откаты при возвратах
+let admLogRows = [];
 async function renderAdminLog() {
   const box = document.getElementById('admLog');
   const { data, error } = await sb.rpc('admin_list_log', { lim: 100 });
   if (error) { box.textContent = 'Ошибка: ' + error.message; return; }
+  admLogRows = data || [];
+  drawAdminLog();
+}
+function drawAdminLog() {
+  const box = document.getElementById('admLog');
+  const act = document.getElementById('logAction').value;
+  const user = document.getElementById('logUser').value.trim().replace(/^@/, '').toLowerCase();
+  const data = admLogRows.filter(x => (!act || x.action === act) && (!user || (x.username || '').toLowerCase().includes(user)));
   const names = { badge_set: 'Выдан бейдж', badge_removed: 'Снят бейдж', refund: 'Возврат (откат)', ban_set: 'Выдан бан', ban_removed: 'Снят бан', mod_added: 'Назначен администратор', mod_removed: 'Снят администратор' };
   if (!data || !data.length) { box.textContent = 'Записей пока нет'; return; }
   box.innerHTML = data.map(x => {
