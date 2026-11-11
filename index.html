@@ -1848,7 +1848,7 @@ async function init() {
     await loadMe(session.user.id);
     if (await checkBanGate(session.user.id)) return;
     showApp();
-    setTimeout(() => syncOwnWraps(), 4000);
+    setTimeout(() => { syncOwnWraps(); syncOwnGroupKeys(); }, 4000);
     setTimeout(() => staffSecurityCheck().catch(() => {}), 1500);
     startBanWatch(session.user.id);
   } else {
@@ -2115,7 +2115,7 @@ async function login() {
   await loadMe(data.user.id);
   if (await checkBanGate(data.user.id)) return;
   showApp();
-  setTimeout(() => syncOwnWraps(), 4000);
+  setTimeout(() => { syncOwnWraps(); syncOwnGroupKeys(); }, 4000);
   setTimeout(() => staffSecurityCheck().catch(() => {}), 1500);
   startBanWatch(data.user.id);
 }
@@ -5601,6 +5601,38 @@ async function makeWrap(raw, pubJson, uid, did) {
   const wi = crypto.getRandomValues(new Uint8Array(12));
   const w = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: wi }, wk, raw);
   return { u: uid, d: did, e: await crypto.subtle.exportKey('jwk', eph.publicKey), i: b64(wi), w: b64(w) };
+}
+// Групповые ключи: для каждого своего устройства добавляем строки group_keys по всем версиям, которые знаем
+let syncingGroupKeys = false;
+async function syncOwnGroupKeys() {
+  if (!me?.id || syncingGroupKeys) return;
+  syncingGroupKeys = true;
+  try {
+    const { data: devs } = await sb.from('user_devices').select('device_id, pub_key').eq('user_id', me.id);
+    if (!devs || !devs.length) return;
+    const { data: mems } = await sb.from('conversation_members').select('conversation_id').eq('user_id', me.id);
+    const ids = (mems || []).map(x => x.conversation_id);
+    if (!ids.length) return;
+    const { data: convs } = await sb.from('conversations').select('id, is_group, is_channel').in('id', ids);
+    const groups = (convs || []).filter(c => c.is_group && !c.is_channel);
+    let items = [];
+    for (const c of groups) {
+      const entry = await loadGroupKeys(c.id);
+      if (!entry.raw.size) continue;
+      // что уже есть у моих устройств
+      const { data: have } = await sb.from('group_keys').select('key_version, device_id').eq('conversation_id', c.id).eq('user_id', me.id);
+      const haveSet = new Set((have || []).map(h => h.key_version + '|' + h.device_id));
+      for (const d of devs) {
+        for (const [ver, raw] of entry.raw) {
+          if (haveSet.has(ver + '|' + d.device_id)) continue;
+          items.push({ conversation_id: c.id, key_version: ver, device_id: d.device_id, wrapped: await wrapGroupKey(d.pub_key, raw) });
+          if (items.length >= 50) { await sb.rpc('sync_group_keys', { items }); items = []; }
+        }
+      }
+    }
+    if (items.length) { const { error } = await sb.rpc('sync_group_keys', { items }); if (error) console.warn('sync_group_keys:', error.message); }
+  } catch (e) { console.warn('syncOwnGroupKeys:', e?.message || e); }
+  finally { syncingGroupKeys = false; }
 }
 let syncingWraps = false;
 async function syncOwnWraps() {
