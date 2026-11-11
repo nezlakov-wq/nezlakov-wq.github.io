@@ -5096,11 +5096,64 @@ async function adminRemoveBan() {
   if (!error) renderAdminBans();
 }
 // ── Жалобы (пользователь подаёт, модератор разбирает) ──
-async function reportUser(username) {
-  const reason = prompt('Коротко опишите, что не так (до 300 символов)');
-  if (!reason || !reason.trim()) return;
-  const { data, error } = await sb.rpc('report_user', { target_username: username, reason });
-  toast(error ? error.message : data);
+// Фото для жалобы: уменьшаем до 1280 px и сохраняем как JPEG, чтобы не грузить оригиналы с камеры
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * scale);
+  c.height = Math.round(bmp.height * scale);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close?.();
+  return await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('Не удалось обработать фото')), 'image/jpeg', 0.8));
+}
+function reportUser(username) {
+  if (document.getElementById('reportScreen')) return;
+  const el = document.createElement('div');
+  el.id = 'reportScreen';
+  el.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:20px';
+  el.innerHTML = `<div style="background:var(--sidebar,#1c1c1e);color:inherit;border-radius:16px;padding:18px;max-width:380px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:10px">` +
+    `<div style="font-size:17px;font-weight:600">Жалоба на @${esc(username)}</div>` +
+    `<textarea id="repReason" maxlength="300" placeholder="Что случилось" style="font-size:16px;padding:10px;border-radius:10px;border:0;min-height:80px;background:rgba(127,127,127,.15);color:inherit"></textarea>` +
+    `<label style="font-size:14px;opacity:.85">Фото (до 3, необязательно)<input id="repFiles" type="file" accept="image/*" multiple style="display:block;margin-top:6px;font-size:14px"></label>` +
+    `<div id="repPrev" style="display:flex;gap:6px"></div>` +
+    `<div id="repMsg" style="font-size:13px;opacity:.8"></div>` +
+    `<div style="display:flex;gap:8px"><button type="button" id="repCancel" style="flex:1;padding:10px;border-radius:12px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:15px;cursor:pointer">Отмена</button>` +
+    `<button type="button" id="repSend" style="flex:1;padding:10px;border-radius:12px;border:0;background:#ff453a;color:#fff;font-size:15px;cursor:pointer">Отправить</button></div></div>`;
+  document.body.appendChild(el);
+  let files = [];
+  const msg = document.getElementById('repMsg');
+  document.getElementById('repCancel').onclick = () => el.remove();
+  document.getElementById('repFiles').onchange = (e) => {
+    files = Array.from(e.target.files || []);
+    if (files.length > 3) { files = files.slice(0, 3); msg.textContent = 'Выбрано первые 3 фото'; } else msg.textContent = '';
+    const prev = document.getElementById('repPrev');
+    prev.innerHTML = '';
+    files.forEach(f => { const img = document.createElement('img'); img.src = URL.createObjectURL(f); img.style.cssText = 'width:64px;height:64px;object-fit:cover;border-radius:8px'; prev.appendChild(img); });
+  };
+  document.getElementById('repSend').onclick = async () => {
+    const reason = document.getElementById('repReason').value.trim();
+    if (!reason) { msg.textContent = 'Опишите причину'; return; }
+    const send = document.getElementById('repSend');
+    send.disabled = true; send.textContent = 'Отправка…';
+    try {
+      const paths = [];
+      for (const f of files) {
+        const blob = await shrinkImage(f);
+        const path = `${me.id}/${crypto.randomUUID()}.jpg`;
+        const { error } = await sb.storage.from('report-evidence').upload(path, blob, { contentType: 'image/jpeg' });
+        if (error) throw new Error('Фото не загрузилось: ' + error.message);
+        paths.push(path);
+      }
+      const { data, error } = await sb.rpc('report_user', { target_username: username, reason, evidence: paths });
+      if (error) throw new Error(error.message);
+      el.remove();
+      toast(data);
+    } catch (e) {
+      msg.textContent = e.message || String(e);
+      send.disabled = false; send.textContent = 'Отправить';
+    }
+  };
 }
 async function renderAdminReports() {
   const rep = document.getElementById('repList');
@@ -5111,10 +5164,18 @@ async function renderAdminReports() {
     `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
     `<div>На @${esc(x.target)} от @${esc(x.reporter)}</div>` +
     `<div style="opacity:.75;font-size:13px">${esc(x.reason)}</div>` +
+    (x.evidence && x.evidence.length ? `<div style="display:flex;gap:6px;margin-top:6px">${x.evidence.map(p => `<img data-p="${esc(p)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;background:rgba(127,127,127,.25);cursor:pointer">`).join('')}</div>` : '') +
     `<div style="opacity:.6;font-size:12px">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div>` +
     `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport('${esc(x.target)}')" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
     `<button type="button" onclick="closeReport('${x.id}')" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
     : 'Открытых жалоб нет';
+  // Фото жалоб лежат в приватном хранилище: модератору выдаём временные ссылки на 10 минут
+  rep.querySelectorAll('img[data-p]').forEach(async img => {
+    const { data } = await sb.storage.from('report-evidence').createSignedUrl(img.dataset.p, 600);
+    if (!data) return;
+    img.src = data.signedUrl;
+    img.onclick = () => window.open(data.signedUrl, '_blank');
+  });
   if (r2.error) app.textContent = 'Ошибка: ' + r2.error.message;
   else app.innerHTML = r2.data && r2.data.length ? r2.data.map(x =>
     `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
