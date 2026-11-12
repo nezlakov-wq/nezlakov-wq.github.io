@@ -6838,6 +6838,8 @@ function loadConversationsSoon() {
   clearTimeout(reloadConvsTimer);
   reloadConvsTimer = setTimeout(() => loadConversations(), 500);
 }
+// Страховка: если realtime молча пропустил сообщение (фон на телефоне, истёкший токен), открытый чат тихо обновляется раз в 9 с
+setInterval(() => { if (me && activeChatId && !document.hidden) reloadChatSafe(); }, 9000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAfterResume(); });
 window.addEventListener('online', refreshAfterResume);
 function subscribeRealtime() {
