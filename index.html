@@ -2134,7 +2134,8 @@ async function register() {
   if(existing) { btn.disabled=false; btn.textContent='Создать аккаунт'; return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
   if (!captchaToken) { btn.disabled = false; btn.textContent = 'Создать аккаунт'; return authErr('Подтвердите, что вы не робот'); }
-  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { captchaToken } });
+  // Ник и юзернейм кладём и в метаданные аккаунта: письмо могут открыть в другом браузере, где localStorage пуст
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { captchaToken, data: { username, display_name: name } } });
   resetCaptcha();
   btn.disabled = false; btn.textContent = 'Создать аккаунт';
   if(error) return authErr(error.message);
@@ -2225,6 +2226,15 @@ async function ensureProfile(user) {
   if (existing) return true;
   let pending = null;
   try { pending = JSON.parse(localStorage.getItem('pendingProfile') || 'null'); } catch(e) {}
+  if (!pending || pending.id !== user.id) {
+    // Сначала берём данные из метаданных аккаунта (сохранены при регистрации)
+    const meta = user.user_metadata || {};
+    const metaName = String(meta.username || '').trim().toLowerCase();
+    const metaDisplay = String(meta.display_name || '').trim();
+    if (/^[a-z0-9_]{3,}$/.test(metaName) && metaDisplay) {
+      pending = { id: user.id, username: metaName, display_name: metaDisplay };
+    }
+  }
   if (!pending || pending.id !== user.id) {
     const username = (prompt('Придумай @username (латиница, цифры, _, минимум 3 символа)') || '').trim().toLowerCase();
     const name = (prompt('Как тебя показывать?') || '').trim();
