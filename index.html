@@ -6739,6 +6739,14 @@ async function removeFileIfGone(msg) {
 
 async function restoreMsg(msgId) { await setDeleted(msgId, false); }
 
+let keepBottomUntil = 0;
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    if (Date.now() > keepBottomUntil) return;
+    const area = document.getElementById('msgsArea');
+    if (area) area.scrollTop = area.scrollHeight;
+  });
+}
 async function sendMsg() {
   const input = document.getElementById('msgInput');
   const text = input.value.trim();
@@ -6749,6 +6757,11 @@ async function sendMsg() {
   input.value = ''; input.style.height = '';
   if (wasBottom && chatArea) chatArea.scrollTop = chatArea.scrollHeight;
   input.focus(); // клавиатура остаётся открытой после отправки
+  // Клавиатура и изменение высоты поля сдвигают экран: возвращаем вниз после них
+  const keepBottom = () => { if (wasBottom && chatArea) chatArea.scrollTop = chatArea.scrollHeight; };
+  [60, 250, 600].forEach(t => setTimeout(keepBottom, t));
+  // iPhone: пока клавиатура выезжает, видимая область меняется — держим низ до конца анимации
+  keepBottomUntil = wasBottom ? Date.now() + 1200 : 0;
   document.getElementById('sendBtn').disabled = true;
   let payload = null, keyVer = 0;
   try { const enc = await encryptForConv(currentConv(), text); payload = enc.payload; keyVer = enc.key_version; } catch (e) { payload = null; }
@@ -6786,10 +6799,20 @@ function refreshAfterResume() {
 }
 // Перерисовка чата убивает проигрывание голосового, поэтому откладываем её, пока что-то играет
 function anyVoicePlaying() { return [...document.querySelectorAll('.file-box audio')].some(a => !a.paused); }
+// Серия событий (отправка, чтение, перенос ключей) даёт одну перезагрузку, а не десятки подряд: иначе чат дёргается
+let reloadChatTimer = null;
 function reloadChatSafe() {
-  if (anyVoicePlaying()) return setTimeout(reloadChatSafe, 2000);
-  const id = activeChatId;
-  if (id) loadMessages(id, { silent: true }).catch(() => {});
+  clearTimeout(reloadChatTimer);
+  reloadChatTimer = setTimeout(() => {
+    if (anyVoicePlaying()) return reloadChatSafe();
+    const id = activeChatId;
+    if (id) loadMessages(id, { silent: true }).catch(() => {});
+  }, 400);
+}
+let reloadConvsTimer = null;
+function loadConversationsSoon() {
+  clearTimeout(reloadConvsTimer);
+  reloadConvsTimer = setTimeout(() => loadConversations(), 500);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAfterResume(); });
 window.addEventListener('online', refreshAfterResume);
@@ -6807,7 +6830,7 @@ function subscribeRealtime() {
       if(payload.new?.conversation_id === activeChatId || payload.old?.conversation_id === activeChatId) {
         reloadChatSafe();
       }
-      await loadConversations();
+      loadConversationsSoon();
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' }, async () => {
       await loadConversations();
