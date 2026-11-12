@@ -2119,6 +2119,10 @@ async function login() {
   setTimeout(() => staffSecurityCheck().catch(() => {}), 1500);
   startBanWatch(data.user.id);
 }
+// Ожидание с таймаутом: если сервер или капча зависли, кнопка не остаётся в «Создаём…»
+function withTimeout(promise, ms = 15000) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
 async function register() {
   const name = document.getElementById('regName').value.trim();
   const username = document.getElementById('regUsername').value.trim().toLowerCase();
@@ -2130,14 +2134,24 @@ async function register() {
   const btn = document.querySelector('#registerForm .auth-btn');
   btn.disabled = true; btn.textContent = 'Создаём…';
   // Check username unique
-  const { data: existing } = await sb.from('profiles').select('id').eq('username', username).maybeSingle();
-  if(existing) { btn.disabled=false; btn.textContent='Создать аккаунт'; return authErr('Username уже занят'); }
+  const resetBtn = () => { btn.disabled = false; btn.textContent = 'Создать аккаунт'; };
+  let existing = null;
+  try {
+    ({ data: existing } = await withTimeout(sb.from('profiles').select('id').eq('username', username).maybeSingle()));
+  } catch (e) { resetBtn(); return authErr('Нет связи с сервером, попробуйте ещё раз'); }
+  if(existing) { resetBtn(); return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
-  if (!captchaToken) { btn.disabled = false; btn.textContent = 'Создать аккаунт'; return authErr('Подтвердите, что вы не робот'); }
+  if (!captchaToken) { resetBtn(); return authErr('Подтвердите, что вы не робот. Если галочка не появляется, отключите блокировщик или откройте в другом браузере'); }
   // Ник и юзернейм кладём и в метаданные аккаунта: письмо могут открыть в другом браузере, где localStorage пуст
-  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { captchaToken, data: { username, display_name: name } } });
+  let data, error;
+  try {
+    ({ data, error } = await withTimeout(sb.auth.signUp({ email, password: pass, options: { captchaToken, data: { username, display_name: name } } })));
+  } catch (e) {
+    resetCaptcha(); resetBtn();
+    return authErr('Нет связи с сервером, попробуйте ещё раз');
+  }
   resetCaptcha();
-  btn.disabled = false; btn.textContent = 'Создать аккаунт';
+  resetBtn();
   if(error) return authErr(error.message);
   try { localStorage.setItem('pendingProfile', JSON.stringify({ id: data.user.id, username, display_name: name })); } catch(e) {}
   if (data.session) {
@@ -2163,7 +2177,7 @@ function renderTsWidgets() {
   ['tsLogin', 'tsWidget'].forEach(id => {
     const el = document.getElementById(id);
     if (el && !el.dataset.wid && el.offsetParent !== null) {
-      try { el.dataset.wid = turnstile.render(el, { sitekey: TS_SITE, theme: 'dark' }); } catch (e) {}
+      try { el.dataset.wid = turnstile.render(el, { sitekey: TS_SITE, theme: 'dark', 'error-callback': () => { try { authErr('Капча не загрузилась: отключите блокировщик или откройте в другом браузере'); } catch (e) {} } }); } catch (e) {}
     }
   });
 }
