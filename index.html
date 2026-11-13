@@ -2682,6 +2682,27 @@ function renderGiftList() {
 }
 // ── Анимированные подарки: SVG-сцены + CSS (без внешних файлов) ──
 const GA_CSS = `
+
+/* сердце: пошаговая анимация, кадр каждые 0.2 с (цикл 4 с = 20 кадров) */
+.gA-hband{transform-origin:50px 49px;animation:gAHBand 4s steps(1,end) infinite;}
+@keyframes gAHBand{
+0%{transform:scaleX(0);opacity:0}
+5%{transform:scaleX(.3);opacity:1}
+10%{transform:scaleX(.6)}
+15%{transform:scaleX(1)}
+20%{transform:scaleX(.96)}
+25%,100%{transform:scaleX(1);opacity:1}}
+.gA-hbow{transform-origin:50px 50px;transform:scale(0);animation:gAHBow 4s steps(1,end) infinite;}
+@keyframes gAHBow{
+0%,29%{transform:scale(0)}
+30%{transform:scale(.4)}
+35%{transform:scale(.8)}
+40%{transform:scale(1.08)}
+45%,58%{transform:scale(1) rotate(0)}
+60%{transform:scale(1) rotate(-5deg)}
+70%{transform:scale(1) rotate(5deg)}
+80%,100%{transform:scale(1) rotate(0)}}
+@media (prefers-reduced-motion: reduce){.gA-hband,.gA-hbow{animation:none;transform:none;opacity:1}.gA-hbow{transform:scale(1)}}
 .gA svg{width:1em;height:1em;display:block;margin:0 auto;overflow:visible}
 /* роза: лепестки раскрываются */
 .gA-petal{transform-origin:50px 52px;animation:gAOpen 4s ease-in-out infinite}
@@ -2813,9 +2834,13 @@ ${[[24, 36], [40, 62], [22, 70]].map(([x, y], i) => `<g transform="translate(${x
       break;
     }
     case 'heart': {
-      const minis = [[16, 20, 0], [84, 26, 0.4], [70, 86, 0.9], [24, 84, 1.3], [50, 8, 0.7], [90, 60, 1.8], [10, 56, 1.1]];
-      svg = `<g class="gA-beat"><path d="${GA_HEART}" fill="#ec4899" stroke="#fbcfe8" stroke-width="2"/></g>
-${minis.map(([x, y, d]) => `<g transform="translate(${x} ${y}) scale(.2)"><path class="gA-tiny" style="animation-delay:${d}s" d="${GA_HEART}" fill="#f9a8d4"/></g>`).join('')}`;
+      /* сердце: лента обвязывает по кадрам (шаг 0.2 с), затем появляется бант */
+      svg = `<defs><clipPath id="hc${U}"><path d="${GA_HEART}"/></clipPath></defs>
+<path d="${GA_HEART}" fill="#ec4899" stroke="#fbcfe8" stroke-width="2"/>
+<rect class="gA-hband" x="4" y="43" width="92" height="13" rx="3" fill="#facc15" stroke="#b45309" stroke-width="1.2" clip-path="url(#hc${U})"/>
+<g class="gA-hbow"><path d="M50 50 C36 30 22 34 26 44 C29 52 42 52 50 50Z" fill="#facc15" stroke="#b45309" stroke-width="1.5"/>
+<path d="M50 50 C64 30 78 34 74 44 C71 52 58 52 50 50Z" fill="#fde047" stroke="#b45309" stroke-width="1.5"/>
+<circle cx="50" cy="50" r="5" fill="#eab308" stroke="#b45309" stroke-width="1.5"/></g>`;
       break;
     }
     case 'crown': {
