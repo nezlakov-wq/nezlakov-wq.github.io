@@ -1671,6 +1671,44 @@ body::after {
 #setAppearance input[type="checkbox"] { accent-color: #a48bff; width: 20px; height: 20px; }
 #setAppearance .set-logout { border-radius: 16px; }
 @media (prefers-reduced-motion: reduce) { #setAppearance #setLayoutOpts button, #setAppearance #setThemeOpts button, #setAppearance #setFontOpts button { transition: none !important; } }
+#setData > .set-row:nth-child(2) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(2)::before { content: '👤'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #5b8cff; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(3) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(3)::before { content: '✍️'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #8b5cf6; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(4) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(4)::before { content: '@'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #22c55e; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(5) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(5)::before { content: '🎂'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #f97316; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(6) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(6)::before { content: '✉️'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #0ea5e9; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(7) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(7)::before { content: '📅'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #eab308; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(8) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(8)::before { content: '🪙'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #f59e0b; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(9) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(9)::before { content: '🔑'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #64748b; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+#setData > .set-row:nth-child(10) { position: relative; padding-left: 62px; min-height: 56px; }
+#setData > .set-row:nth-child(10)::before { content: '🔔'; position: absolute; left: 14px; top: 14px; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; background: #ef4444; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+
+/* ══ Данные: карточки разделов с цветными значками, в стиле настроек ══ */
+#setData { padding-bottom: 24px; }
+#setData > .set-row { background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 14px 16px; margin: 12px 0; box-shadow: 0 20px 40px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06); }
+#setData > .set-row:first-child { padding: 0; overflow: hidden; }
+#setData .set-label { font-size: 13.5px; font-weight: 650; color: #9aa0c8; margin-bottom: 4px; }
+#setData > .set-row:not(:first-child) > div:not(.set-label) { color: #f2f3ff; font-size: 16px; }
+#setData input, #setData textarea { background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.08) !important; color: #f2f3ff !important; border-radius: 14px !important; }
+#setData input:focus, #setData textarea:focus { border-color: rgba(164,139,255,.55) !important; box-shadow: 0 0 0 4px rgba(164,139,255,.14); outline: none; }
+#setData .blurred { filter: blur(6px); transition: filter .3s ease; cursor: pointer; }
+#setData .blurred:hover { filter: blur(3px); }
+@media (prefers-reduced-motion: reduce) { #setData .blurred { transition: none; } }
+
+/* ══ Данные и память: карточки и полоса заполнения ══ */
+#setDataMem .set-row { background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 16px; margin: 12px 0; box-shadow: 0 20px 40px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06); }
+#setDataMem .set-label { font-size: 16px; font-weight: 750; letter-spacing: -.2px; }
+#setDataMem .dm-bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; margin: 12px 0 8px; }
+#setDataMem .dm-fill { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #a48bff, #d9ceff); transition: width .6s cubic-bezier(.22,1,.36,1); }
+#setDataMem .dm-nums { font-size: 14px; color: #c9cdea; }
+@media (prefers-reduced-motion: reduce) { #setDataMem .dm-fill { transition: none; } }
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
@@ -1933,6 +1971,7 @@ body::after {
       <div class="set-group">
         <button class="set-item" id="setAdminBtn" style="display:none" onclick="switchSettingsTab('admin')"><span class="set-txt">АдминПанель</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('appearance')"><span class="set-ico" style="background:#5ac8fa"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7" r="1"/><circle cx="16" cy="10" r="1"/></svg></span><span class="set-txt">Оформление</span><span class="set-chev">›</span></button>
+        <button class="set-item" onclick="switchSettingsTab('datamem')"><span class="set-ico" style="background:#34c759"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span class="set-txt">Данные и память</span><span class="set-chev">›</span></button>
         <button class="set-item" onclick="switchSettingsTab('data')"><span class="set-ico" style="background:#ff3b30"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 21h4"/></svg></span><span class="set-txt">Уведомления</span><span class="set-chev">›</span></button>
       </div>
       <div class="set-group">
@@ -2055,6 +2094,23 @@ body::after {
       </div>
       <div class="set-row"><div class="set-label">Обои</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Обои ставятся отдельно в каждом чате: откройте чат и нажмите 🎨 в шапке.</div>
+      </div>
+    </div>
+    <div id="setDataMem" style="display:none">
+      <div class="set-row">
+        <div class="set-label">Память на этом устройстве</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Кэш и локальные данные Moonlit в браузере.</div>
+        <div class="dm-bar"><div class="dm-fill" id="dmFill"></div></div>
+        <div class="dm-nums" id="dmNums">Подсчёт…</div>
+      </div>
+      <div class="set-row">
+        <div class="set-label">Кэш</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Удаляет сохранённые файлы приложения. Сообщения и аккаунт не затрагиваются.</div>
+        <button class="set-logout" style="color:inherit;margin-top:6px" onclick="clearAppCache()">Очистить кэш</button>
+      </div>
+      <div class="set-row">
+        <div class="set-label">Трафик</div>
+        <div style="font-size:13px;opacity:.7;margin:4px 0">Подсчёт трафика и настройки автозагрузки медиа пока не доступны в веб-версии.</div>
       </div>
     </div>
     <div id="setData">
@@ -5619,8 +5675,8 @@ async function openSettings() {
   document.getElementById('settingsModal').style.display = 'flex';
 }
 function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-const SET_PANELS = { main: 'setMain', data: 'setData', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan', adminmods: 'setAdminMods', adminreports: 'setAdminReports' };
-const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов', adminmods: 'Администраторы', adminreports: 'Жалобы и апелляции' };
+const SET_PANELS = { main: 'setMain', data: 'setData', datamem: 'setDataMem', devices: 'setDevices', privacy: 'setPrivacy', appearance: 'setAppearance', admin: 'setAdmin', adminstats: 'setAdminStats', adminlog: 'setAdminLog', adminbadge: 'setAdminBadge', adminban: 'setAdminBan', adminmods: 'setAdminMods', adminreports: 'setAdminReports' };
+const SET_TITLES = { main: 'Настройки', data: 'Мой профиль', datamem: 'Данные и память', devices: 'Устройства', privacy: 'Конфиденциальность', appearance: 'Оформление', admin: 'АдминПанель', adminstats: 'Статистика', adminlog: 'Журнал', adminbadge: 'Бейджи', adminban: 'Выдача банов', adminmods: 'Администраторы', adminreports: 'Жалобы и апелляции' };
 let adminRole = null; // 'owner' | 'mod' | null
 async function adminSetMod(make) {
   const u = document.getElementById('modUser').value.trim().replace(/^@/, '');
@@ -5951,6 +6007,29 @@ function startBanWatch(uid) {
   banWatchTimer = setInterval(() => { if (!document.getElementById('banScreen')) checkBanGate(uid); }, 60000);
 }
 let curSetTab = 'main';
+async function renderDataMem() {
+  const fill = document.getElementById('dmFill'), nums = document.getElementById('dmNums');
+  if (!nums) return;
+  try {
+    if (navigator.storage && navigator.storage.estimate) {
+      const e = await navigator.storage.estimate();
+      const used = e.usage || 0, quota = e.quota || 0;
+      const mb = n => (n / 1048576).toFixed(1) + ' МБ';
+      if (fill) fill.style.width = quota ? Math.min(100, (used / quota) * 100).toFixed(1) + '%' : '0%';
+      nums.textContent = 'Занято ' + mb(used) + (quota ? ' из ' + (quota / 1073741824).toFixed(1) + ' ГБ' : '');
+    } else {
+      nums.textContent = 'Браузер не сообщает объём памяти';
+    }
+  } catch (e) { nums.textContent = 'Не удалось подсчитать'; }
+}
+async function clearAppCache() {
+  if (!confirm('Очистить кэш приложения на этом устройстве?')) return;
+  try {
+    if ('caches' in window) { for (const k of await caches.keys()) await caches.delete(k); }
+    toast('Кэш очищен');
+  } catch (e) { toast('Не удалось очистить кэш'); }
+  renderDataMem();
+}
 function switchSettingsTab(tab) {
   const prev = curSetTab;
   curSetTab = tab;
@@ -5964,6 +6043,7 @@ function switchSettingsTab(tab) {
     if (tab === 'adminreports') renderAdminReports();
     if (tab === 'devices') renderDevicesList();
     if (tab === 'appearance') applyLayout();
+    if (tab === 'datamem') renderDataMem();
     for (const [key, id] of Object.entries(SET_PANELS)) {
       const el = document.getElementById(id);
       el.style.display = key === tab ? '' : 'none';
