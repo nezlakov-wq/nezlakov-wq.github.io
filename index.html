@@ -2683,6 +2683,14 @@ function renderGiftList() {
 // ── Анимированные подарки: SVG-сцены + CSS (без внешних файлов) ──
 const GA_CSS = `
 
+/* коробка и букет: пошаговые кадры по 0.2 с */
+.gA-glid{transform-origin:50px 50px;animation:gAGLid 4s steps(1,end) infinite;}
+@keyframes gAGLid{0%,20%{transform:translateY(0)}25%{transform:translateY(-6px)}30%{transform:translateY(-12px)}35%,55%{transform:translateY(-16px) rotate(-6deg)}60%{transform:translateY(-12px)}65%{transform:translateY(-6px)}70%,100%{transform:translateY(0)}}
+.gA-bq1,.gA-bq2,.gA-bq3{transform-origin:50px 70px;animation:gABq 4s steps(1,end) infinite;}
+.gA-bq2{animation-delay:-1.2s}
+.gA-bq3{animation-delay:-2.4s}
+@keyframes gABq{0%,100%{transform:rotate(0)}15%{transform:rotate(-6deg)}30%{transform:rotate(0)}45%{transform:rotate(6deg)}60%,100%{transform:rotate(0)}}
+
 /* сердце: пошаговая анимация, кадр каждые 0.2 с (цикл 4 с = 20 кадров) */
 .gA-hband{transform-origin:50px 49px;animation:gAHBand 4s steps(1,end) infinite;}
 @keyframes gAHBand{
@@ -2774,6 +2782,169 @@ const GA_CSS = `
 @media (prefers-reduced-motion: reduce){.gA *{animation:none!important}}
 .gA-armL,.gA-armR{animation-name:gAReachL}
 .gA-armR{animation-name:gAReachR}
+
+/* Пошаговая анимация подарков по записи: кадр каждые 0.2 с, цикл 4 с */
+.gA-armL{animation:gAStArmL 4s step-end infinite}
+.gA-armR{animation:gAStArmR 4s step-end infinite}
+@keyframes gAStArmL{
+0%{transform:translate(0.0px,0.0px) rotate(0deg)}
+5%{transform:translate(-2.4px,-1.2px) rotate(-6deg)}
+10%{transform:translate(-4.8px,-2.4px) rotate(-12deg)}
+15%{transform:translate(-7.2px,-3.6px) rotate(-18deg)}
+20%{transform:translate(-9.6px,-4.8px) rotate(-24deg)}
+25%{transform:translate(-7.2px,-3.6px) rotate(-18deg)}
+30%{transform:translate(-4.8px,-2.4px) rotate(-12deg)}
+35%{transform:translate(-2.4px,-1.2px) rotate(-6deg)}
+40%{transform:translate(0.0px,0.0px) rotate(0deg)}
+45%{transform:translate(1.6px,-0.8px) rotate(4deg)}
+50%{transform:translate(3.2px,-1.6px) rotate(8deg)}
+55%{transform:translate(1.6px,-0.8px) rotate(4deg)}
+60%{transform:translate(0.0px,0.0px) rotate(0deg)}
+65%{transform:translate(-1.6px,-0.8px) rotate(-4deg)}
+70%{transform:translate(-3.2px,-1.6px) rotate(-8deg)}
+75%{transform:translate(-1.6px,-0.8px) rotate(-4deg)}
+80%{transform:translate(0.0px,0.0px) rotate(0deg)}
+85%{transform:translate(0.0px,0.0px) rotate(0deg)}
+90%{transform:translate(0.0px,0.0px) rotate(0deg)}
+95%{transform:translate(0.0px,0.0px) rotate(0deg)}
+}
+@keyframes gAStArmR{
+0%{transform:translate(0.0px,0.0px) rotate(0deg)}
+5%{transform:translate(2.4px,-1.2px) rotate(6deg)}
+10%{transform:translate(4.8px,-2.4px) rotate(12deg)}
+15%{transform:translate(7.2px,-3.6px) rotate(18deg)}
+20%{transform:translate(9.6px,-4.8px) rotate(24deg)}
+25%{transform:translate(7.2px,-3.6px) rotate(18deg)}
+30%{transform:translate(4.8px,-2.4px) rotate(12deg)}
+35%{transform:translate(2.4px,-1.2px) rotate(6deg)}
+40%{transform:translate(0.0px,0.0px) rotate(0deg)}
+45%{transform:translate(-1.6px,-0.8px) rotate(-4deg)}
+50%{transform:translate(-3.2px,-1.6px) rotate(-8deg)}
+55%{transform:translate(-1.6px,-0.8px) rotate(-4deg)}
+60%{transform:translate(0.0px,0.0px) rotate(0deg)}
+65%{transform:translate(1.6px,-0.8px) rotate(4deg)}
+70%{transform:translate(3.2px,-1.6px) rotate(8deg)}
+75%{transform:translate(1.6px,-0.8px) rotate(4deg)}
+80%{transform:translate(0.0px,0.0px) rotate(0deg)}
+85%{transform:translate(0.0px,0.0px) rotate(0deg)}
+90%{transform:translate(0.0px,0.0px) rotate(0deg)}
+95%{transform:translate(0.0px,0.0px) rotate(0deg)}
+}
+.gA-petal{animation:gAStPetal 4s step-end infinite}
+@keyframes gAStPetal{
+0%{transform:scale(0.3)}
+5%{transform:scale(0.4)}
+10%{transform:scale(0.5)}
+15%{transform:scale(0.6)}
+20%{transform:scale(0.7)}
+25%{transform:scale(0.8)}
+30%{transform:scale(0.9)}
+35%{transform:scale(1)}
+40%{transform:scale(1)}
+45%{transform:scale(1)}
+50%{transform:scale(1)}
+55%{transform:scale(1)}
+60%{transform:scale(1)}
+65%{transform:scale(1)}
+70%{transform:scale(1)}
+75%{transform:scale(1)}
+80%{transform:scale(1)}
+85%{transform:scale(1)}
+90%{transform:scale(1)}
+95%{transform:scale(1)}
+}
+.gA-ring{transform-origin:50px 60px;animation:gAStRing 4s step-end infinite}
+@keyframes gAStRing{
+0%{transform:rotate(0deg)}
+5%{transform:rotate(18deg)}
+10%{transform:rotate(36deg)}
+15%{transform:rotate(54deg)}
+20%{transform:rotate(72deg)}
+25%{transform:rotate(90deg)}
+30%{transform:rotate(108deg)}
+35%{transform:rotate(126deg)}
+40%{transform:rotate(144deg)}
+45%{transform:rotate(162deg)}
+50%{transform:rotate(180deg)}
+55%{transform:rotate(198deg)}
+60%{transform:rotate(216deg)}
+65%{transform:rotate(234deg)}
+70%{transform:rotate(252deg)}
+75%{transform:rotate(270deg)}
+80%{transform:rotate(288deg)}
+85%{transform:rotate(306deg)}
+90%{transform:rotate(324deg)}
+95%{transform:rotate(342deg)}
+}
+.gA-rocket{animation:gAStRocket 4s step-end infinite}
+@keyframes gAStRocket{
+0%{transform:translate(0px,0px)}
+5%{transform:translate(0px,-3px)}
+10%{transform:translate(0px,-6px)}
+15%{transform:translate(0px,-9px)}
+20%{transform:translate(0px,-12px)}
+25%{transform:translate(0px,-9px)}
+30%{transform:translate(0px,-6px)}
+35%{transform:translate(0px,-3px)}
+40%{transform:translate(0px,0px)}
+45%{transform:translate(0px,3px)}
+50%{transform:translate(0px,6px)}
+55%{transform:translate(0px,3px)}
+60%{transform:translate(0px,0px)}
+65%{transform:translate(0px,-3px)}
+70%{transform:translate(0px,-6px)}
+75%{transform:translate(0px,-3px)}
+80%{transform:translate(0px,0px)}
+85%{transform:translate(0px,0px)}
+90%{transform:translate(0px,0px)}
+95%{transform:translate(0px,0px)}
+}
+.gA-beat{animation:gAStBeat 4s step-end infinite}
+@keyframes gAStBeat{
+0%{transform:scale(1)}
+5%{transform:scale(1.06)}
+10%{transform:scale(1.12)}
+15%{transform:scale(1.06)}
+20%{transform:scale(1)}
+25%{transform:scale(1.04)}
+30%{transform:scale(1.08)}
+35%{transform:scale(1.04)}
+40%{transform:scale(1)}
+45%{transform:scale(1)}
+50%{transform:scale(1)}
+55%{transform:scale(1)}
+60%{transform:scale(1)}
+65%{transform:scale(1)}
+70%{transform:scale(1)}
+75%{transform:scale(1)}
+80%{transform:scale(1)}
+85%{transform:scale(1)}
+90%{transform:scale(1)}
+95%{transform:scale(1)}
+}
+.gA-flame{animation:gAStFlame 4s step-end infinite alternate}
+@keyframes gAStFlame{
+0%{transform:scale(0.85,0.85)}
+5%{transform:scale(1.1,1.1)}
+10%{transform:scale(0.9,0.9)}
+15%{transform:scale(1.12,1.12)}
+20%{transform:scale(0.85,0.85)}
+25%{transform:scale(1.1,1.1)}
+30%{transform:scale(0.9,0.9)}
+35%{transform:scale(1.12,1.12)}
+40%{transform:scale(0.85,0.85)}
+45%{transform:scale(1,1)}
+50%{transform:scale(0.9,0.9)}
+55%{transform:scale(1,1)}
+60%{transform:scale(0.85,0.85)}
+65%{transform:scale(1.1,1.1)}
+70%{transform:scale(0.9,0.9)}
+75%{transform:scale(1.12,1.12)}
+80%{transform:scale(0.85,0.85)}
+85%{transform:scale(1.1,1.1)}
+90%{transform:scale(0.9,0.9)}
+95%{transform:scale(1,1)}
+}
 `;
 
 function ensureGiftArtCss() {
@@ -2841,6 +3012,24 @@ ${[[24, 36], [40, 62], [22, 70]].map(([x, y], i) => `<g transform="translate(${x
 <g class="gA-hbow"><path d="M50 50 C36 30 22 34 26 44 C29 52 42 52 50 50Z" fill="#facc15" stroke="#b45309" stroke-width="1.5"/>
 <path d="M50 50 C64 30 78 34 74 44 C71 52 58 52 50 50Z" fill="#fde047" stroke="#b45309" stroke-width="1.5"/>
 <circle cx="50" cy="50" r="5" fill="#eab308" stroke="#b45309" stroke-width="1.5"/></g>`;
+      break;
+    }
+    case 'gift': {
+      /* коробка: крышка приподнимается по кадрам 0.2 с и опускается */
+      svg = `<rect x="18" y="50" width="64" height="38" rx="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5"/>
+<rect x="46" y="50" width="8" height="38" fill="#facc15"/>
+<g class="gA-glid"><rect x="12" y="34" width="76" height="16" rx="4" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.5"/>
+<rect x="46" y="34" width="8" height="16" fill="#facc15"/>
+<path d="M50 34 C36 12 22 20 34 34 M50 34 C64 12 78 20 66 34" fill="none" stroke="#facc15" stroke-width="5" stroke-linecap="round"/></g>`;
+      break;
+    }
+    case 'bouquet': {
+      /* букет: цветы покачиваются по кадрам 0.2 с */
+      svg = `<path d="M50 92 L50 58 M50 70 L34 58 M50 66 L66 56" stroke="#3a8f3a" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M30 74 L70 74 L60 96 L40 96Z" fill="#7c3aed" opacity=".9"/>
+<g class="gA-bq1"><circle cx="34" cy="48" r="12" fill="#f97316"/><circle cx="34" cy="48" r="5" fill="#fde68a"/></g>
+<g class="gA-bq2"><circle cx="66" cy="46" r="12" fill="#e11d48"/><circle cx="66" cy="46" r="5" fill="#fde68a"/></g>
+<g class="gA-bq3"><circle cx="50" cy="32" r="13" fill="#ec4899"/><circle cx="50" cy="32" r="5" fill="#fde68a"/></g>`;
       break;
     }
     case 'crown': {
