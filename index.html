@@ -1575,6 +1575,58 @@ body::after {
   #chatView .msgs { scroll-behavior: auto; }
   #chatView .act-btn, #chatView .input-area > .ico-btn, #chatView .send-btn, #chatView .input-wrap { transition: none !important; }
 }
+
+/* ══ Подарки: 3D-объём, парящая анимация и наклон за пальцем/курсором ══ */
+#giftModal .gift-grid { perspective: 900px; gap: 14px; }
+#giftModal .gift-tile {
+  position: relative; transform-style: preserve-3d; overflow: visible;
+  background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.02) 55%), #121430 !important;
+  border: 1px solid rgba(164,139,255,.16) !important; border-radius: 22px !important;
+  box-shadow: 0 18px 30px -18px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.08);
+  transform: rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s ease, border-color .35s ease;
+  will-change: transform;
+}
+#giftModal .gift-tile:hover, #giftModal .gift-tile:focus-visible { border-color: rgba(164,139,255,.5) !important; box-shadow: 0 26px 40px -18px rgba(124,108,255,.55), inset 0 1px 0 rgba(255,255,255,.12); }
+#giftModal .gift-tile:active { transform: rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) scale(.96); }
+#giftModal .gift-tile-em { font-size: 64px; transform: translateZ(28px); animation: giftFloat 3.2s ease-in-out infinite; }
+#giftModal .gift-tile-em .gA svg { filter: drop-shadow(0 10px 8px rgba(0,0,0,.55)); }
+#giftModal .gift-tile-price { transform: translateZ(14px); background: linear-gradient(135deg, #ffd98a, #f59e0b) !important; color: #2a1800 !important; font-weight: 700; box-shadow: 0 6px 14px -6px rgba(245,158,11,.8); }
+/* тень-подставка под подарком: сжимается, когда подарок «поднимается» */
+#giftModal .gift-tile-em::after, .gift-msg-em::after {
+  content: ''; position: absolute; left: 50%; bottom: -10px; width: 62%; height: 14px; transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgba(0,0,0,.55), transparent 70%); filter: blur(3px); z-index: -2;
+  animation: giftShadow 3.2s ease-in-out infinite;
+}
+@keyframes giftFloat {
+  0%, 100% { transform: translateZ(28px) translateY(0) rotateY(-8deg); }
+  50%      { transform: translateZ(40px) translateY(-7px) rotateY(8deg); }
+}
+@keyframes giftShadow {
+  0%, 100% { opacity: .85; transform: translateX(-50%) scale(1); }
+  50%      { opacity: .45; transform: translateX(-50%) scale(.72); }
+}
+/* карточка подарка в чате: объёмная «витрина» с наклоном */
+.gift-msg {
+  position: relative; perspective: 800px; transform-style: preserve-3d; overflow: visible;
+  background: linear-gradient(165deg, rgba(255,255,255,.1), rgba(255,255,255,.02) 55%), #121430 !important;
+  border: 1px solid rgba(164,139,255,.18) !important; border-radius: 24px !important;
+  box-shadow: 0 24px 40px -22px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.08);
+  transform: rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)); transition: transform .4s cubic-bezier(.22,1,.36,1);
+}
+.gift-msg-em { transform: translateZ(30px); animation: giftFloat 3.2s ease-in-out infinite; font-size: 84px; }
+.gift-msg-name { transform: translateZ(18px); font-weight: 750; letter-spacing: -.2px; }
+.gift-msg-btn { transform: translateZ(18px); background: linear-gradient(135deg, #d9ceff, #a48bff) !important; color: #1b1533 !important; font-weight: 700; box-shadow: 0 10px 20px -10px rgba(164,139,255,.9); }
+/* искорки вокруг подарка */
+.gift-msg::before, .gift-msg::after {
+  content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
+  background: #fff; box-shadow: 0 0 10px 2px rgba(164,139,255,.9); top: 22%; left: 14%; animation: giftSpark 2.8s ease-in-out infinite;
+}
+.gift-msg::after { top: 58%; left: auto; right: 12%; animation-delay: 1.4s; background: #ffd98a; box-shadow: 0 0 10px 2px rgba(245,158,11,.9); }
+@keyframes giftSpark { 0%,100% { opacity: 0; transform: scale(.4) } 50% { opacity: 1; transform: scale(1.1) } }
+@media (prefers-reduced-motion: reduce) {
+  #giftModal .gift-tile-em, .gift-msg-em, #giftModal .gift-tile-em::after, .gift-msg-em::after, .gift-msg::before, .gift-msg::after { animation: none !important; }
+  #giftModal .gift-tile, .gift-msg { transition: none !important; transform: none !important; }
+}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
@@ -7285,6 +7337,23 @@ document.getElementById('msgInput').addEventListener('keydown', function(e) {
 
 // ── START ──
 init();
+
+// 3D-наклон подарков за курсором/пальцем (делегирование, без привязки к каждому элементу)
+(function () {
+  const tiltOf = el => el.closest && el.closest('.gift-tile, .gift-msg');
+  let cur = null;
+  document.addEventListener('pointermove', e => {
+    const el = tiltOf(e.target);
+    if (cur && cur !== el) { cur.style.removeProperty('--rx'); cur.style.removeProperty('--ry'); }
+    if (!el || (e.pointerType === 'touch' && e.buttons === 0)) { cur = null; return; }
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty('--ry', (px * 16).toFixed(1) + 'deg');
+    el.style.setProperty('--rx', (-py * 14).toFixed(1) + 'deg');
+    cur = el;
+  }, { passive: true });
+  document.addEventListener('pointerleave', () => { if (cur) { cur.style.removeProperty('--rx'); cur.style.removeProperty('--ry'); cur = null; } }, true);
+})();
 </script>
 </body>
 </html>
