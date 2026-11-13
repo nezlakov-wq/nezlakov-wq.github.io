@@ -2974,7 +2974,7 @@ function giftArt(g, opts = {}) {
   const U = Math.random().toString(36).slice(2, 8);
   const id = g?.id;
   // Нарисованные подарки (картинки из assets/gifts) — по id из базы
-  const GIFT_IMG = { rose: 'rose', heart: 'heart', bear: 'bear', cake: 'cake', rocket: 'rocket', gift: 'gift', bouquet: 'bouquet', sparkle: 'star', diamond: 'diamond', cat: 'cat', bottle: 'bottle', wand: 'wand' };
+  const GIFT_IMG = { bear: 'bear', cake: 'cake', gift: 'gift', bouquet: 'bouquet', diamond: 'diamond', cat: 'cat', bottle: 'bottle', wand: 'wand' };
   if (GIFT_IMG[id]) return `<span class="gA gA-img"><img src="assets/gifts/${GIFT_IMG[id]}.jpg" alt="" draggable="false"></span>`;
   const emoji = g?.emoji || '🎁';
   let svg = '', cls = 'gA gA-' + id;
