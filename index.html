@@ -1627,6 +1627,50 @@ body::after {
   #giftModal .gift-tile-em, .gift-msg-em, #giftModal .gift-tile-em::after, .gift-msg-em::after, .gift-msg::before, .gift-msg::after { animation: none !important; }
   #giftModal .gift-tile, .gift-msg { transition: none !important; transform: none !important; }
 }
+
+/* ══ Оформление: предпросмотр, карточки разделов и плитки-переключатели ══ */
+#setAppearance { padding-bottom: 24px; }
+#setAppearance .ap-preview {
+  margin: 14px 0 6px; border-radius: 24px; padding: 18px 14px 14px; overflow: hidden; position: relative;
+  background:
+    radial-gradient(420px 220px at 80% -10%, rgba(124,108,255,.28), transparent 60%),
+    radial-gradient(360px 200px at 0% 110%, rgba(64,140,255,.16), transparent 60%),
+    linear-gradient(180deg, #14163a, #0a0b1c);
+  border: 1px solid rgba(164,139,255,.16); box-shadow: 0 24px 40px -28px rgba(0,0,0,.9);
+  display: flex; flex-direction: column; gap: 8px;
+}
+#setAppearance .ap-prev-row { display: flex; }
+#setAppearance .ap-prev-row.in { justify-content: flex-start; }
+#setAppearance .ap-prev-row.out { justify-content: flex-end; }
+#setAppearance .ap-preview .bubble { max-width: 74%; padding: 9px 14px; font-size: 15px; border-radius: 20px !important; }
+#setAppearance .ap-preview .bubble.in { border-bottom-left-radius: 6px !important; }
+#setAppearance .ap-preview .bubble.out { border-bottom-right-radius: 6px !important; }
+#setAppearance .set-row {
+  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03));
+  border: 1px solid rgba(255,255,255,.08); border-radius: 22px; padding: 16px; margin: 12px 0;
+  box-shadow: 0 20px 40px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);
+}
+#setAppearance .set-label { font-size: 16px; font-weight: 750; letter-spacing: -.2px; margin-bottom: 2px; }
+#setAppearance .set-row > div[style*="font-size:13px"] { color: #9aa0c8; }
+#setAppearance #setLayoutOpts, #setAppearance #setThemeOpts, #setAppearance #setFontOpts { gap: 8px !important; margin-top: 10px; }
+#setAppearance #setLayoutOpts button, #setAppearance #setThemeOpts button, #setAppearance #setFontOpts button {
+  width: auto !important; min-width: 0; flex: 0 0 auto;
+  padding: 10px 14px !important; border-radius: 14px !important; font-size: 14px !important; font-weight: 650 !important;
+  background: rgba(255,255,255,.06) !important; color: #d9dcf5 !important; border: 1px solid rgba(255,255,255,.08) !important;
+  transition: background .25s ease, border-color .25s ease, transform .2s cubic-bezier(.22,1,.36,1);
+}
+#setAppearance #setLayoutOpts button:active, #setAppearance #setThemeOpts button:active, #setAppearance #setFontOpts button:active { transform: scale(.96); }
+#setAppearance #setLayoutOpts button[style*="accent"], #setAppearance #setThemeOpts button[style*="accent"],
+#setAppearance #setLayoutOpts button[style*="5b7fff"], #setAppearance #setThemeOpts button[style*="5b7fff"],
+#setAppearance #setFontOpts button[style*="5b7fff"] {
+  background: linear-gradient(135deg, #d9ceff, #a48bff) !important; color: #1b1533 !important; border-color: transparent !important;
+  box-shadow: 0 8px 18px -10px rgba(164,139,255,.9);
+}
+#setAppearance label { border-bottom: 1px solid rgba(255,255,255,.06); padding-bottom: 8px; }
+#setAppearance input[type="color"] { width: 40px; height: 28px; border: 0; background: none; padding: 0; border-radius: 8px; }
+#setAppearance input[type="checkbox"] { accent-color: #a48bff; width: 20px; height: 20px; }
+#setAppearance .set-logout { border-radius: 16px; }
+@media (prefers-reduced-motion: reduce) { #setAppearance #setLayoutOpts button, #setAppearance #setThemeOpts button, #setAppearance #setFontOpts button { transition: none !important; } }
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
@@ -1975,6 +2019,11 @@ body::after {
       </div>
     </div>
     <div id="setAppearance" style="display:none">
+      <div class="ap-preview" aria-hidden="true">
+        <div class="ap-prev-row in"><div class="bubble in">Знаешь, который час?</div></div>
+        <div class="ap-prev-row out"><div class="bubble out">Уже ночь, Moonlit светится 🌙</div></div>
+        <div class="ap-prev-row in"><div class="bubble in">Красиво 😍</div></div>
+      </div>
       <div class="set-row"><div class="set-label">Профиль</div>
         <div style="font-size:13px;opacity:.7;margin:4px 0">Баннер и фон видят ваши собеседники.</div>
         <div class="set-group" style="margin:6px 0 0">
