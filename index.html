@@ -2684,15 +2684,15 @@ function renderGiftList() {
 const GA_CSS = `
 
 /* коробка и букет: пошаговые кадры по 0.2 с */
-.gA-glid{transform-origin:50px 50px;animation:gAGLid 4s steps(6,end) infinite;}
+.gA-glid{transform-origin:50px 50px;animation:gAGLid 4s steps(1,end) infinite;}
 @keyframes gAGLid{0%,20%{transform:translateY(0)}25%{transform:translateY(-6px)}30%{transform:translateY(-12px)}35%,55%{transform:translateY(-16px) rotate(-6deg)}60%{transform:translateY(-12px)}65%{transform:translateY(-6px)}70%,100%{transform:translateY(0)}}
-.gA-bq1,.gA-bq2,.gA-bq3{transform-origin:50px 70px;animation:gABq 4s steps(6,end) infinite;}
+.gA-bq1,.gA-bq2,.gA-bq3{transform-origin:50px 70px;animation:gABq 4s steps(1,end) infinite;}
 .gA-bq2{animation-delay:-1.2s}
 .gA-bq3{animation-delay:-2.4s}
 @keyframes gABq{0%,100%{transform:rotate(0)}15%{transform:rotate(-6deg)}30%{transform:rotate(0)}45%{transform:rotate(6deg)}60%,100%{transform:rotate(0)}}
 
 /* сердце: пошаговая анимация, кадр каждые 0.2 с (цикл 4 с = 20 кадров) */
-.gA-hband{transform-origin:50px 49px;animation:gAHBand 4s steps(6,end) infinite;}
+.gA-hband{transform-origin:50px 49px;animation:gAHBand 4s steps(1,end) infinite;}
 @keyframes gAHBand{
 0%{transform:scaleX(0);opacity:0}
 5%{transform:scaleX(.3);opacity:1}
@@ -2700,7 +2700,7 @@ const GA_CSS = `
 15%{transform:scaleX(1)}
 20%{transform:scaleX(.96)}
 25%,100%{transform:scaleX(1);opacity:1}}
-.gA-hbow{transform-origin:50px 50px;transform:scale(0);animation:gAHBow 4s steps(6,end) infinite;}
+.gA-hbow{transform-origin:50px 50px;transform:scale(0);animation:gAHBow 4s steps(1,end) infinite;}
 @keyframes gAHBow{
 0%,29%{transform:scale(0)}
 30%{transform:scale(.4)}
@@ -2783,9 +2783,9 @@ const GA_CSS = `
 .gA-armL,.gA-armR{animation-name:gAReachL}
 .gA-armR{animation-name:gAReachR}
 
-/* Пошаговая анимация подарков по записи: 30 кадров в секунду (6 шагов на каждые 0.2 с), цикл 4 с */
-.gA-armL{animation:gAStArmL 4s steps(6,end) infinite}
-.gA-armR{animation:gAStArmR 4s steps(6,end) infinite}
+/* Пошаговая анимация подарков по записи: кадр каждые 0.2 с, цикл 4 с */
+.gA-armL{animation:gAStArmL 4s step-end infinite}
+.gA-armR{animation:gAStArmR 4s step-end infinite}
 @keyframes gAStArmL{
 0%{transform:translate(0.0px,0.0px) rotate(0deg)}
 5%{transform:translate(-2.4px,-1.2px) rotate(-6deg)}
@@ -2830,7 +2830,7 @@ const GA_CSS = `
 90%{transform:translate(0.0px,0.0px) rotate(0deg)}
 95%{transform:translate(0.0px,0.0px) rotate(0deg)}
 }
-.gA-petal{animation:gAStPetal 4s steps(6,end) infinite}
+.gA-petal{animation:gAStPetal 4s step-end infinite}
 @keyframes gAStPetal{
 0%{transform:scale(0.3)}
 5%{transform:scale(0.4)}
@@ -2853,7 +2853,7 @@ const GA_CSS = `
 90%{transform:scale(1)}
 95%{transform:scale(1)}
 }
-.gA-ring{transform-origin:50px 60px;animation:gAStRing 4s steps(6,end) infinite}
+.gA-ring{transform-origin:50px 60px;animation:gAStRing 4s step-end infinite}
 @keyframes gAStRing{
 0%{transform:rotate(0deg)}
 5%{transform:rotate(18deg)}
@@ -2876,7 +2876,7 @@ const GA_CSS = `
 90%{transform:rotate(324deg)}
 95%{transform:rotate(342deg)}
 }
-.gA-rocket{animation:gAStRocket 4s steps(6,end) infinite}
+.gA-rocket{animation:gAStRocket 4s step-end infinite}
 @keyframes gAStRocket{
 0%{transform:translate(0px,0px)}
 5%{transform:translate(0px,-3px)}
@@ -2899,7 +2899,7 @@ const GA_CSS = `
 90%{transform:translate(0px,0px)}
 95%{transform:translate(0px,0px)}
 }
-.gA-beat{animation:gAStBeat 4s steps(6,end) infinite}
+.gA-beat{animation:gAStBeat 4s step-end infinite}
 @keyframes gAStBeat{
 0%{transform:scale(1)}
 5%{transform:scale(1.06)}
@@ -2922,7 +2922,7 @@ const GA_CSS = `
 90%{transform:scale(1)}
 95%{transform:scale(1)}
 }
-.gA-flame{animation:gAStFlame 4s steps(6,end) infinite alternate}
+.gA-flame{animation:gAStFlame 4s step-end infinite alternate}
 @keyframes gAStFlame{
 0%{transform:scale(0.85,0.85)}
 5%{transform:scale(1.1,1.1)}
@@ -2947,15 +2947,8 @@ const GA_CSS = `
 }
 
 /* кубок: покачивание и блеск по кадрам 0.2 с (цикл 4 с) */
-.gA-trophy{transform-origin:50px 60px;animation:gATrophy 4s steps(6,end) infinite}
+.gA-trophy{transform-origin:50px 60px;animation:gATrophy 4s step-end infinite}
 @keyframes gATrophy{0%{transform:rotate(0)}5%{transform:rotate(-3deg)}10%{transform:rotate(-5deg)}15%{transform:rotate(-3deg)}20%{transform:rotate(0)}25%{transform:rotate(3deg)}30%{transform:rotate(5deg)}35%{transform:rotate(3deg)}40%,100%{transform:rotate(0)}}
-
-/* Нарисованные подарки: парение и мерцание, 30 кадров в секунду (18 шагов на каждые 0.6 с) */
-.gA-img{display:block;width:1em;height:1em;margin:0 auto;position:relative;}
-.gA-img img{width:100%;height:100%;object-fit:contain;display:block;mix-blend-mode:screen;-webkit-mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);animation:gPhBob 2.4s steps(18,end) infinite;filter:drop-shadow(0 8px 10px rgba(0,0,0,.45)) drop-shadow(0 0 12px rgba(164,139,255,.28));}
-.gA-img img:nth-child(1){animation-delay:-.4s}
-@keyframes gPhBob{0%{transform:translateY(0) scale(1)}25%{transform:translateY(-6px) scale(1.02)}50%{transform:translateY(0) scale(1)}75%{transform:translateY(4px) scale(.99)}100%{transform:translateY(0) scale(1)}}
-@media (prefers-reduced-motion: reduce){.gA-img img{animation:none}}
 `;
 
 function ensureGiftArtCss() {
@@ -2973,9 +2966,6 @@ function giftArt(g, opts = {}) {
   ensureGiftArtCss();
   const U = Math.random().toString(36).slice(2, 8);
   const id = g?.id;
-  // Нарисованные подарки (картинки из assets/gifts) — по id из базы
-  const GIFT_IMG = { rose: 'rose', heart: 'heart', bear: 'bear', cake: 'cake', rocket: 'rocket', gift: 'gift', bouquet: 'bouquet', sparkle: 'star', diamond: 'diamond', cat: 'cat', bottle: 'bottle', wand: 'wand' };
-  if (GIFT_IMG[id]) return `<span class="gA gA-img"><img src="assets/gifts/${GIFT_IMG[id]}.jpg" alt="" draggable="false"></span>`;
   const emoji = g?.emoji || '🎁';
   let svg = '', cls = 'gA gA-' + id;
   switch (id) {
