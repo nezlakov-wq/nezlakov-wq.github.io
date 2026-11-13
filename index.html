@@ -1307,7 +1307,7 @@ body::after {
 @keyframes moonlitTwinkle { from { opacity: .4; } to { opacity: .95; } }
 #authScreen .auth-box {
   position: relative; z-index: 1; margin: auto; width: 100%; max-width: 400px;
-  background: transparent !important; border: 0 !important; box-shadow: none !important;
+  background: transparent !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; filter: none !important;
   padding: 0 !important; border-radius: 0 !important;
 }
 #authScreen .auth-moon {
@@ -1412,7 +1412,8 @@ body::after {
   order: 1; padding: 16px 18px 6px !important; font-size: 32px !important; font-weight: 800 !important;
   letter-spacing: -1.2px !important; text-transform: none !important; color: #f4f5ff !important; line-height: 1.05;
 }
-#sidebar .search-row { order: 2; padding: 8px 18px 12px !important; }
+#sidebar .search-row { order: 2; padding: 8px 18px 12px !important; background: transparent !important; border: 0 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; }
+#sidebar .section-label, #sidebar .sidebar-top, #sidebar .folder-tabs-wrap, #sidebar .stories-strip { border: 0 !important; background: transparent !important; box-shadow: none !important; }
 #sidebar .search-input {
   height: 46px; padding: 0 16px 0 44px !important; border-radius: 16px !important; font-size: 16px;
   background: rgba(255,255,255,.06) !important; border: 1px solid rgba(255,255,255,.08) !important;
