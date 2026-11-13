@@ -1513,6 +1513,68 @@ body::after {
   .set-in, .set-out, #settingsModal .modal.set-page { animation: none !important; }
   .set-item, .set-chev, #settingsModal .set-tab { transition: none !important; }
 }
+
+/* ══ Редизайн экрана чата («Ночное небо»): оболочка, шапка, поле ввода, даты. Цвета пузырей не трогаем — их задают настройки оформления ══ */
+#chatView {
+  background:
+    radial-gradient(700px 360px at 85% -6%, rgba(124,108,255,.20), transparent 62%),
+    radial-gradient(600px 320px at 0% 110%, rgba(64,140,255,.12), transparent 60%),
+    linear-gradient(180deg, #0a0b1c 0%, #06060d 100%);
+}
+#chatView .chat-header {
+  background: rgba(10,11,28,.72) !important; border-bottom: 1px solid rgba(255,255,255,.06) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+  padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important; padding-bottom: 10px !important;
+  min-height: 64px;
+}
+#chatView .chat-header .h-name { font-size: 16.5px; font-weight: 750; letter-spacing: -.2px; }
+#chatView .chat-header .h-status { color: #8f96c4; font-size: 12.5px; }
+#chatView .chat-header .av-img { box-shadow: 0 0 0 2px rgba(164,139,255,.45), 0 6px 16px -6px rgba(164,139,255,.6); }
+#chatView .back-btn { color: #b9a8ff !important; font-size: 30px; }
+#chatView .act-btn {
+  width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.07); transition: background .25s ease, transform .2s cubic-bezier(.22,1,.36,1);
+}
+#chatView .act-btn:hover { background: rgba(164,139,255,.16) !important; }
+#chatView .act-btn:active { transform: scale(.92); }
+#chatView .msgs { padding: 14px 12px 10px !important; scroll-behavior: smooth; }
+#chatView .bubble { border-radius: 22px !important; box-shadow: 0 10px 24px -16px rgba(0,0,0,.85) !important; line-height: 1.38; }
+#chatView .bubble.out { border-bottom-right-radius: 7px !important; }
+#chatView .bubble.in  { border-bottom-left-radius: 7px !important; }
+#chatView .bubble-foot { font-size: 11px; opacity: .6; }
+#chatView .date-div { margin: 14px 0 8px; }
+#chatView .date-div span, #chatView .date-div > div {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.07); color: #aab0d6 !important;
+  border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+}
+#chatView .input-area {
+  background: linear-gradient(180deg, rgba(6,6,13,0), rgba(6,6,13,.92) 40%) !important;
+  border-top: 0 !important; padding-top: 10px !important; gap: 8px !important;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+#chatView .input-area > .ico-btn {
+  width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.07); transition: background .25s ease, transform .2s ease;
+}
+#chatView .input-area > .ico-btn:active { transform: scale(.92); }
+#chatView .input-wrap {
+  background: rgba(255,255,255,.06) !important; border: 1px solid rgba(255,255,255,.08) !important;
+  border-radius: 24px !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+#chatView .input-wrap:focus-within { border-color: rgba(164,139,255,.55) !important; box-shadow: 0 0 0 4px rgba(164,139,255,.14) !important; }
+#chatView .msg-ta { color: #f2f3ff; border: 0 !important; background: transparent !important; box-shadow: none !important; outline: none !important; }
+#chatView .msg-ta::placeholder { color: #7d84b0; }
+#chatView .send-btn {
+  width: 44px !important; height: 44px !important; border-radius: 50% !important;
+  background: linear-gradient(135deg, #d9ceff, #a48bff) !important; color: #1b1533 !important;
+  box-shadow: 0 10px 22px -10px rgba(164,139,255,.9); transition: transform .2s cubic-bezier(.22,1,.36,1), box-shadow .25s ease;
+}
+#chatView .send-btn:active { transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) {
+  #chatView .msgs { scroll-behavior: auto; }
+  #chatView .act-btn, #chatView .input-area > .ico-btn, #chatView .send-btn, #chatView .input-wrap { transition: none !important; }
+}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
