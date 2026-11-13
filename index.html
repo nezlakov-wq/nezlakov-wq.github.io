@@ -1460,6 +1460,59 @@ body::after {
   #authScreen .auth-moon, #authScreen .auth-sky::before { animation: none !important; }
   #authScreen .auth-tabs::before, #sidebar .folder-tabs::before { transition: none !important; }
 }
+
+/* ══ Настройки в стиле «Ночное небо» + плавность ══ */
+#settingsModal .modal.set-page {
+  background:
+    radial-gradient(900px 480px at 50% -8%, rgba(124,108,255,.26), transparent 62%),
+    linear-gradient(180deg, #0a0b1c 0%, #06060d 70%) !important;
+}
+#settingsModal .set-topbar {
+  background: rgba(10,11,28,.72) !important; border-bottom: 0 !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+}
+#settingsModal .set-topbar .st-title { font-size: 17px; font-weight: 750; letter-spacing: -.2px; }
+#settingsModal .set-topbar button { color: #b9a8ff !important; font-weight: 600; }
+#settingsModal .set-profile { padding: 18px 0 18px; gap: 6px; }
+#settingsModal .set-av { width: 104px; height: 104px; box-shadow: 0 0 0 3px rgba(164,139,255,.35), 0 18px 44px -14px rgba(164,139,255,.6); }
+#settingsModal .set-av::after { background: linear-gradient(135deg, #d9ceff, #a48bff); box-shadow: 0 6px 14px -4px rgba(164,139,255,.9); }
+#settingsModal .set-name { font-size: 26px; font-weight: 800; letter-spacing: -.8px; }
+#settingsModal .set-username { color: #9aa0c8; }
+.set-group {
+  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03)) !important;
+  border: 1px solid rgba(255,255,255,.08); border-radius: 22px; margin: 14px 0;
+  box-shadow: 0 24px 50px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.set-item {
+  min-height: 56px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.06) !important;
+  font-weight: 600; transition: background .25s ease, transform .2s ease;
+}
+.set-item:hover { background: rgba(164,139,255,.08) !important; }
+.set-item:active { background: rgba(164,139,255,.14) !important; transform: scale(.992) !important; }
+.set-ico { width: 34px; height: 34px; border-radius: 11px; font-size: 17px; box-shadow: 0 8px 16px -8px rgba(0,0,0,.6); }
+.set-chev { color: #6c72a0; transition: transform .25s ease, color .25s ease; }
+.set-item:hover .set-chev { transform: translateX(3px); color: #b9a8ff; }
+#settingsModal .set-tabs { background: rgba(255,255,255,.06) !important; border-radius: 14px !important; padding: 4px !important; }
+#settingsModal .set-tab { border-radius: 11px !important; transition: background .3s ease, color .3s ease; }
+#settingsModal .set-tab.active { background: linear-gradient(135deg, #d9ceff, #a48bff) !important; color: #1b1533 !important; font-weight: 700; }
+#settingsModal .set-row { border-bottom-color: rgba(255,255,255,.07) !important; }
+#settingsModal .set-logout { border-radius: 16px; font-weight: 700; background: rgba(232,93,117,.16) !important; color: #ff8aa0 !important; border: 1px solid rgba(232,93,117,.35); transition: background .25s ease, transform .2s ease; }
+#settingsModal .set-logout:active { transform: scale(.985); }
+/* плавность переходов */
+@keyframes setIn { from { opacity: 0; transform: translateX(22px) scale(.992); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes setOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-16px); } }
+.set-in { animation: setIn .42s cubic-bezier(.22,1,.36,1) both; }
+.set-out { animation: setOut .22s cubic-bezier(.4,0,.2,1) forwards; }
+#settingsModal .modal.set-page { animation: setIn .45s cubic-bezier(.22,1,.36,1) both; }
+#sidebar .chat-item, #sidebar .ftab, #sidebar .search-input, #sidebar .s-btn { transition: background .3s ease, border-color .3s ease, transform .25s cubic-bezier(.22,1,.36,1), box-shadow .3s ease, color .3s ease; }
+#sidebar .chat-item:active { transform: scale(.985); }
+#sidebar .s-btn:active { transform: scale(.92); }
+#sidebar .search-input:focus { border-color: rgba(164,139,255,.55) !important; box-shadow: 0 0 0 4px rgba(164,139,255,.15); }
+.chat-list, .msgs, #settingsModal .set-page { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  .set-in, .set-out, #settingsModal .modal.set-page { animation: none !important; }
+  .set-item, .set-chev, #settingsModal .set-tab { transition: none !important; }
+}
 </style>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 </head>
