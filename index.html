@@ -518,11 +518,11 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 #profileModal .pf-sheet{position:relative;padding:0;max-width:440px;width:100%;max-height:92vh;max-height:92dvh;overflow:hidden;border-radius:26px;background:var(--bg2) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border:1px solid var(--border) !important}
 #profileModal .pf-scroll{position:relative;z-index:1;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:max(24px,env(safe-area-inset-bottom,0px));scrollbar-width:none;text-align:center}
 #profileModal .pf-scroll::-webkit-scrollbar{display:none}
-#profileModal .pf-hero{position:relative;height:300px;overflow:hidden}
-#profileModal #pfBanner{position:absolute;inset:0;overflow:hidden;background:linear-gradient(135deg,#3b4d8f,#6d4fb3)}
+#profileModal .pf-hero{position:relative}
+#profileModal #pfBanner{position:relative;width:100%;aspect-ratio:2.5/1;overflow:hidden;background:linear-gradient(135deg,#3b4d8f,#6d4fb3)}
 #profileModal #pfBanner::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 38%,var(--pf-fade,var(--bg2)) 96%)}
 #profileModal .pf-sheet.has-bg #pfBanner{--pf-fade:transparent;-webkit-mask-image:linear-gradient(to bottom,#000 55%,transparent 100%);mask-image:linear-gradient(to bottom,#000 55%,transparent 100%)}
-#profileModal .pf-hero-body{position:absolute;left:0;right:0;bottom:0;padding:0 16px 14px}
+#profileModal .pf-hero-body{position:relative;margin-top:-54px;padding:0 16px 14px}
 #profileModal #pfAv{margin:0 auto;border:4px solid var(--bg2);box-shadow:0 8px 24px rgba(0,0,0,.35)}
 #profileModal #pfName{margin-top:10px;font-size:22px;font-weight:750;letter-spacing:-.4px;line-height:1.25;text-shadow:0 1px 12px rgba(0,0,0,.4)}
 #profileModal #pfStatus{margin-top:3px;font-size:13.5px;min-height:18px;color:rgba(236,236,244,.7)}
