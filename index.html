@@ -555,6 +555,48 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 #profileModal .pf-switch input:checked::after{transform:translateX(18px)}
 #profileModal .pf-report{display:block;margin:20px auto 0;padding:10px 18px;border:0;border-radius:14px;background:rgba(239,68,68,.12);color:#ff6b61;font:inherit;font-size:14px;cursor:pointer}
 @media (min-width:641px){#profileModal{align-items:center}}
+
+/* ── Профиль: усиленный дизайн (только оформление) ── */
+#profileModal .pf-sheet{box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04) inset}
+#profileModal .pf-scroll{animation:pfIn .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pfIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+#profileModal #pfAv{position:relative;padding:4px;background:conic-gradient(from 180deg,#6f8bff,#b26bff,#ff7ab6,#ffb36b,#6f8bff);box-shadow:0 12px 40px rgba(111,139,255,.35)}
+#profileModal #pfAv::before{content:"";position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(from 0deg,rgba(111,139,255,0),rgba(178,107,255,.5),rgba(255,122,182,0));filter:blur(10px);z-index:-1;animation:pfSpin 6s linear infinite}
+@keyframes pfSpin{to{transform:rotate(360deg)}}
+#profileModal #pfName{background:linear-gradient(90deg,#fff,#c9d4ff);-webkit-background-clip:text;background-clip:text;color:transparent !important}
+#profileModal #pfName .plus{-webkit-text-fill-color:initial;color:#fff}
+#profileModal #pfStatus{letter-spacing:.2px}
+#profileModal .pf-act{position:relative;overflow:hidden;background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.03)) !important;border:1px solid rgba(255,255,255,.06)}
+#profileModal .pf-act::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0,rgba(111,139,255,.25),transparent 70%);opacity:0;transition:opacity .2s}
+#profileModal .pf-act:hover::after,#profileModal .pf-act:focus-visible::after{opacity:1}
+#profileModal .pf-act svg{filter:drop-shadow(0 0 6px rgba(111,139,255,.45))}
+#profileModal .pf-act:active{transform:scale(.94)}
+#profileModal .pf-card{background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02)) !important;border:1px solid rgba(255,255,255,.06);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+#profileModal #pfUsername{background:linear-gradient(90deg,#8fa5ff,#c49bff);-webkit-background-clip:text;background-clip:text;color:transparent !important;font-weight:650}
+#profileModal .pf-gift{transition:background .2s,transform .2s;border-radius:12px;padding-left:4px;padding-right:4px}
+#profileModal .pf-gift:hover{background:rgba(255,255,255,.05);transform:translateX(3px)}
+#profileModal .pf-giftsall{background:linear-gradient(90deg,rgba(111,139,255,.18),rgba(178,107,255,.18)) !important;border:1px solid rgba(111,139,255,.25);font-weight:600;transition:transform .15s,background .2s}
+#profileModal .pf-giftsall:hover{transform:translateY(-1px)}
+#profileModal .pf-giftsall:active{transform:scale(.97)}
+#profileModal .pf-sec{display:flex;align-items:center;gap:10px;letter-spacing:.3px}
+#profileModal .pf-sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.12),transparent)}
+#profileModal .pf-switch input:checked{box-shadow:0 0 14px rgba(111,139,255,.55)}
+#profileModal .pf-report{border:1px solid rgba(239,68,68,.25);transition:background .2s,transform .15s}
+#profileModal .pf-report:hover{background:rgba(239,68,68,.2)}
+#profileModal .pf-report:active{transform:scale(.97)}
+@media (prefers-reduced-motion: reduce){#profileModal .pf-scroll,#profileModal #pfAv::before{animation:none !important}}
+#profileModal .pf-gift-row{display:flex;align-items:center;gap:12px}
+#profileModal .pf-gift-art{width:40px;height:40px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+#profileModal .pf-gift-art .gA{width:40px;height:40px}
+#profileModal .pf-gift-art img{width:40px;height:40px;object-fit:contain;border-radius:10px}
+#profileModal .pf-gift-name{flex:1;text-align:left}
+#profileModal .pf-gift-count{color:var(--fg2)}
+#profileModal .pf-gift-btn{width:100%;border:0;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+#profileModal .pf-gift-group{border-bottom:1px solid var(--border)}
+#profileModal .pf-gift-group:last-child{border-bottom:0}
+#profileModal .pf-gift-details{padding:4px 0 12px 52px;display:flex;flex-direction:column;gap:6px}
+#profileModal .pf-gift-from{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--fg2)}
+#profileModal .pf-gift-from span:first-child{color:var(--fg)}
 /* Профиль на телефоне — на весь экран, без полей и рамки */
 @media (max-width: 640px) {
   #profileModal { padding: 0 !important; }
@@ -4039,29 +4081,39 @@ async function openProfile() {
   document.getElementById('pvAvatar').checked = !!rule?.hide_avatar;
   document.getElementById('pvGifts').checked = !!rule?.hide_gifts;
   if (giftCount === null) return;
-  // Подарки пользователя по видам во всех общих с вами чатах (сервер учитывает скрытие)
-  const { data: summary } = await sb.rpc('gift_summary_for', { owner: p.id });
+  // Подарки, которые получил владелец профиля: от кого и когда (сервер учитывает скрытие)
+  const { data: received, error: recErr } = await sb.rpc('gift_received_for', { owner: p.id });
   if (convId !== activeChatId) return;
-  if (!summary || !summary.length) {
+  if (recErr) { list.innerHTML = '<div class="pf-muted">Не удалось загрузить подарки</div>'; return; }
+  if (!received || !received.length) {
     list.innerHTML = '<div class="pf-muted">Подарков пока нет</div>';
     return;
   }
-  const giftRow = g => {
-    const label = `${g.emoji ? esc(g.emoji) + ' ' : ''}${esc(g.name || g.gift_id)}`;
-    return `<div class="pf-gift"><span>${label}</span><span>× ${g.count}</span></div>`;
-  };
-  const shown = summary.slice(0, 3);
-  list.innerHTML = shown.map(giftRow).join('') + (summary.length > 3
-    ? `<div id="pfGiftsRest" style="display:none">${summary.slice(3).map(giftRow).join('')}</div>`
-      + `<button type="button" id="pfGiftsAll" class="pf-giftsall">Все подарки (${summary.length})</button>`
-    : '');
-  const allBtn = document.getElementById('pfGiftsAll');
-  if (allBtn) allBtn.onclick = () => {
-    const rest = document.getElementById('pfGiftsRest');
-    const open = rest.style.display !== 'none';
-    rest.style.display = open ? 'none' : 'block';
-    allBtn.textContent = open ? `Все подарки (${summary.length})` : 'Свернуть';
-  };
+  if (!giftList.length) await loadGifts();
+  // группируем по виду подарка, внутри каждой группы — отправитель и дата
+  const groups = new Map();
+  for (const r of received) {
+    if (!groups.has(r.gift_id)) groups.set(r.gift_id, []);
+    groups.get(r.gift_id).push(r);
+  }
+  const fmtDate = iso => new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  list.innerHTML = [...groups.entries()].map(([gid, items], i) => {
+    const cat = giftList.find(x => x.id === gid);
+    const name = esc(cat?.name || gid);
+    const details = items.map(r =>
+      `<div class="pf-gift-from"><span>${esc(r.from_name || 'Пользователь')}</span><span>${esc(fmtDate(r.created_at))}</span></div>`
+    ).join('');
+    return `<div class="pf-gift-group">`
+      + `<button type="button" class="pf-gift pf-gift-row pf-gift-btn" data-gi="${i}">`
+      + `<span class="pf-gift-art">${giftArt({ id: gid })}</span>`
+      + `<span class="pf-gift-name">${name}</span>`
+      + `<span class="pf-gift-count">× ${items.length}</span></button>`
+      + `<div class="pf-gift-details" id="pfGd${i}" style="display:none">${details}</div></div>`;
+  }).join('');
+  list.querySelectorAll('.pf-gift-btn').forEach(b => b.onclick = () => {
+    const d = document.getElementById('pfGd' + b.dataset.gi);
+    d.style.display = d.style.display === 'none' ? 'block' : 'none';
+  });
 }
 
 // ── PRIVACY ──
