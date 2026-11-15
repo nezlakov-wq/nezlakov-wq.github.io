@@ -597,6 +597,24 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 #profileModal .pf-gift-details{padding:4px 0 12px 52px;display:flex;flex-direction:column;gap:6px}
 #profileModal .pf-gift-from{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--fg2)}
 #profileModal .pf-gift-from span:first-child{color:var(--fg)}
+.gp-page{position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;animation:gpIn .25s ease both}
+@keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.gp-top{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 10px}
+.gp-back{width:40px;height:40px;border-radius:50%;border:0;background:var(--bg3);color:var(--fg);font-size:26px;line-height:1;cursor:pointer}
+.gp-title{text-align:center}
+.gp-h{font-size:17px;font-weight:700}
+.gp-sub{font-size:13px;color:var(--fg2);margin-top:2px}
+.gp-spacer{width:40px}
+.gp-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:8px 12px 110px;align-content:start}
+.gp-card{position:relative;aspect-ratio:1/1.12;border:0;border-radius:18px;background:var(--bg3);color:var(--fg);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 6px 8px;font:inherit;transition:transform .15s}
+.gp-card:active{transform:scale(.96)}
+.gp-av{position:absolute;top:7px;left:7px;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#8f6cf0,#5b7fff);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.gp-art{width:64%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+.gp-art .gA,.gp-art img{width:100%;height:100%;object-fit:contain}
+.gp-name{font-size:11.5px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.gp-bottom{position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:linear-gradient(to top,var(--bg) 60%,transparent)}
+.gp-send{width:100%;padding:15px;border:0;border-radius:18px;background:linear-gradient(90deg,#5b7fff,#8b6cff);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px rgba(91,127,255,.35)}
+.gp-send:active{transform:scale(.98)}
 /* Профиль на телефоне — на весь экран, без полей и рамки */
 @media (max-width: 640px) {
   #profileModal { padding: 0 !important; }
@@ -4113,6 +4131,45 @@ async function openProfile() {
   list.querySelectorAll('.pf-gift-btn').forEach(b => b.onclick = () => {
     const d = document.getElementById('pfGd' + b.dataset.gi);
     d.style.display = d.style.display === 'none' ? 'block' : 'none';
+  });
+  window._profileGifts = { name: p.display_name || '', items: received };
+  list.insertAdjacentHTML('beforeend', `<button type="button" id="pfGiftsPageBtn" class="pf-giftsall">Все подарки (${received.length})</button>`);
+  document.getElementById('pfGiftsPageBtn').onclick = openGiftsPage;
+}
+
+
+// ── Страница «Все подарки» (сетка карточек, отправитель в углу, нажатие — от кого и когда) ──
+function openGiftsPage() {
+  const d = window._profileGifts;
+  if (!d) return;
+  const old = document.getElementById('giftsPage');
+  if (old) old.remove();
+  const fmt = iso => new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cards = d.items.map((r, i) => {
+    const cat = giftList.find(x => x.id === r.gift_id);
+    const from = esc(r.from_name || 'Пользователь');
+    return `<button type="button" class="gp-card" data-i="${i}" aria-label="Подарок от ${from}">`
+      + `<span class="gp-av">${esc(initials(r.from_name || 'П'))}</span>`
+      + `<span class="gp-art">${giftArt({ id: r.gift_id })}</span>`
+      + `<span class="gp-name">${esc(cat?.name || r.gift_id)}</span></button>`;
+  }).join('');
+  const page = document.createElement('div');
+  page.id = 'giftsPage';
+  page.className = 'gp-page';
+  page.innerHTML = `
+    <div class="gp-top">
+      <button type="button" class="gp-back" aria-label="Назад">‹</button>
+      <div class="gp-title"><div class="gp-h">${esc(d.name)}</div><div class="gp-sub">${d.items.length} подарков</div></div>
+      <span class="gp-spacer"></span>
+    </div>
+    <div class="gp-grid">${cards || '<div class="pf-muted">Подарков пока нет</div>'}</div>
+    <div class="gp-bottom"><button type="button" class="gp-send" id="gpSend">Отправить подарок</button></div>`;
+  document.body.appendChild(page);
+  page.querySelector('.gp-back').onclick = () => page.remove();
+  page.querySelector('#gpSend').onclick = () => { page.remove(); openGifts(); };
+  page.querySelectorAll('.gp-card').forEach(c => c.onclick = () => {
+    const r = d.items[+c.dataset.i];
+    toast(`${r.from_name || 'Пользователь'} · ${fmt(r.created_at)}`);
   });
 }
 
