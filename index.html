@@ -7154,8 +7154,7 @@ async function loadConversations() {
   const built = [];
   for(const conv of convList) {
     const members = membersByConv[conv.id] || [];
-    // Аватарки собеседников берём через защищённое представление: скрытые аватарки приходят пустыми
-    members.forEach(m => { if (m.profiles && m.user_id !== me.id) m.profiles.avatar_url = visAv[m.user_id] ?? null; });
+    // Публичные профили уже возвращаются с учётом настроек видимости аватара.
     const other = members.find(m=>m.user_id !== me.id);
     built.push({
       ...conv,
