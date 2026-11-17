@@ -2724,9 +2724,9 @@ async function register() {
   const resetBtn = () => { btn.disabled = false; btn.textContent = 'Создать аккаунт'; };
   let existing = null;
   try {
-    ({ data: existing } = await withTimeout(sb.rpc('get_public_profiles', { search_text: username }).eq('username', username).maybeSingle()));
+    ({ data: existing } = await withTimeout(sb.rpc('username_is_taken', { requested_username: username })));
   } catch (e) { resetBtn(); return authErr('Нет связи с сервером, попробуйте ещё раз'); }
-  if(existing) { resetBtn(); return authErr('Username уже занят'); }
+  if(existing === true) { resetBtn(); return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
   if (!captchaToken) { resetBtn(); return authErr('Подтвердите, что вы не робот. Если галочка не появляется, отключите блокировщик или откройте в другом браузере'); }
   // Ник и юзернейм кладём и в метаданные аккаунта: письмо могут открыть в другом браузере, где localStorage пуст
