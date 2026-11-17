@@ -5661,7 +5661,7 @@ async function loadStories() {
     const profs = await fetchPublicProfiles(ids);
     const byId = Object.fromEntries(profs.map(p => [p.id, p]));
     storiesAll = (data || []).map(st => ({ ...st, profiles: byId[st.user_id] || null }));
-  } catch (e) { storiesAll = []; }
+  } catch (e) { console.error('loadStories', e); }
   renderStories();
 }
 
@@ -5780,7 +5780,7 @@ async function uploadStory(file) {
     if (e2) return toast('Не опубликовалось: ' + e2.message);
     toast('История опубликована');
     loadStories();
-  } catch (e) { toast('Не удалось опубликовать'); }
+  } catch (e) { console.error('uploadStory', e); toast('Не удалось опубликовать: ' + (e?.message || 'ошибка')); }
 }
 
 async function openSettings() {
