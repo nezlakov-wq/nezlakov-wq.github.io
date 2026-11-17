@@ -7149,6 +7149,11 @@ async function loadConversations() {
   const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived, pinned: !!m.pinned, label: m.label, label_color: m.label_color }]));
   // Get conversations
   const { data: convs, error: cErr } = await sb.from('conversations').select('*').in('id', ids);
+  if (cErr) {
+    console.error('loadConversations conversations', cErr);
+    toast('Не удалось загрузить чаты: ' + cErr.message);
+    return; // Не затираем уже показанный список при временной ошибке API.
+  }
   // For each conversation get members and last message
   // Собираем во временный массив: параллельные вызовы не должны дублировать чаты
   // Один запрос на все участники, один на все аватарки и параллельные запросы последних сообщений
