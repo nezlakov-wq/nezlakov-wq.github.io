@@ -6866,7 +6866,7 @@ async function addToGroup(u) {
   if ((conv.members || []).find(m => m.user_id === u.id)) return toast('Уже в группе');
   const glim2 = isPlusNow() ? 50 : 20;
   if ((conv.members || []).length >= glim2) return toast('В группе не больше ' + glim2 + ' участников');
-  const { error } = await sb.from('conversation_members').insert({ conversation_id: conv.id, user_id: u.id });
+  const { error } = await sb.rpc('add_conversation_member', { conv: conv.id, member: u.id });
   if (error) return toast('Ошибка: ' + error.message);
   if (!conv.is_channel) {
     try {
