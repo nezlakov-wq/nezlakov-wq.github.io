@@ -597,6 +597,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 #profileModal .pf-gift-details{padding:4px 0 12px 52px;display:flex;flex-direction:column;gap:6px}
 #profileModal .pf-gift-from{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--fg2)}
 #profileModal .pf-gift-from span:first-child{color:var(--fg)}
+#profileModal .pf-giftsall-count{font-weight:650;letter-spacing:.2px}
+#profileModal #pfGifts{padding:10px 10px !important}
+#profileModal #pfGifts .pf-giftsall-count{margin:0 !important;width:100%;padding:16px 12px;border-radius:16px}
 .gp-page{position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;animation:gpIn .25s ease both}
 @keyframes gpIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .gp-top{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 10px}
@@ -4107,33 +4110,10 @@ async function openProfile() {
     list.innerHTML = '<div class="pf-muted">Подарков пока нет</div>';
     return;
   }
-  if (!giftList.length) await loadGifts();
-  // группируем по виду подарка, внутри каждой группы — отправитель и дата
-  const groups = new Map();
-  for (const r of received) {
-    if (!groups.has(r.gift_id)) groups.set(r.gift_id, []);
-    groups.get(r.gift_id).push(r);
-  }
-  const fmtDate = iso => new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  list.innerHTML = [...groups.entries()].map(([gid, items], i) => {
-    const cat = giftList.find(x => x.id === gid);
-    const name = esc(cat?.name || gid);
-    const details = items.map(r =>
-      `<div class="pf-gift-from"><span>${esc(r.from_name || 'Пользователь')}</span><span>${esc(fmtDate(r.created_at))}</span></div>`
-    ).join('');
-    return `<div class="pf-gift-group">`
-      + `<button type="button" class="pf-gift pf-gift-row pf-gift-btn" data-gi="${i}">`
-      + `<span class="pf-gift-art">${giftArt({ id: gid })}</span>`
-      + `<span class="pf-gift-name">${name}</span>`
-      + `<span class="pf-gift-count">× ${items.length}</span></button>`
-      + `<div class="pf-gift-details" id="pfGd${i}" style="display:none">${details}</div></div>`;
-  }).join('');
-  list.querySelectorAll('.pf-gift-btn').forEach(b => b.onclick = () => {
-    const d = document.getElementById('pfGd' + b.dataset.gi);
-    d.style.display = d.style.display === 'none' ? 'block' : 'none';
-  });
+  // В профиле только заголовок с количеством; список и подробности — на странице «Подарки»
   window._profileGifts = { name: p.display_name || '', items: received };
-  list.insertAdjacentHTML('beforeend', `<button type="button" id="pfGiftsPageBtn" class="pf-giftsall">Все подарки (${received.length})</button>`);
+  if (!giftList.length) await loadGifts();
+  list.innerHTML = `<button type="button" id="pfGiftsPageBtn" class="pf-giftsall pf-giftsall-count">Подарки · ${received.length}</button>`;
   document.getElementById('pfGiftsPageBtn').onclick = openGiftsPage;
 }
 
