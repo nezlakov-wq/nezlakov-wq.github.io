@@ -120,7 +120,7 @@ Deno.serve(async (req: Request) => {
       const b = html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${escaped}["']`, "i"));
       return (a || b || [])[1] || "";
     };
-    const titleTag = html.match(/<title[^>]*>([^<]*)<\\/title>/i);
+    const titleTag = html.match(/<title[^>]*>([^<]*)<\/title>/i);
     const title = meta("og:title") || (titleTag ? titleTag[1] : "");
     const description = meta("og:description") || meta("description");
     let image = meta("og:image");
