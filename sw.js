@@ -32,8 +32,25 @@ self.addEventListener('push', e => {
 });
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: 'window' }).then(cs => {
-    if (cs.length) return cs[0].focus();
-    return self.clients.openWindow('./');
-  }));
+  e.waitUntil((async () => {
+    // Уведомление может содержать относительный URL внутри приложения.
+    // Не разрешаем переход по внешним URL из данных push.
+    let target = new URL('./', self.location.href);
+    try {
+      const requested = e.notification.data?.url;
+      if (requested) {
+        const candidate = new URL(requested, self.location.href);
+        if (candidate.origin === self.location.origin) target = candidate;
+      }
+    } catch (err) {}
+
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      if (client.url && new URL(client.url).origin === self.location.origin) {
+        if (typeof client.navigate === 'function') await client.navigate(target.href);
+        return client.focus();
+      }
+    }
+    return self.clients.openWindow(target.href);
+  })());
 });
