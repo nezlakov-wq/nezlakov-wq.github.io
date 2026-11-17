@@ -2724,7 +2724,7 @@ async function register() {
   const resetBtn = () => { btn.disabled = false; btn.textContent = 'Создать аккаунт'; };
   let existing = null;
   try {
-    ({ data: existing } = await withTimeout(sb.from('profiles').select('id').eq('username', username).maybeSingle()));
+    ({ data: existing } = await withTimeout(sb.from('profiles_view').select('id').eq('username', username).maybeSingle()));
   } catch (e) { resetBtn(); return authErr('Нет связи с сервером, попробуйте ещё раз'); }
   if(existing) { resetBtn(); return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
@@ -4078,7 +4078,7 @@ async function openProfile() {
   // Проверка на сервере: скрыты ли подарки от меня
   // «О себе» и день рождения собеседника, с учётом его скрытия
   {
-    const { data: pi } = await sb.from('profiles').select('bio,birthday,hide_bio,hide_birthday,plus_until').eq('id', p.id).maybeSingle();
+    const { data: pi } = await sb.rpc('get_public_profile_details', { target: p.id });
     const setRow = (rowId, valId, text) => {
       const r = document.getElementById(rowId), v = document.getElementById(valId);
       if (!r || !v) return;
@@ -6433,7 +6433,7 @@ async function encryptForDevices(userIds, text) {
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, ck, cenc.encode(text));
   const wraps = [];
   // Ключ аккаунта (из profiles.pub_key): открывает сообщения на любом устройстве, где введён пароль
-  const { data: accs } = await sb.from('profiles').select('id, pub_key').in('id', userIds);
+  const { data: accs } = await sb.from('profiles_view').select('id, pub_key').in('id', userIds);
   const targets = [...devs.map(d => ({ u: d.user_id, d: d.device_id, pub: d.pub_key }))];
   for (const a of accs || []) if (a.pub_key) targets.push({ u: a.id, d: 'acct', pub: a.pub_key });
   for (const t of targets) {
@@ -6638,7 +6638,7 @@ function searchUsersInto(val, resId, onPick) {
   if (!val.trim()) { res.innerHTML = ''; return; }
   groupSearchTimer = setTimeout(async () => {
     const q = val.replace('@', '').toLowerCase();
-    const { data } = await sb.from('profiles')
+    const { data } = await sb.from('profiles_view')
       .select('id,display_name,username,pub_key')
       .or(await userOr(q))
       .neq('id', me.id).limit(10);
@@ -7139,18 +7139,16 @@ async function loadConversations() {
   const convList = convs || [];
   const convIds = convList.map(c => c.id);
   const { data: allMembers } = convIds.length
-    ? await sb.from('conversation_members')
-        .select('conversation_id, user_id, profiles(id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_avatar,hide_online,ghost_mode,hide_gifts,last_seen)')
-        .in('conversation_id', convIds)
+    ? await sb.from('conversation_members').select('conversation_id,user_id').in('conversation_id', convIds)
     : { data: [] };
+  const allMemberIds = [...new Set((allMembers || []).map(m => m.user_id))];
+  const { data: publicProfiles } = allMemberIds.length
+    ? await sb.from('profiles_view').select('id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_online,hide_gifts,last_seen').in('id', allMemberIds)
+    : { data: [] };
+  const profileById = Object.fromEntries((publicProfiles || []).map(p => [p.id, p]));
+  (allMembers || []).forEach(m => { m.profiles = profileById[m.user_id] || null; });
   const membersByConv = {};
   (allMembers || []).forEach(m => { (membersByConv[m.conversation_id] ||= []).push(m); });
-  const allOtherIds = [...new Set((allMembers || []).map(m => m.user_id).filter(id => id !== me.id))];
-  const visAv = {};
-  if (allOtherIds.length) {
-    const { data: vis } = await sb.from('profiles_view').select('id,avatar_url').in('id', allOtherIds);
-    (vis || []).forEach(v => { visAv[v.id] = v.avatar_url; });
-  }
   const lastByConv = Object.fromEntries(await Promise.all(convIds.map(async id => {
     const { data } = await sb.from('messages').select('*').eq('conversation_id', id)
       .order('created_at', {ascending:false}).limit(1);
