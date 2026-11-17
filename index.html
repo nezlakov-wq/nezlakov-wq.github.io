@@ -7504,12 +7504,12 @@ async function loadMessages(convId, opts = {}) {
     .select('*, profiles:profiles!messages_sender_id_fkey(id,display_name,username)')
     .eq('conversation_id', convId)
     .order('created_at', {ascending:true});
+  if (convId !== activeChatId) return; // пользователь уже открыл другой чат
   if (error) {
     console.error('loadMessages', error);
     area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--fg2);font-size:13px">Не удалось загрузить сообщения: ' + esc(error.message || 'ошибка') + '</div>';
     return;
   }
-  if (convId !== activeChatId) return; // пользователь уже открыл другой чат
   const conv = conversations.find(c => c.id === convId);
   // Ошибка расшифровки одного сообщения не должна прятать всю переписку
   const safe = async (fn) => { try { return await fn(); } catch (e) { console.error('decrypt', e); return '🔒 не удалось расшифровать'; } };
@@ -7526,6 +7526,9 @@ async function loadMessages(convId, opts = {}) {
     const otherPub = activeOther?.pub_key;
     for (const m of (msgs || [])) m.plain = await cached(m, () => decryptFrom(otherPub, m.text));
   }
+  // Расшифровка асинхронная: пользователь мог переключить чат, пока мы ждали ключи.
+  // Не позволяем старому запросу отрисовать сообщения поверх нового чата.
+  if (convId !== activeChatId) return;
   renderMessages(msgs||[], area);
 }
 
