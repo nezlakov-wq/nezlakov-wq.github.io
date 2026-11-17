@@ -3995,7 +3995,8 @@ async function openContacts() {
     body.innerHTML = '<div style="padding:28px 16px;text-align:center;opacity:.7">Контактов пока нет. Откройте профиль человека и нажмите «Добавить».</div>';
     return;
   }
-  const { data: profs } = await sb.rpc('get_public_profiles', { target_ids: ids });
+  let profs = [];
+  try { profs = await fetchPublicProfiles(ids); } catch (e) { console.error('load contacts profiles', e); }
   const people = (profs || []).sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', 'ru'));
   body.innerHTML = '';
   people.forEach(p => {
@@ -5653,10 +5654,13 @@ async function loadStories() {
   if (!me || !document.getElementById('storiesStrip')) return;
   try {
     const { data, error } = await sb.from('stories')
-      .select('id,user_id,media_url,kind,created_at,profiles(display_name,avatar_color,avatar_url)')
+      .select('id,user_id,media_url,kind,created_at')
       .order('created_at', { ascending: true });
     if (error) throw error;
-    storiesAll = data || [];
+    const ids = [...new Set((data || []).map(st => st.user_id))];
+    const profs = await fetchPublicProfiles(ids);
+    const byId = Object.fromEntries(profs.map(p => [p.id, p]));
+    storiesAll = (data || []).map(st => ({ ...st, profiles: byId[st.user_id] || null }));
   } catch (e) { storiesAll = []; }
   renderStories();
 }
@@ -6640,11 +6644,11 @@ function searchUsersInto(val, resId, onPick) {
     const q = val.replace('@', '').toLowerCase();
     const { data } = await sb.rpc('get_public_profiles', { search_text: q }).neq('id', me.id).limit(10);
     res.innerHTML = '';
-    if (!data?.length) {
+    if (!users.length) {
       res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
       return;
     }
-    data.forEach(u => {
+    users.forEach(u => {
       const el = document.createElement('div');
       el.className = 'user-result-item';
       el.innerHTML = `<div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div><div><div class="u-name">${esc(u.display_name)}</div><div class="u-un">@${esc(u.username)}${u.pub_key ? '' : ' · нет ключа'}</div></div>`;
@@ -7120,12 +7124,24 @@ function resetWallpaper() {
 applyFont(getFont());
 
 // ── CONVERSATIONS ──
+async function fetchPublicProfiles(ids) {
+  const unique = [...new Set((ids || []).filter(Boolean))];
+  const out = [];
+  for (let i = 0; i < unique.length; i += 100) {
+    const { data, error } = await sb.rpc('get_public_profiles', { target_ids: unique.slice(i, i + 100) });
+    if (error) throw error;
+    out.push(...(data || []));
+  }
+  return out;
+}
+
 async function loadConversations() {
   loadStories();
   if(!me) return;
   // Get my conversation ids
   const { data: memberships, error: mErr } = await sb.from('conversation_members').select('conversation_id, muted, archived, pinned, label, label_color').eq('user_id', me.id);
-  if(!memberships?.length) { renderChatList(); return; }
+  if (mErr) { console.error('loadConversations memberships', mErr); toast('Не удалось загрузить чаты: ' + mErr.message); return; }
+  if(!memberships?.length) { conversations = []; renderChatList(); return; }
   const ids = memberships.map(m=>m.conversation_id);
   const flags = Object.fromEntries(memberships.map(m => [m.conversation_id, { muted: !!m.muted, archived: !!m.archived, pinned: !!m.pinned, label: m.label, label_color: m.label_color }]));
   // Get conversations
@@ -7139,9 +7155,9 @@ async function loadConversations() {
     ? await sb.from('conversation_members').select('conversation_id,user_id').in('conversation_id', convIds)
     : { data: [] };
   const allMemberIds = [...new Set((allMembers || []).map(m => m.user_id))];
-  const { data: publicProfiles } = allMemberIds.length
-    ? await sb.rpc('get_public_profiles', { target_ids: allMemberIds })
-    : { data: [] };
+  let publicProfiles = [];
+  try { publicProfiles = await fetchPublicProfiles(allMemberIds); }
+  catch (e) { console.error('loadConversations profiles', e); }
   const profileById = Object.fromEntries((publicProfiles || []).map(p => [p.id, p]));
   (allMembers || []).forEach(m => { m.profiles = profileById[m.user_id] || null; });
   const membersByConv = {};
@@ -7759,20 +7775,23 @@ async function searchUsers(val) {
   const res = document.getElementById('userResults');
   if(!val.trim()) { res.innerHTML = ''; return; }
   searchTimer = setTimeout(async () => {
-    const q = val.replace('@','').toLowerCase();
-    const { data } = await sb.rpc('get_public_profiles', { search_text: q }).neq('id', me.id).limit(10);
+    const q = val.trim().replace(/^@/, '').toLowerCase();
+    if (q.length < 2) { res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Введите минимум 2 символа</div>'; return; }
+    const { data, error } = await sb.rpc('get_public_profiles', { search_text: q });
+    if (error) { console.error('searchUsers', error); res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--danger);font-size:13px">Ошибка поиска: ' + esc(error.message) + '</div>'; return; }
+    const users = (data || []).filter(u => u.id !== me.id).slice(0, 10);
     res.innerHTML = '';
     const { data: chans } = q ? await sb.from('conversations').select('id,name,username,avatar_url').eq('is_channel', true).eq('is_public', true).eq('username', q).limit(1) : { data: [] };
-    if(!data?.length && !chans?.length) {
+    if(!users.length && !chans?.length) {
       res.innerHTML = '<div style="padding:16px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
       return;
     }
     // Именные бейджи для найденных пользователей
     const badgeMap = {};
-    if (data?.length) { const { data: bd } = await sb.from('user_badges').select('user_id,label,color').in('user_id', data.map(u => u.id)); (bd || []).forEach(b => { badgeMap[b.user_id] = { label: b.label, color: b.color }; }); }
+    if (users.length) { const { data: bd } = await sb.from('user_badges').select('user_id,label,color').in('user_id', users.map(u => u.id)); (bd || []).forEach(b => { badgeMap[b.user_id] = { label: b.label, color: b.color }; }); }
     // Приоритет Plus: пользователи с подпиской выше в результатах поиска
-    data.sort((x, y) => (y.plus_active ? 1 : 0) - (x.plus_active ? 1 : 0));
-    data.forEach(u => {
+    users.sort((x, y) => (y.plus_active ? 1 : 0) - (x.plus_active ? 1 : 0));
+    users.forEach(u => {
       const el = document.createElement('div');
       el.className = 'user-result-item';
       el.innerHTML = `
