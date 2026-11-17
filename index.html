@@ -612,8 +612,9 @@ html,body{height:100%;font-family:-apple-system,'Inter',system-ui,sans-serif;bac
 .gp-card{position:relative;aspect-ratio:1/1.12;border:0;border-radius:18px;background:var(--bg3);color:var(--fg);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 6px 8px;font:inherit;transition:transform .15s}
 .gp-card:active{transform:scale(.96)}
 .gp-av{position:absolute;top:7px;left:7px;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#8f6cf0,#5b7fff);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.gp-art{width:64%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+.gp-art{width:64%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:min(52px,13vw);line-height:1}
 .gp-art .gA,.gp-art img{width:100%;height:100%;object-fit:contain}
+.gp-art svg{width:100%;height:100%}
 .gp-name{font-size:11.5px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .gp-bottom{position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(env(safe-area-inset-bottom,0px) + 16px);background:linear-gradient(to top,var(--bg) 60%,transparent)}
 .gp-send{width:100%;padding:15px;border:0;border-radius:18px;background:linear-gradient(90deg,#5b7fff,#8b6cff);color:#fff;font:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 10px 30px rgba(91,127,255,.35)}
