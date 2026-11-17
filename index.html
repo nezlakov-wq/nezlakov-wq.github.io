@@ -2724,7 +2724,7 @@ async function register() {
   const resetBtn = () => { btn.disabled = false; btn.textContent = 'Создать аккаунт'; };
   let existing = null;
   try {
-    ({ data: existing } = await withTimeout(sb.from('profiles_view').select('id').eq('username', username).maybeSingle()));
+    ({ data: existing } = await withTimeout(sb.rpc('get_public_profiles', { search_text: username }).eq('username', username).maybeSingle()));
   } catch (e) { resetBtn(); return authErr('Нет связи с сервером, попробуйте ещё раз'); }
   if(existing) { resetBtn(); return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
@@ -3995,7 +3995,7 @@ async function openContacts() {
     body.innerHTML = '<div style="padding:28px 16px;text-align:center;opacity:.7">Контактов пока нет. Откройте профиль человека и нажмите «Добавить».</div>';
     return;
   }
-  const { data: profs } = await sb.from('profiles_view').select('id,display_name,username,avatar_url').in('id', ids);
+  const { data: profs } = await sb.rpc('get_public_profiles', { target_ids: ids });
   const people = (profs || []).sort((a, b) => (a.display_name || '').localeCompare(b.display_name || '', 'ru'));
   body.innerHTML = '';
   people.forEach(p => {
@@ -6433,7 +6433,7 @@ async function encryptForDevices(userIds, text) {
   const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, ck, cenc.encode(text));
   const wraps = [];
   // Ключ аккаунта (из profiles.pub_key): открывает сообщения на любом устройстве, где введён пароль
-  const { data: accs } = await sb.from('profiles_view').select('id, pub_key').in('id', userIds);
+  const { data: accs } = await sb.rpc('get_public_profiles', { target_ids: userIds });
   const targets = [...devs.map(d => ({ u: d.user_id, d: d.device_id, pub: d.pub_key }))];
   for (const a of accs || []) if (a.pub_key) targets.push({ u: a.id, d: 'acct', pub: a.pub_key });
   for (const t of targets) {
@@ -6638,10 +6638,7 @@ function searchUsersInto(val, resId, onPick) {
   if (!val.trim()) { res.innerHTML = ''; return; }
   groupSearchTimer = setTimeout(async () => {
     const q = val.replace('@', '').toLowerCase();
-    const { data } = await sb.from('profiles_view')
-      .select('id,display_name,username,pub_key')
-      .or(await userOr(q))
-      .neq('id', me.id).limit(10);
+    const { data } = await sb.rpc('get_public_profiles', { search_text: q }).neq('id', me.id).limit(10);
     res.innerHTML = '';
     if (!data?.length) {
       res.innerHTML = '<div style="padding:12px;text-align:center;color:var(--fg2);font-size:13px">Не найдено</div>';
@@ -7143,7 +7140,7 @@ async function loadConversations() {
     : { data: [] };
   const allMemberIds = [...new Set((allMembers || []).map(m => m.user_id))];
   const { data: publicProfiles } = allMemberIds.length
-    ? await sb.from('profiles_view').select('id,display_name,username,avatar_color,avatar_url,banner_url,profile_bg_url,pub_key,hide_online,hide_gifts,last_seen').in('id', allMemberIds)
+    ? await sb.rpc('get_public_profiles', { target_ids: allMemberIds })
     : { data: [] };
   const profileById = Object.fromEntries((publicProfiles || []).map(p => [p.id, p]));
   (allMembers || []).forEach(m => { m.profiles = profileById[m.user_id] || null; });
@@ -7764,11 +7761,7 @@ async function searchUsers(val) {
   if(!val.trim()) { res.innerHTML = ''; return; }
   searchTimer = setTimeout(async () => {
     const q = val.replace('@','').toLowerCase();
-    const { data } = await sb.from('profiles_view')
-      .select('*')
-      .or(await userOr(q))
-      .neq('id', me.id)
-      .limit(10);
+    const { data } = await sb.rpc('get_public_profiles', { search_text: q }).neq('id', me.id).limit(10);
     res.innerHTML = '';
     const { data: chans } = q ? await sb.from('conversations').select('id,name,username,avatar_url').eq('is_channel', true).eq('is_public', true).eq('username', q).limit(1) : { data: [] };
     if(!data?.length && !chans?.length) {
