@@ -5014,6 +5014,19 @@ function markListened(msg, el) {
 }
 
 // ── FILES AND PHOTOS ──
+const SAFE_FILE_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
+  'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/aac',
+  'video/mp4', 'video/webm', 'video/quicktime'
+]);
+function safeFileMime(value) {
+  const mime = typeof value === 'string' ? value.toLowerCase().split(';', 1)[0].trim() : '';
+  return SAFE_FILE_MIMES.has(mime) ? mime : 'application/octet-stream';
+}
+function fileKind(mime) {
+  const safe = safeFileMime(mime);
+  return safe.startsWith('image/') ? 'img' : safe.startsWith('audio/') ? 'audio' : safe.startsWith('video/') ? 'vnote' : 'file';
+}
 // Файл шифруется ключом чата и кладётся в приватный bucket.
 // В сообщение кладётся зашифрованная метаданная: путь, имя, тип, IV.
 const MAX_FILE = 10 * 1024 * 1024;
@@ -5031,7 +5044,7 @@ function bodyHtml(msg) {
   if (isFileMsg(p)) {
     try {
       const m = JSON.parse(p);
-      const kind = (m.m || '').startsWith('image/') ? 'img' : (m.m || '').startsWith('audio/') ? 'audio' : (m.m || '').startsWith('video/') ? 'vnote' : 'file';
+      const kind = fileKind(m.m);
       const placeholder = kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : kind === 'vnote' ? '<span style="opacity:.6">Кружок…</span>' : '📎 ' + esc(m.n);
       return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${placeholder}</div>`;
     } catch (e) { return '📎 Файл'; }
@@ -5076,7 +5089,7 @@ async function fileUrl(m, keyVersion = 0) {
   const { data, error } = await sb.storage.from('chat-media').download(m.p);
   if (error || !data) throw new Error('download');
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(m.i) }, key, await data.arrayBuffer());
-  const url = URL.createObjectURL(new Blob([pt], { type: m.m }));
+  const url = URL.createObjectURL(new Blob([pt], { type: safeFileMime(m.m) }));
   fileCache.set(m.p, url);
   return url;
 }
@@ -5101,7 +5114,7 @@ function hydrateFiles(area, msgs) {
       const url = await fileUrl(m, msg.key_version || 0);
       if (el.dataset.kind === 'img') {
         // (контент 18+ размывается после отрисовки, см. adultCover)
-        el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
+        el.innerHTML = `<a href="${escAttr(url)}" target="_blank" rel="noopener noreferrer"><img src="${escAttr(url)}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'vnote') {
         el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
         // Пузырь вокруг кружка убираем явным классом (надёжнее, чем :has)
@@ -5148,7 +5161,7 @@ function hydrateFiles(area, msgs) {
           time.textContent = fmtTime(audio.currentTime || 0);
         };
       } else {
-        el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
+        el.innerHTML = `<a href="${escAttr(url)}" download="${escAttr(m.n || "file")}" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
       if (m.a && (el.dataset.kind === 'img' || el.dataset.kind === 'vnote')) adultCover(el);
     } catch (e) {
