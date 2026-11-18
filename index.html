@@ -2921,7 +2921,7 @@ function msgContent(text, msg) {
   if (msg) giftInfo[msg.id] = { text, created: msg.created_at, from, fromId: msg.sender_id };
   const price = g ? g.price : 0;
   const svc = '<div class="gift-svc">' + esc(from) + ' отправил(а) ' + (gg ? 'всем получателям ' : 'Вам ') + 'подарок стоимостью <b>' + price + ' ' + COIN_IMG + '</b></div>';
-  const btn = msg ? ' onclick="openGiftView(\'' + msg.id + '\')"' : '';
+  const btn = msg ? ' onclick="openGiftView(' + jsStringAttr(msg.id) + ')"' : '';
   return '<div class="gift-msg">' + svc + '<div class="gift-msg-em">' + (g ? giftArt(g, { name: recName }) : '🎁') + '</div><div class="gift-msg-name">' + (g ? esc(g.name) : 'Подарок') + '</div><button class="gift-msg-btn"' + btn + '>Посмотреть</button></div>';
 }
 async function openGifts() {
@@ -3236,7 +3236,7 @@ function giftArt(g, opts = {}) {
   const GIFT_IMG = { bear: 'bear', cake: 'cake', gift: 'gift', bouquet: 'bouquet', diamond: 'diamond', cat: 'cat', bottle: 'bottle', wand: 'wand' };
   if (GIFT_IMG[id]) return `<span class="gA gA-img"><img src="assets/gifts/${GIFT_IMG[id]}.jpg" alt="" draggable="false"></span>`;
   const emoji = g?.emoji || '🎁';
-  let svg = '', cls = 'gA gA-' + id;
+  let svg = '', cls = 'gA gA-' + escAttr(String(id || 'unknown'));
   switch (id) {
     case 'rose': {
       const cols = ['#be123c', '#e11d48', '#9f1239', '#e11d48', '#be123c'];
@@ -3371,7 +3371,7 @@ ${[[24, 60, 0], [76, 60, 1.2], [50, 34, 2.1]].map(([x, y, d]) => `<g transform="
       break;
     }
     default:
-      return emoji;
+      return esc(emoji);
   }
   return `<span class="${cls}"><svg viewBox="0 0 100 100" aria-hidden="true">${svg}</svg></span>`;
 }
@@ -5048,7 +5048,7 @@ function bodyHtml(msg) {
       const m = JSON.parse(p);
       const kind = fileKind(m.m);
       const placeholder = kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : kind === 'vnote' ? '<span style="opacity:.6">Кружок…</span>' : '📎 ' + esc(m.n);
-      return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${placeholder}</div>`;
+      return `<div class="file-box" data-fid="${escAttr(msg.id)}" data-kind="${kind}">${placeholder}</div>`;
     } catch (e) { return '📎 Файл'; }
   }
   const html = msgContent(p, msg);
