@@ -1860,7 +1860,7 @@ body::after {
       <div class="auth-field"><label>Имя</label><input type="text" id="regName" placeholder="Иван Иванов"></div>
       <div class="auth-field"><label>Username</label><input type="text" id="regUsername" placeholder="@username" oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'').toLowerCase()"></div>
       <div class="auth-field"><label>Email</label><input type="email" id="regEmail" placeholder="you@email.com"></div>
-      <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="regPass" placeholder="Минимум 6 символов"><button type="button" class="pw-eye" onclick="togglePw('regPass', this)">👁</button></div></div>
+      <div class="auth-field"><label>Пароль</label><div class="pw-wrap"><input type="password" id="regPass" placeholder="Минимум 8 символов"><button type="button" class="pw-eye" onclick="togglePw('regPass', this)">👁</button></div></div>
       <div id="tsWidget" style="margin:6px 0 12px;min-height:65px"></div>
       <button class="auth-btn" onclick="register()">Создать аккаунт</button>
     </div>
@@ -2245,7 +2245,7 @@ body::after {
       <div class="set-row"><div class="set-label">Email (нажми, чтобы показать)</div><div id="setEmail" class="blurred" onclick="this.classList.toggle('blurred')"></div></div>
       <div class="set-row"><div class="set-label">Дата регистрации</div><div id="setCreated"></div></div>
       <div class="set-row"><div class="set-label">Баланс</div><div id="setBalance"></div></div>
-      <div class="set-row"><div class="set-label">Сменить пароль</div><div style="font-size:13px;opacity:.7;margin:4px 0">Ключ шифрования переоборачивается автоматически, история сохраняется.</div><input type="password" id="newPw" placeholder="Новый пароль (минимум 6)" style="width:100%;box-sizing:border-box;margin-bottom:6px"><button class="set-logout" style="color:inherit" onclick="changePassword()">Сменить пароль</button></div>
+      <div class="set-row"><div class="set-label">Сменить пароль</div><div style="font-size:13px;opacity:.7;margin:4px 0">Ключ шифрования переоборачивается автоматически, история сохраняется.</div><input type="password" id="newPw" placeholder="Новый пароль (минимум 8)" style="width:100%;box-sizing:border-box;margin-bottom:6px"><button class="set-logout" style="color:inherit" onclick="changePassword()">Сменить пароль</button></div>
       <div class="set-row"><div class="set-label">Уведомления о новых сообщениях</div><div style="font-size:13px;opacity:.7;margin:4px 0">На iPhone работает, если добавить Moonlit на экран «Домой».</div><button id="notifBtn" class="set-logout" style="color:inherit" onclick="enableNotifications()">Включить</button></div>
     </div>
     <div id="setPrivacy" class="privacy-row" style="display:none">
@@ -2748,7 +2748,7 @@ async function register() {
   const pass = document.getElementById('regPass').value;
   if(!name||!username||!email||!pass) return authErr('Заполни все поля');
   if(username.length < 3) return authErr('Username минимум 3 символа');
-  if(pass.length < 6) return authErr('Пароль минимум 6 символов');
+  if(pass.length < 8) return authErr('Пароль минимум 8 символов');
   const btn = document.querySelector('#registerForm .auth-btn');
   btn.disabled = true; btn.textContent = 'Создаём…';
   // Check username unique
@@ -3729,7 +3729,7 @@ async function resetKeys(user, password) {
 // Смена пароля входа: переоборачиваем ключ новым паролем, история сохраняется
 async function changePassword() {
   const pw = document.getElementById('newPw').value;
-  if (pw.length < 6) return toast('Пароль минимум 6 символов');
+  if (pw.length < 8) return toast('Пароль минимум 8 символов');
   const priv = JSON.parse(localStorage.getItem('moonlit-priv-' + me.id) || 'null');
   if (!priv) return toast('Сначала открой переписку');
   const { error: pErr } = await sb.auth.updateUser({ password: pw });
@@ -3767,7 +3767,7 @@ function newPasswordFlow() {
     document.body.appendChild(ov);
     ov.querySelector('#__nbtn').onclick = async () => {
       const pw = ov.querySelector('#__npw').value;
-      if (pw.length < 6) { ov.querySelector('#__nerr').textContent = 'Минимум 6 символов'; return; }
+      if (pw.length < 8) { ov.querySelector('#__nerr').textContent = 'Минимум 8 символов'; return; }
       const { error } = await sb.auth.updateUser({ password: pw });
       if (error) { ov.querySelector('#__nerr').textContent = error.message; return; }
       await sb.auth.signOut();
