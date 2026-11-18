@@ -2398,6 +2398,14 @@ function safePublicMediaUrl(value) {
     return u.href;
   } catch (_) { return ''; }
 }
+function safeHttpUrl(value) {
+  if (typeof value !== 'string' || value.length > 2048) return '';
+  try {
+    const u = new URL(value);
+    if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.username || u.password) return '';
+    return u.href;
+  } catch (_) { return ''; }
+}
 function escAttr(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -5027,7 +5035,7 @@ function bodyHtml(msg) {
   const html = msgContent(p, msg);
   // Для сообщения со ссылкой добавляем место под карточку превью (заполнит hydratePreviews)
   const link = /https?:\/\/[^\s<]+/.exec(p);
-  return link ? html + `<div class="lp" data-url="${esc(link[0])}"></div>` : html;
+  return link ? html + `<div class="lp" data-url="${escAttr(link[0])}"></div>` : html;
 }
 // Превью ссылок: сервер читает заголовок и картинку страницы; результат кешируется
 const previewCache = new Map();
@@ -5040,9 +5048,12 @@ function getPreview(url) {
 function hydratePreviews(area) {
   area.querySelectorAll('.lp:not([data-done])').forEach(async el => {
     el.dataset.done = '1';
-    const d = await getPreview(el.dataset.url);
+    const previewUrl = safeHttpUrl(el.dataset.url);
+    if (!previewUrl) return;
+    const d = await getPreview(previewUrl);
     if (!d.title && !d.description) return;
-    el.innerHTML = `<a href="${esc(el.dataset.url)}" target="_blank" rel="noopener" style="display:block;margin-top:6px;padding:8px;border-radius:10px;background:rgba(0,0,0,.25);color:inherit;text-decoration:none;font-size:13px">${d.image ? `<img src="${esc(d.image)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.remove()">` : ''}<div style="font-weight:600">${esc(d.title || d.site || '')}</div>${d.description ? `<div style="opacity:.8">${esc(d.description)}</div>` : ''}<div style="opacity:.6;font-size:11px">${esc(d.site || '')}</div></a>`;
+    const previewImage = safeHttpUrl(d.image);
+    el.innerHTML = `<a href="${escAttr(previewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:6px;padding:8px;border-radius:10px;background:rgba(0,0,0,.25);color:inherit;text-decoration:none;font-size:13px">${previewImage ? `<img src="${escAttr(previewImage)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.remove()">` : ''}<div style="font-weight:600">${esc(d.title || d.site || '')}</div>${d.description ? `<div style="opacity:.8">${esc(d.description)}</div>` : ''}<div style="opacity:.6;font-size:11px">${esc(d.site || '')}</div></a>`;
   });
 }
 const fileCache = new Map();
@@ -6050,7 +6061,7 @@ async function renderAdminReports() {
     `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
     `<div>На @${esc(x.target)} от @${esc(x.reporter)}</div>` +
     `<div style="opacity:.75;font-size:13px">${esc(x.reason)}</div>` +
-    (x.evidence && x.evidence.length ? `<div style="display:flex;gap:6px;margin-top:6px">${x.evidence.map(p => `<img data-p="${esc(p)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;background:rgba(127,127,127,.25);cursor:pointer">`).join('')}</div>` : '') +
+    (x.evidence && x.evidence.length ? `<div style="display:flex;gap:6px;margin-top:6px">${x.evidence.map(p => `<img data-p="${escAttr(p)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;background:rgba(127,127,127,.25);cursor:pointer">`).join('')}</div>` : '') +
     `<div style="opacity:.6;font-size:12px">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div>` +
     `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport('${esc(x.target)}')" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
     `<button type="button" onclick="closeReport('${x.id}')" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
