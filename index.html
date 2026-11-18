@@ -5118,7 +5118,7 @@ function hydrateFiles(area, msgs) {
         // (контент 18+ размывается после отрисовки, см. adultCover)
         el.innerHTML = `<a href="${escAttr(url)}" target="_blank" rel="noopener noreferrer"><img src="${escAttr(url)}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'vnote') {
-        el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
+        el.innerHTML = `<video class="vnote-msg" src="${escAttr(url)}" playsinline preload="metadata"></video>`;
         // Пузырь вокруг кружка убираем явным классом (надёжнее, чем :has)
         const vb = el.closest('.bubble');
         if (vb) {
@@ -5548,7 +5548,7 @@ async function renderDevicesList() {
     const seen = d.last_seen_at ? new Date(d.last_seen_at).toLocaleString('ru-RU') : '—';
     const act = isThis
       ? `<button type="button" onclick="renameThisDevice()" class="tg-add" style="margin:6px 0 0">Переименовать</button>`
-      : `<button type="button" onclick="removeDevice('${esc(d.device_id)}')" class="tg-red" style="margin:6px 0 0">Отключить</button>`;
+      : `<button type="button" onclick="removeDevice(${jsStringAttr(d.device_id)})" class="tg-red" style="margin:6px 0 0">Отключить</button>`;
     return `<div style="padding:12px 16px;border-bottom:1px solid rgba(127,127,127,.15)">` +
       `<div style="font-weight:600">${esc(d.name || 'Устройство')}${isThis ? ' <span style="opacity:.6;font-weight:400">· это устройство</span>' : ''}</div>` +
       `<div style="opacity:.6;font-size:12px">Был в сети: ${esc(seen)}</div>${act}</div>`;
@@ -6749,7 +6749,7 @@ function searchUsersInto(val, resId, onPick) {
     users.forEach(u => {
       const el = document.createElement('div');
       el.className = 'user-result-item';
-      el.innerHTML = `<div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div><div><div class="u-name">${esc(u.display_name)}</div><div class="u-un">@${esc(u.username)}${u.pub_key ? '' : ' · нет ключа'}</div></div>`;
+      el.innerHTML = `<div class="u-av" style="background:${colorFor(u.id)}">${esc(initials(u.display_name))}</div><div><div class="u-name">${esc(u.display_name)}</div><div class="u-un">@${esc(u.username)}${u.pub_key ? '' : ' · нет ключа'}</div></div>`;
       el.addEventListener('click', () => onPick(u));
       res.appendChild(el);
     });
@@ -7901,7 +7901,7 @@ async function searchUsers(val) {
       const el = document.createElement('div');
       el.className = 'user-result-item';
       el.innerHTML = `
-        <div class="u-av" style="background:${colorFor(u.id)}">${initials(u.display_name)}</div>
+        <div class="u-av" style="background:${colorFor(u.id)}">${esc(initials(u.display_name))}</div>
         <div><div class="u-name">${esc(u.display_name)}${u.plus_active ? ' <span class="plus-badge">★ Plus</span>' : ''}${badgeHtml(badgeMap[u.id])}</div><div class="u-un">@${esc(u.username)}</div></div>`;
       el.addEventListener('click', ()=>startChat(u));
       res.appendChild(el);
