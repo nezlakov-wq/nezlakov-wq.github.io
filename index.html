@@ -3938,10 +3938,11 @@ async function editFromMenu() {
 }
 function reactionsHtml(msg) {
   const r = msg.reactions || {};
-  const keys = Object.keys(r).filter(k => (r[k] || []).length);
+  // Ignore legacy or API-injected reaction keys outside the app's fixed emoji set.
+  const keys = Object.keys(r).filter(k => EMOJIS.includes(k) && (r[k] || []).length);
   if (!keys.length) return '';
   return '<div class="reacts">' + keys.map(k =>
-    `<button class="react-chip" onclick="toggleReaction('${msg.id}','${k}')">${k} ${r[k].length}</button>`).join('') + '</div>';
+    `<button class="react-chip" onclick="toggleReaction(${jsStringAttr(msg.id)},${jsStringAttr(k)})">${esc(k)} ${r[k].length}</button>`).join('') + '</div>';
 }
 
 // ── PROFILE OF INTERLOCUTOR ──
