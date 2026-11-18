@@ -2868,9 +2868,9 @@ async function ensureProfile(user) {
     }
   }
   if (!pending || pending.id !== user.id) {
-    const username = (prompt('Придумай @username (латиница, цифры, _, минимум 3 символа)') || '').trim().toLowerCase();
+    const username = (prompt('Придумай @username (латиница, цифры, _, от 3 до 32 символов)') || '').trim().toLowerCase();
     const name = (prompt('Как тебя показывать?') || '').trim();
-    if (!/^[a-z0-9_]{3,}$/.test(username) || !name) {
+    if (!/^[a-z0-9_]{3,32}$/.test(username) || !name) {
       toast('Нужны username и имя');
       await sb.auth.signOut();
       return false;
