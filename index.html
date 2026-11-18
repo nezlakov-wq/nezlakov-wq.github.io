@@ -2411,6 +2411,9 @@ function escAttr(value) {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[ch]);
 }
+function jsStringAttr(value) {
+  return escAttr(JSON.stringify(String(value ?? '')));
+}
 function cssUrlForHtml(value) {
   const url = safePublicMediaUrl(value);
   return url ? 'url(&quot;' + escAttr(url) + '&quot;)' : 'none';
@@ -3483,7 +3486,7 @@ async function renderAliases() {
   const box = document.getElementById('aliasBox');
   if (!box || !me) return;
   const { data } = await sb.from('username_aliases').select('username').eq('user_id', me.id);
-  const list = (data || []).map(a => `<div class="tg-row" style="padding:8px 0"><div class="tg-txt"><div class="tg-name">@${esc(a.username)}</div></div><button class="tg-link" onclick="removeAlias('${esc(a.username)}')">Удалить</button></div>`).join('');
+  const list = (data || []).map(a => `<div class="tg-row" style="padding:8px 0"><div class="tg-txt"><div class="tg-name">@${esc(a.username)}</div></div><button class="tg-link" onclick="removeAlias(${jsStringAttr(a.username)})">Удалить</button></div>`).join('');
   const add = isPlusNow()
     ? '<div style="display:flex;gap:8px;margin-top:8px"><input id="aliasInput" placeholder="новый_юзернейм" maxlength="20" style="flex:1;background:var(--input-bg);color:var(--fg);border:1px solid var(--border);border-radius:10px;padding:8px;font:inherit"><button class="tg-link" onclick="addAlias()">Добавить</button></div>'
     : '<div style="font-size:13px;color:var(--fg2);margin-top:6px">Доступно с подпиской Moonlit Plus</div>';
@@ -6063,7 +6066,7 @@ async function renderAdminReports() {
     `<div style="opacity:.75;font-size:13px">${esc(x.reason)}</div>` +
     (x.evidence && x.evidence.length ? `<div style="display:flex;gap:6px;margin-top:6px">${x.evidence.map(p => `<img data-p="${escAttr(p)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;background:rgba(127,127,127,.25);cursor:pointer">`).join('')}</div>` : '') +
     `<div style="opacity:.6;font-size:12px">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div>` +
-    `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport('${esc(x.target)}')" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
+    `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport(${jsStringAttr(x.target)})" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
     `<button type="button" onclick="closeReport('${x.id}')" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
     : 'Открытых жалоб нет';
   // Фото жалоб лежат в приватном хранилище: модератору выдаём временные ссылки на 10 минут
