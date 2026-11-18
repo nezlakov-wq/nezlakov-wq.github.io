@@ -49,7 +49,26 @@ Deno.serve(async (req) => {
   const product = PRODUCTS[body.product || ''];
   if (!product) return json({ error: 'unknown product' }, 400);
 
-  // 3. Создаём платёж в ЮKassa. Idempotence-Key защищает от двойного списания при повторе запроса.
+  // 3. Ограничиваем создание платежей: максимум 3 попытки за 15 минут на аккаунт.
+  const limitRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reserve_yookassa_payment_slot`, {
+    method: 'POST',
+    headers: {
+      apikey: SERVICE_KEY,
+      authorization: `Bearer ${SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ p_user_id: user.id }),
+  });
+  if (!limitRes.ok) {
+    console.error('payment rate limit check failed', limitRes.status, await limitRes.text());
+    return json({ error: 'rate limit unavailable' }, 503);
+  }
+  const canCreatePayment = await limitRes.json();
+  if (canCreatePayment !== true) {
+    return json({ error: 'too many payment attempts', retry_after_seconds: 900 }, 429);
+  }
+
+  // 4. Создаём платёж в ЮKassa. Idempotence-Key защищает от двойного списания при повторе запроса.
   const idem = crypto.randomUUID();
   const payRes = await fetch('https://api.yookassa.ru/v3/payments', {
     method: 'POST',
@@ -72,7 +91,7 @@ Deno.serve(async (req) => {
     return json({ error: 'payment provider error' }, 502);
   }
 
-  // 4. Запоминаем платёж как ожидающий оплаты
+  // 5. Запоминаем платёж как ожидающий оплаты
   const ins = await fetch(`${SUPABASE_URL}/rest/v1/payments`, {
     method: 'POST',
     headers: { apikey: SERVICE_KEY, authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
