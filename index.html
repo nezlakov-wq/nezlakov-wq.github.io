@@ -5014,6 +5014,21 @@ function markListened(msg, el) {
 }
 
 // ── FILES AND PHOTOS ──
+const SAFE_RASTER_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+const SAFE_VIDEO_MIMES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
+const SAFE_FILE_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
+  'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/mp4', 'audio/aac',
+  'video/mp4', 'video/webm', 'video/quicktime'
+]);
+function safeFileMime(value) {
+  const mime = typeof value === 'string' ? value.toLowerCase().split(';', 1)[0].trim() : '';
+  return SAFE_FILE_MIMES.has(mime) ? mime : 'application/octet-stream';
+}
+function fileKind(mime) {
+  const safe = safeFileMime(mime);
+  return safe.startsWith('image/') ? 'img' : safe.startsWith('audio/') ? 'audio' : safe.startsWith('video/') ? 'vnote' : 'file';
+}
 // Файл шифруется ключом чата и кладётся в приватный bucket.
 // В сообщение кладётся зашифрованная метаданная: путь, имя, тип, IV.
 const MAX_FILE = 10 * 1024 * 1024;
@@ -5031,7 +5046,7 @@ function bodyHtml(msg) {
   if (isFileMsg(p)) {
     try {
       const m = JSON.parse(p);
-      const kind = (m.m || '').startsWith('image/') ? 'img' : (m.m || '').startsWith('audio/') ? 'audio' : (m.m || '').startsWith('video/') ? 'vnote' : 'file';
+      const kind = fileKind(m.m);
       const placeholder = kind === 'audio' ? '<span style="opacity:.6">Голосовое…</span>' : kind === 'vnote' ? '<span style="opacity:.6">Кружок…</span>' : '📎 ' + esc(m.n);
       return `<div class="file-box" data-fid="${msg.id}" data-kind="${kind}">${placeholder}</div>`;
     } catch (e) { return '📎 Файл'; }
@@ -5076,7 +5091,7 @@ async function fileUrl(m, keyVersion = 0) {
   const { data, error } = await sb.storage.from('chat-media').download(m.p);
   if (error || !data) throw new Error('download');
   const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(m.i) }, key, await data.arrayBuffer());
-  const url = URL.createObjectURL(new Blob([pt], { type: m.m }));
+  const url = URL.createObjectURL(new Blob([pt], { type: safeFileMime(m.m) }));
   fileCache.set(m.p, url);
   return url;
 }
@@ -5101,7 +5116,7 @@ function hydrateFiles(area, msgs) {
       const url = await fileUrl(m, msg.key_version || 0);
       if (el.dataset.kind === 'img') {
         // (контент 18+ размывается после отрисовки, см. adultCover)
-        el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" style="max-width:220px;border-radius:10px;display:block"></a>`;
+        el.innerHTML = `<a href="${escAttr(url)}" target="_blank" rel="noopener noreferrer"><img src="${escAttr(url)}" style="max-width:220px;border-radius:10px;display:block"></a>`;
       } else if (el.dataset.kind === 'vnote') {
         el.innerHTML = `<video class="vnote-msg" src="${url}" playsinline preload="metadata"></video>`;
         // Пузырь вокруг кружка убираем явным классом (надёжнее, чем :has)
@@ -5148,7 +5163,7 @@ function hydrateFiles(area, msgs) {
           time.textContent = fmtTime(audio.currentTime || 0);
         };
       } else {
-        el.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
+        el.innerHTML = `<a href="${escAttr(url)}" download="${escAttr(m.n || "file")}" rel="noopener noreferrer" style="color:inherit;text-decoration:underline">📎 ${esc(m.n)}</a>`;
       }
       if (m.a && (el.dataset.kind === 'img' || el.dataset.kind === 'vnote')) adultCover(el);
     } catch (e) {
@@ -5825,6 +5840,8 @@ function closeStories() {
 async function uploadStory(file) {
   if (!file || !me) return;
   const isVid = file.type.startsWith('video/');
+  if (isVid && !SAFE_VIDEO_MIMES.has((file.type || '').toLowerCase())) return toast('Поддерживаются MP4, WebM и MOV');
+  if (!isVid && !SAFE_RASTER_IMAGE_MIMES.has((file.type || '').toLowerCase())) return toast('Поддерживаются JPEG, PNG, WebP, GIF и AVIF');
   if (isVid && file.size > 20 * 1024 * 1024) return toast('Видео больше 20 МБ');
   if (!isVid && file.size > 5 * 1024 * 1024) return toast('Фото больше 5 МБ');
   toast('Публикуем историю…');
@@ -6297,6 +6314,7 @@ function bannerVideo(u) {
   return safe ? '<video src="' + escAttr(safe) + '" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>' : '';
 }
 async function uploadBannerVideo(file) {
+  if (!SAFE_VIDEO_MIMES.has((file.type || '').toLowerCase())) return toast('Поддерживаются MP4, WebM и MOV');
   if (file.size > 8 * 1024 * 1024) return toast('Видео больше 8 МБ');
   const dur = await new Promise(res => {
     const v = document.createElement('video'); v.preload = 'metadata';
@@ -6339,7 +6357,7 @@ async function uploadBanner(file) {
 // Ограничения баннера: до 5 МБ на входе, кадр 3:1 (как в шапке профиля), не больше 1200×400 px, на выходе до 300 КБ
 const BANNER_MAX_IN = 5 * 1024 * 1024, BANNER_MAX_OUT = 300 * 1024, BANNER_MAX_W = 1200, BANNER_MIN_W = 600;
 async function bannerBlob(file) {
-  if (!file.type.startsWith('image/')) throw new Error('Нужна картинка');
+  if (!SAFE_RASTER_IMAGE_MIMES.has((file.type || '').toLowerCase())) throw new Error('Поддерживаются JPEG, PNG, WebP, GIF и AVIF');
   if (file.size > BANNER_MAX_IN) throw new Error('Файл больше 5 МБ');
   const url = URL.createObjectURL(file);
   try {
@@ -6361,7 +6379,7 @@ async function bannerBlob(file) {
 // Фон карточки профиля: до 5 МБ на входе, сжатие до 1080 px, до 300 КБ на выходе
 async function uploadProfBg(file) {
   if (!file || !me) return;
-  if (!file.type.startsWith('image/')) return toast('Нужна картинка');
+  if (!SAFE_RASTER_IMAGE_MIMES.has((file.type || '').toLowerCase())) return toast('Поддерживаются JPEG, PNG, WebP, GIF и AVIF');
   if (file.size > BANNER_MAX_IN) return toast('Файл больше 5 МБ');
   toast('Загружаем фон…');
   try {
@@ -6381,6 +6399,7 @@ async function uploadProfBg(file) {
 function pickBanner() { document.getElementById('bannerInput').click(); }
 async function uploadAvatar(file) {
   if (!file || !me) return;
+  if (!SAFE_RASTER_IMAGE_MIMES.has((file.type || '').toLowerCase())) return toast('Поддерживаются JPEG, PNG, WebP, GIF и AVIF');
   if (file.size > 5 * 1024 * 1024) return toast('Файл больше 5 МБ');
   toast('Загружаем…');
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
