@@ -5721,19 +5721,21 @@ async function showStory() {
   const st = storyQueue[storyIdx];
   if (!st) return closeStories();
 
-  // Story media is private. Sign each item only when it is opened, not when
-  // the whole feed is loaded, so URLs stay short-lived and are not stored in DB.
-  let mediaUrl = st.media_url;
-  if (!/^https?:\\/\\//i.test(mediaUrl || '')) {
-    const { data, error } = await sb.storage.from('story-media').createSignedUrl(mediaUrl, 1800);
-    if (storyQueue[storyIdx] !== st) return; // user moved to another story while signing
-    if (error || !data?.signedUrl) {
-      console.error('create story signed URL', error);
-      toast('Не удалось открыть историю');
-      return storyStep(1);
-    }
-    mediaUrl = data.signedUrl;
+  // Story media is private. Sign each item only when it is opened.
+  // The DB stores an object path, never a caller-controlled external URL.
+  const mediaPath = st.media_url;
+  if (typeof mediaPath !== 'string' || !mediaPath.startsWith(st.user_id + '/')) {
+    toast('История недоступна');
+    return storyStep(1);
   }
+  const { data, error } = await sb.storage.from('story-media').createSignedUrl(mediaPath, 1800);
+  if (storyQueue[storyIdx] !== st) return; // user moved to another story while signing
+  if (error || !data?.signedUrl) {
+    console.error('create story signed URL', error);
+    toast('Не удалось открыть историю');
+    return storyStep(1);
+  }
+  const mediaUrl = data.signedUrl;
 
   if (storyQueue[storyIdx] !== st) return;
   document.getElementById('storyHead').textContent = (st.profiles?.display_name) || '';
