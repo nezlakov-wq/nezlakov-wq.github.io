@@ -5716,21 +5716,47 @@ function openStories(uid) {
   showStory();
 }
 
-function showStory() {
+async function showStory() {
   clearTimeout(storyTimer);
   const st = storyQueue[storyIdx];
   if (!st) return closeStories();
+
+  // Story media is private. Sign each item only when it is opened.
+  // The DB stores an object path, never a caller-controlled external URL.
+  const mediaPath = st.media_url;
+  if (typeof mediaPath !== 'string' || !mediaPath.startsWith(st.user_id + '/')) {
+    toast('История недоступна');
+    return storyStep(1);
+  }
+  const { data, error } = await sb.storage.from('story-media').createSignedUrl(mediaPath, 1800);
+  if (storyQueue[storyIdx] !== st) return; // user moved to another story while signing
+  if (error || !data?.signedUrl) {
+    console.error('create story signed URL', error);
+    toast('Не удалось открыть историю');
+    return storyStep(1);
+  }
+  const mediaUrl = data.signedUrl;
+
+  if (storyQueue[storyIdx] !== st) return;
   document.getElementById('storyHead').textContent = (st.profiles?.display_name) || '';
   document.getElementById('storyBars').innerHTML = storyQueue.map((x, i) =>
     '<i><b style="width:' + (i < storyIdx ? 100 : 0) + '%"></b></i>').join('');
   const body = document.getElementById('storyBody');
+  body.replaceChildren();
   if (st.kind === 'video') {
-    body.innerHTML = '<video class="story-media" src="' + st.media_url + '" autoplay playsinline></video>';
-    const vid = body.querySelector('video');
+    const vid = document.createElement('video');
+    vid.className = 'story-media';
+    vid.src = mediaUrl;
+    vid.autoplay = true;
+    vid.playsInline = true;
+    body.appendChild(vid);
     vid.onloadedmetadata = () => animateBar(vid.duration * 1000, false);
     vid.onended = () => storyStep(1);
   } else {
-    body.innerHTML = '<img class="story-media" src="' + st.media_url + '">';
+    const img = document.createElement('img');
+    img.className = 'story-media';
+    img.src = mediaUrl;
+    body.appendChild(img);
     animateBar(5000, true);
   }
 }
@@ -5772,12 +5798,14 @@ async function uploadStory(file) {
       blob = await (await fetch(d)).blob();
       ext = 'jpg'; type = 'image/jpeg';
     }
-    const path = me.id + '/story-' + Date.now() + '.' + ext;
-    const { error } = await sb.storage.from('avatars').upload(path, blob, { contentType: type });
+    const path = me.id + '/story-' + crypto.randomUUID() + '.' + ext;
+    const { error } = await sb.storage.from('story-media').upload(path, blob, { contentType: type });
     if (error) return toast('Ошибка: ' + error.message);
-    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-    const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: url, kind: isVid ? 'video' : 'photo' });
-    if (e2) return toast('Не опубликовалось: ' + e2.message);
+    const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: path, kind: isVid ? 'video' : 'photo' });
+    if (e2) {
+      await sb.storage.from('story-media').remove([path]);
+      return toast('Не опубликовалось: ' + e2.message);
+    }
     toast('История опубликована');
     loadStories();
   } catch (e) { console.error('uploadStory', e); toast('Не удалось опубликовать: ' + (e?.message || 'ошибка')); }
