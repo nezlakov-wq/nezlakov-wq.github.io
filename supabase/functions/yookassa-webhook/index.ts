@@ -11,6 +11,16 @@ const PRODUCTS: Record<string, { amount: string }> = {
   tokens_1000: { amount: '350.00' },
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function hashClientIp(req: Request): Promise<string> {
+  const ip = req.headers.get('cf-connecting-ip')?.trim()
+    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || 'unknown';
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip));
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -23,7 +33,7 @@ async function settle(
 ): Promise<Response> {
   const meta = pay.metadata || {};
   const product = PRODUCTS[meta.product];
-  if (!product || !meta.user_id || pay.amount?.currency !== 'RUB'
+  if (!product || typeof meta.user_id !== 'string' || !UUID_RE.test(meta.user_id) || pay.amount?.currency !== 'RUB'
       || pay.amount?.value !== product.amount) {
     console.error('provider payment metadata/amount mismatch', paymentId);
     return json({ ok: true, skipped: true });
@@ -61,12 +71,37 @@ Deno.serve(async (req) => {
   };
   const providerAuth = { authorization: 'Basic ' + btoa(`${SHOP_ID}:${SECRET}`) };
 
+  const declaredLength = Number(req.headers.get('content-length') || 0);
+  if (declaredLength > 8192) return json({ error: 'payload too large' }, 413);
+  let rawBody: string;
+  try { rawBody = await req.text(); } catch { return json({ error: 'bad body' }, 400); }
+  if (rawBody.length > 8192) return json({ error: 'payload too large' }, 413);
+
   let note: { event?: string; object?: { id?: string } };
-  try { note = await req.json(); } catch { return json({ error: 'bad json' }, 400); }
+  try { note = JSON.parse(rawBody); } catch { return json({ error: 'bad json' }, 400); }
   const event = note.event;
   const objectId = note.object?.id;
-  if (!objectId || (event !== 'payment.succeeded' && event !== 'refund.succeeded')) {
+  if (event !== 'payment.succeeded' && event !== 'refund.succeeded') {
     return json({ ok: true, skipped: true });
+  }
+  if (typeof objectId !== 'string' || !UUID_RE.test(objectId)) {
+    return json({ error: 'invalid provider object id' }, 400);
+  }
+
+  // The endpoint is public for provider callbacks. Rate-limit by a hashed client IP
+  // before making authenticated requests to YooKassa.
+  const ipHash = await hashClientIp(req);
+  const limitResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reserve_yookassa_webhook_slot`, {
+    method: 'POST',
+    headers: dbHeaders,
+    body: JSON.stringify({ p_ip_hash: ipHash }),
+  });
+  if (!limitResponse.ok) {
+    console.error('webhook rate limit check failed', limitResponse.status);
+    return json({ error: 'rate limit unavailable' }, 503);
+  }
+  if (await limitResponse.json() !== true) {
+    return json({ error: 'too many webhook requests' }, 429);
   }
 
   if (event === 'payment.succeeded') {
