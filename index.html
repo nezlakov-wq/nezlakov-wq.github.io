@@ -5744,7 +5744,7 @@ function renderStories() {
     const name = isMe ? 'Моя' : (p.display_name || '').split(' ')[0];
     const avatarUrl = safePublicMediaUrl(p.avatar_url);
     const bg = avatarUrl ? 'background-image:' + cssUrlForHtml(avatarUrl) : 'background:' + colorFor(uid);
-    html += '<button class="story-bub" onclick="openStories(\'' + uid + '\')"><div class="story-ring"><div style="' + bg + '">' +
+    html += '<button class="story-bub" onclick="openStories(' + jsStringAttr(uid) + ')"><div class="story-ring"><div style="' + bg + '">' +
       (avatarUrl ? '' : esc((p.display_name || '?').charAt(0).toUpperCase())) + '</div></div><span>' + esc(name) + '</span></button>';
   });
   if (!byUser.has(me.id)) {
@@ -7155,7 +7155,7 @@ function renderThemeOpts() {
   if (!el) return;
   const cur = getTheme();
   el.innerHTML = [['auto', 'Авто'], ['light', 'Светлая'], ['dark', 'Тёмная']].map(([k, n]) =>
-    '<button style="width:auto;margin:0;padding:8px 12px;border:none;border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;color:' + (k === cur ? '#fff' : 'var(--fg)') + ';background:' + (k === cur ? 'var(--accent)' : 'var(--bg3)') + '" onclick="setTheme(\'' + k + '\')">' + n + '</button>'
+    '<button style="width:auto;margin:0;padding:8px 12px;border:none;border-radius:10px;font-family:inherit;font-size:14px;cursor:pointer;color:' + (k === cur ? '#fff' : 'var(--fg)') + ';background:' + (k === cur ? 'var(--accent)' : 'var(--bg3)') + '" onclick="setTheme(' + jsStringAttr(k) + ')">' + n + '</button>'
   ).join('');
 }
 document.documentElement.removeAttribute('data-theme');
