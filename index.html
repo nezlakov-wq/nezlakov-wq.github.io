@@ -2934,7 +2934,7 @@ async function openGifts() {
 function renderGiftList() {
   document.getElementById('giftBalance').innerHTML = '' + COIN_IMG + ' ' + Number(me.balance || 0).toFixed(2);
   document.getElementById('giftList').innerHTML = giftList.map(g => `
-    <button class="gift-tile" onclick="pickGift('${g.id}')">
+    <button class="gift-tile" onclick="pickGift(${jsStringAttr(g.id)})">
       <div class="gift-tile-em">${giftArt(g)}</div>
       <div class="gift-tile-price">${COIN_IMG} ${g.price}</div>
     </button>`).join('');
@@ -3428,7 +3428,7 @@ async function openGiftView(id) {
   if (own) action = '<div class="gv-note">Это подарок, который вы отправили</div>';
   else if (sold) action = '<div class="gv-note">✅ Продано</div>';
   else if (expired) action = '<div class="gv-note">Срок продажи истёк (5 дней)</div>';
-  else action = '<button class="gift-send-btn" onclick="sellGiftFromView(\'' + id + '\')">Продать за ' + COIN_IMG + ' ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
+  else action = '<button class="gift-send-btn" onclick="sellGiftFromView(' + jsStringAttr(id) + ')">Продать за ' + COIN_IMG + ' ' + payout + '</button><div class="gv-note">Продать можно до ' + fmt(until) + '</div>';
   let ov = document.getElementById('giftView');
   if (!ov) {
     ov = document.createElement('div');
@@ -5134,7 +5134,7 @@ function hydrateFiles(area, msgs) {
         v.onended = () => { v.currentTime = 0; };
       } else if (el.dataset.kind === 'audio') {
         const bars = m.w && m.w.length ? m.w : Array(40).fill(0.3);
-        el.innerHTML = `<div class="vp"><button class="vp-play" type="button">${VP_PLAY}</button><div class="vp-wave">${bars.map(v => `<i style="height:${Math.max(12, Math.round(v * 100))}%"></i>`).join('')}</div><span class="vp-time">${fmtTime(m.d || 0)}</span><audio src="${url}" preload="metadata"></audio></div>`;
+        el.innerHTML = `<div class="vp"><button class="vp-play" type="button">${VP_PLAY}</button><div class="vp-wave">${bars.map(v => `<i style="height:${Math.max(12, Math.round(v * 100))}%"></i>`).join('')}</div><span class="vp-time">${fmtTime(m.d || 0)}</span><audio src="${escAttr(url)}" preload="metadata"></audio></div>`;
         const audio = el.querySelector('audio'), btn = el.querySelector('.vp-play');
         const ticks = el.querySelectorAll('.vp-wave i'), time = el.querySelector('.vp-time');
         // Длительность: если декодирование не дало её, берём из метаданных плеера (iPhone)
@@ -5261,7 +5261,7 @@ function showForwardList() {
   forwardMsg = menuMsg;
   const items = conversations.filter(c => c.id !== activeChatId).map(c => {
     const name = c.other?.display_name || c.name || 'Чат';
-    return `<button class="act" onclick="forwardTo('${c.id}')">${esc(name)}</button>`;
+    return `<button class="act" onclick="forwardTo(${jsStringAttr(c.id)})">${esc(name)}</button>`;
   }).join('') || '<div style="padding:12px;text-align:center">Нет других чатов</div>';
   document.getElementById('msgMenuBody').innerHTML =
     `<div class="set-label" style="padding:8px 12px">Переслать в чат</div>${items}<button class="act" onclick="closeMsgMenu()">Отмена</button>`;
@@ -5495,7 +5495,7 @@ function renderAccounts() {
     return `<div class="tg-row">
       <div class="tg-av" style="background:${colorFor(a.key)}">${letter}</div>
       <div class="tg-txt"><div class="tg-name">@${esc(a.username)}</div><div class="tg-sub">${isCur ? 'текущий аккаунт' : 'нажми «Войти», чтобы переключиться'}</div></div>
-      ${isCur ? '' : `<button class="tg-link" onclick="switchAccount('${a.key}')">Войти</button>`}
+      ${isCur ? '' : `<button class="tg-link" onclick="switchAccount(${jsStringAttr(a.key)})">Войти</button>`}
     </div>`;
   }).join('');
   const addBtn = list.length < 3 ? '<button class="tg-add" onclick="addAccount()">+ Добавить аккаунт</button>' : '';
@@ -6111,7 +6111,7 @@ async function renderAdminReports() {
     (x.evidence && x.evidence.length ? `<div style="display:flex;gap:6px;margin-top:6px">${x.evidence.map(p => `<img data-p="${escAttr(p)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;background:rgba(127,127,127,.25);cursor:pointer">`).join('')}</div>` : '') +
     `<div style="opacity:.6;font-size:12px">${esc(new Date(x.created_at).toLocaleString('ru-RU'))}</div>` +
     `<div style="display:flex;gap:6px;margin-top:6px"><button type="button" onclick="banFromReport(${jsStringAttr(x.target)})" style="padding:6px 10px;border-radius:10px;border:0;background:#ff453a;color:#fff;font-size:13px;cursor:pointer">Выдать бан</button>` +
-    `<button type="button" onclick="closeReport('${x.id}')" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
+    `<button type="button" onclick="closeReport(${jsStringAttr(x.id)})" style="padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div></div>`).join('')
     : 'Открытых жалоб нет';
   // Фото жалоб лежат в приватном хранилище: модератору выдаём временные ссылки на 10 минут
   rep.querySelectorAll('img[data-p]').forEach(async img => {
@@ -6125,7 +6125,7 @@ async function renderAdminReports() {
     `<div style="padding:8px 0;border-bottom:1px solid rgba(127,127,127,.15)">` +
     `<div>@${esc(x.username)}</div>` +
     `<div style="opacity:.75;font-size:13px">${esc(x.text)}</div>` +
-    `<button type="button" onclick="closeAppeal('${x.id}')" style="margin-top:6px;padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div>`).join('')
+    `<button type="button" onclick="closeAppeal(${jsStringAttr(x.id)})" style="margin-top:6px;padding:6px 10px;border-radius:10px;border:0;background:rgba(127,127,127,.15);color:inherit;font-size:13px;cursor:pointer">Закрыть</button></div>`).join('')
     : 'Открытых апелляций нет';
 }
 async function closeReport(id) {
@@ -6721,7 +6721,7 @@ function openNewGroup() {
 function closeNewGroup() { document.getElementById('groupModal').style.display = 'none'; }
 function renderGroupMembers() {
   document.getElementById('groupMembers').innerHTML = groupMembers.length
-    ? groupMembers.map(u => `<span class="chip">${esc(u.display_name)} <button onclick="removeDraft('${u.id}')">✕</button></span>`).join('')
+    ? groupMembers.map(u => `<span class="chip">${esc(u.display_name)} <button onclick="removeDraft(${jsStringAttr(u.id)})">✕</button></span>`).join('')
     : '<span style="color:var(--fg2);font-size:13px">Участники не выбраны</span>';
 }
 function removeDraft(id) { groupMembers = groupMembers.filter(u => u.id !== id); renderGroupMembers(); }
@@ -6954,7 +6954,7 @@ function renderGroupInfo(c) {
     const p = m.profiles || {};
     const role = m.user_id === c.created_by ? ' · создатель' : '';
     const rm = isCreator && m.user_id !== me.id
-      ? `<button class="set-logout" style="width:auto;margin:0;padding:6px 10px;background:#e85d75" onclick="removeFromGroup('${m.user_id}')">Удалить</button>`
+      ? `<button class="set-logout" style="width:auto;margin:0;padding:6px 10px;background:#e85d75" onclick="removeFromGroup(${jsStringAttr(m.user_id)})">Удалить</button>`
       : '';
     return `<div class="set-row" style="flex-direction:row;align-items:center;justify-content:space-between">
       <div><div>${esc(p.display_name || '')}${m.user_id === me.id ? ' (вы)' : ''}</div><div style="font-size:12px;opacity:.6">@${esc(p.username || '')}${role}</div></div>${rm}</div>`;
@@ -7053,7 +7053,7 @@ const EMOJIS = ['😀','😂','😍','🥰','😎','😮','🤔','😢','😡','
 function toggleEmoji() {
   const p = document.getElementById('emojiPanel');
   if (!p.childElementCount) {
-    p.innerHTML = EMOJIS.map(e => `<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+    p.innerHTML = EMOJIS.map(e => `<button type="button" onclick="insertEmoji(${jsStringAttr(e)})">${e}</button>`).join('');
   }
   p.style.display = p.style.display === 'grid' ? 'none' : 'grid';
 }
