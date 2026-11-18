@@ -5742,13 +5742,21 @@ async function showStory() {
   document.getElementById('storyBars').innerHTML = storyQueue.map((x, i) =>
     '<i><b style="width:' + (i < storyIdx ? 100 : 0) + '%"></b></i>').join('');
   const body = document.getElementById('storyBody');
+  body.replaceChildren();
   if (st.kind === 'video') {
-    body.innerHTML = '<video class="story-media" src="' + mediaUrl + '" autoplay playsinline></video>';
-    const vid = body.querySelector('video');
+    const vid = document.createElement('video');
+    vid.className = 'story-media';
+    vid.src = mediaUrl;
+    vid.autoplay = true;
+    vid.playsInline = true;
+    body.appendChild(vid);
     vid.onloadedmetadata = () => animateBar(vid.duration * 1000, false);
     vid.onended = () => storyStep(1);
   } else {
-    body.innerHTML = '<img class="story-media" src="' + mediaUrl + '">';
+    const img = document.createElement('img');
+    img.className = 'story-media';
+    img.src = mediaUrl;
+    body.appendChild(img);
     animateBar(5000, true);
   }
 }
