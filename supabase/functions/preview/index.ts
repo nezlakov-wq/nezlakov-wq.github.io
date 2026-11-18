@@ -4,6 +4,53 @@ const CORS = {
   "Content-Type": "application/json",
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function verifiedUserId(req: Request): string | null {
+  try {
+    const header = req.headers.get("authorization") || "";
+    const token = header.replace(/^Bearer\s+/i, "");
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const claims = JSON.parse(new TextDecoder().decode(bytes));
+    return typeof claims.sub === "string" && UUID_RE.test(claims.sub) ? claims.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+async function readLimitedHtml(response: Response, maxBytes: number): Promise<string | null> {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 function out(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj), { headers: CORS, status });
 }
@@ -74,14 +121,36 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
 
+  const declaredLength = Number(req.headers.get("content-length") || 0);
+  if (declaredLength > 4096) return out({ error: "payload too large" }, 413);
+  const userId = verifiedUserId(req);
+  if (!userId) return out({ error: "unauthorized" }, 401);
+
+  let rawBody: string;
+  try { rawBody = await req.text(); } catch { return out({}); }
+  if (rawBody.length > 4096) return out({ error: "payload too large" }, 413);
   let requestedUrl: unknown;
   try {
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
     requestedUrl = body?.url;
   } catch {
     return out({});
   }
   if (typeof requestedUrl !== "string" || requestedUrl.length > 2048) return out({});
+
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const limitResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/reserve_preview_slot`, {
+    method: "POST",
+    headers: {
+      apikey: SERVICE_KEY,
+      authorization: `Bearer ${SERVICE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_user_id: userId }),
+  });
+  if (!limitResponse.ok) return out({ error: "rate limit unavailable" }, 503);
+  if (await limitResponse.json() !== true) return out({ error: "rate limited" }, 429);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
@@ -113,7 +182,10 @@ Deno.serve(async (req: Request) => {
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.toLowerCase().includes("text/html")) return out({ site });
 
-    const html = (await response.text()).slice(0, 300000);
+    const declaredHtmlLength = Number(response.headers.get("content-length") || 0);
+    if (declaredHtmlLength > 300000) return out({ site });
+    const html = await readLimitedHtml(response, 300000);
+    if (html === null) return out({ site });
     const meta = (property: string) => {
       const escaped = property.replace(/[.*+?^{}()|[\]\\]/g, "\\$&");
       const a = html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']*)["']`, "i"));
@@ -127,7 +199,8 @@ Deno.serve(async (req: Request) => {
     if (image) {
       try {
         const imageUrl = new URL(image, current);
-        image = ["http:", "https:"].includes(imageUrl.protocol) ? imageUrl.href : "";
+        const validatedImage = await validatePublicUrl(imageUrl.href);
+        image = validatedImage ? validatedImage.href : "";
       } catch {
         image = "";
       }
