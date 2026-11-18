@@ -2393,6 +2393,7 @@ function safePublicMediaUrl(value) {
   try {
     const u = new URL(value, SUPABASE_URL);
     if (u.protocol !== 'https:' || u.origin !== new URL(SUPABASE_URL).origin) return '';
+    if (u.username || u.password) return '';
     if (!u.pathname.startsWith('/storage/v1/object/public/avatars/')) return '';
     return u.href;
   } catch (_) { return ''; }
