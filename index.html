@@ -2755,7 +2755,7 @@ async function register() {
   const resetBtn = () => { btn.disabled = false; btn.textContent = 'Создать аккаунт'; };
   let existing = null;
   try {
-    ({ data: existing } = await withTimeout(sb.rpc('username_is_taken', { requested_username: username })));
+    ({ data: existing } = await withTimeout(sb.functions.invoke('username-check', { body: { username } })));
   } catch (e) { resetBtn(); return authErr('Нет связи с сервером, попробуйте ещё раз'); }
   if(existing === true) { resetBtn(); return authErr('Username уже занят'); }
   const captchaToken = getCaptchaToken();
