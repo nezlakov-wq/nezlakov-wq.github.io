@@ -5716,21 +5716,37 @@ function openStories(uid) {
   showStory();
 }
 
-function showStory() {
+async function showStory() {
   clearTimeout(storyTimer);
   const st = storyQueue[storyIdx];
   if (!st) return closeStories();
+
+  // Story media is private. Sign each item only when it is opened, not when
+  // the whole feed is loaded, so URLs stay short-lived and are not stored in DB.
+  let mediaUrl = st.media_url;
+  if (!/^https?:\\/\\//i.test(mediaUrl || '')) {
+    const { data, error } = await sb.storage.from('story-media').createSignedUrl(mediaUrl, 1800);
+    if (storyQueue[storyIdx] !== st) return; // user moved to another story while signing
+    if (error || !data?.signedUrl) {
+      console.error('create story signed URL', error);
+      toast('Не удалось открыть историю');
+      return storyStep(1);
+    }
+    mediaUrl = data.signedUrl;
+  }
+
+  if (storyQueue[storyIdx] !== st) return;
   document.getElementById('storyHead').textContent = (st.profiles?.display_name) || '';
   document.getElementById('storyBars').innerHTML = storyQueue.map((x, i) =>
     '<i><b style="width:' + (i < storyIdx ? 100 : 0) + '%"></b></i>').join('');
   const body = document.getElementById('storyBody');
   if (st.kind === 'video') {
-    body.innerHTML = '<video class="story-media" src="' + st.media_url + '" autoplay playsinline></video>';
+    body.innerHTML = '<video class="story-media" src="' + mediaUrl + '" autoplay playsinline></video>';
     const vid = body.querySelector('video');
     vid.onloadedmetadata = () => animateBar(vid.duration * 1000, false);
     vid.onended = () => storyStep(1);
   } else {
-    body.innerHTML = '<img class="story-media" src="' + st.media_url + '">';
+    body.innerHTML = '<img class="story-media" src="' + mediaUrl + '">';
     animateBar(5000, true);
   }
 }
@@ -5772,12 +5788,14 @@ async function uploadStory(file) {
       blob = await (await fetch(d)).blob();
       ext = 'jpg'; type = 'image/jpeg';
     }
-    const path = me.id + '/story-' + Date.now() + '.' + ext;
-    const { error } = await sb.storage.from('avatars').upload(path, blob, { contentType: type });
+    const path = me.id + '/story-' + crypto.randomUUID() + '.' + ext;
+    const { error } = await sb.storage.from('story-media').upload(path, blob, { contentType: type });
     if (error) return toast('Ошибка: ' + error.message);
-    const url = sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-    const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: url, kind: isVid ? 'video' : 'photo' });
-    if (e2) return toast('Не опубликовалось: ' + e2.message);
+    const { error: e2 } = await sb.from('stories').insert({ user_id: me.id, media_url: path, kind: isVid ? 'video' : 'photo' });
+    if (e2) {
+      await sb.storage.from('story-media').remove([path]);
+      return toast('Не опубликовалось: ' + e2.message);
+    }
     toast('История опубликована');
     loadStories();
   } catch (e) { console.error('uploadStory', e); toast('Не удалось опубликовать: ' + (e?.message || 'ошибка')); }
