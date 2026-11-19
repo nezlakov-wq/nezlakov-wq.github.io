@@ -46,7 +46,7 @@ The frontend now keeps a per-product attempt key in session storage for up to 10
 **Edge Function:** `yookassa-create` deployed as version 12, JWT verification remains enabled.  
 **Verified:** private intent table exists; both RPCs have empty search_path, are executable only by service_role (not anon/authenticated), and the deployed Edge Function source uses the reserve/complete RPCs and reuses the stored provider key.
 
-**Database test performed:** in a rolled-back transaction using a test idempotency UUID, called the reservation RPC twice with the same user/key/product and confirmed the provider key was identical; attempted to reuse the key for a different product and confirmed it was rejected. Verified no test intent remained after rollback.  
+**Database test performed:** in a rolled-back transaction using a test idempotency UUID, called the reservation RPC twice with the same user/key/product and confirmed the provider key was identical; attempted to reuse the key for a different product and confirmed it was rejected. Then called the completion RPC twice with a synthetic payment ID, confirmed only one pending payment row was created and the intent retained the same payment ID/URL. The entire test transaction was rolled back and no test rows remained.  
 **Not yet end-to-end tested:** live YooKassa sandbox scenarios for concurrent same-key requests, retry after provider success/database interruption, and replay of the stored confirmation URL. No real payment was initiated as part of this audit.
 
 ### Per-user report, appeal, and alias quotas could race under concurrent requests
