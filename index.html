@@ -6859,7 +6859,7 @@ async function openGroupInfo() {
   new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['style'], subtree: true });
 })();
 // Окно канала: владелец меняет аватарку, название, описание и открывает статистику; остальные видят описание
-const escAttr = s => esc(s).replace(/"/g, '&quot;');
+// Use the shared escAttr() helper declared near the application bootstrap.
 function openChannelInfo() {
   const conv = currentConv();
   if (!conv?.is_channel) return;
