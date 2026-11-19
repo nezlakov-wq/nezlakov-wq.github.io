@@ -68,6 +68,14 @@ These functions checked per-user counts or existing rows without serializing con
 - The inspected chat rendering paths escape user-controlled text before HTML insertion; link preview destinations are restricted to HTTP(S), and preview metadata is escaped before rendering. This is code review, not browser-based XSS testing.
 - TURN configuration and behavior were not changed.
 
+## Remaining advisor findings / configuration follow-up
+
+- Supabase Security Advisor still reports 53 authenticated-callable SECURITY DEFINER functions. This is a heuristic, not proof that all 53 are vulnerable: many are application RPCs that intentionally enforce caller identity or staff checks while bypassing table RLS. Do not blanket-revoke EXECUTE; each function must be reviewed against its frontend call sites and authorization logic before changing grants.
+- Security Advisor reports RLS-enabled tables with no policies. The reviewed admin/config tables and private rate-limit tables have no anon/authenticated table grants; they are intentionally accessed through narrowly scoped SECURITY DEFINER RPCs or service-role code. The new checkout-intent table also has RLS enabled and no anon/authenticated grants.
+- Security Advisor reports leaked-password protection disabled. This is an Auth project setting, not a SQL migration; it remains an outstanding dashboard configuration item and was not changed through this audit.
+- Performance Advisor reports a missing primary key and duplicate indexes on `group_keys`, plus unused indexes and multiple permissive conversation SELECT policies. These are not security bypasses; no index or policy was removed because doing so without workload/constraint review could break E2EE key uniqueness or public-channel visibility.
+- Public `avatars` bucket remains an explicit product privacy decision: direct object URLs are public. No bucket visibility change was made because that would break existing avatar delivery.
+
 ## Deployment status
 
 The five database migrations above are applied to the Supabase production database. The `yookassa-create` Edge Function is deployed as version 12. Database function definitions, grants, trigger attachment, and Edge Function source were read back and checked. The GitHub PR remains separate from deployment; no website deployment is claimed.
