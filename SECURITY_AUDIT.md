@@ -48,6 +48,19 @@ The frontend now keeps a per-product attempt key in session storage for up to 10
 
 **Not yet end-to-end tested:** live YooKassa sandbox scenarios for concurrent same-key requests, retry after provider success/database interruption, different-product key reuse rejection, and existing-payment URL replay. No real payment was initiated as part of this audit.
 
+### Per-user report, appeal, and alias quotas could race under concurrent requests
+
+**Affected RPCs:** `add_username`, `report_user`, `submit_appeal`.  
+**Severity:** Low (business-rule/resource-abuse limits).
+
+These functions checked per-user counts or existing rows without serializing concurrent calls. Multiple simultaneous requests could pass the same check before either transaction committed.
+
+**Change applied:** transaction-scoped advisory locks now serialize alias creation per account, report submission per reporter/target pair, and appeal submission per account. Existing validations, return messages, and execute grants are preserved.
+
+**Production migration:** `serialize_username_report_and_appeal_limits`  
+**Applied:** 2026-11-19  
+**Verified:** read back all three function definitions; `search_path` remains explicitly set, anon execution remains denied, and authenticated execution remains enabled as required by the client.
+
 ## Other reviewed areas (not claimed as fully audited)
 
 - YooKassa webhook re-fetches payment/refund state from YooKassa and delegates settlement to a row-locked, service-role-only SQL function. Product/amount checks and duplicate-settlement handling are present in the inspected code.
@@ -57,4 +70,4 @@ The frontend now keeps a per-product attempt key in session storage for up to 10
 
 ## Deployment status
 
-The three database migrations above are applied to the Supabase production database. The `yookassa-create` Edge Function is deployed as version 12. Database function definitions, grants, trigger attachment, and Edge Function source were read back and checked. The GitHub PR remains separate from deployment; no website deployment is claimed.
+The five database migrations above are applied to the Supabase production database. The `yookassa-create` Edge Function is deployed as version 12. Database function definitions, grants, trigger attachment, and Edge Function source were read back and checked. The GitHub PR remains separate from deployment; no website deployment is claimed.
