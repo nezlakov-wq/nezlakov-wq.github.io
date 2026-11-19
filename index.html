@@ -3505,8 +3505,41 @@ async function removeAlias(n) {
   renderAliases();
 }
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
+const checkoutFallbackKeys = new Map();
+function checkoutIdempotencyKey(code) {
+  // Returning from the provider ends the previous checkout attempt. Remove its
+  // key so a deliberate new purchase creates a fresh payment intent.
+  const url = new URL(location.href);
+  if (url.searchParams.get('payment') === 'done') {
+    try {
+      Object.keys(sessionStorage).filter(k => k.startsWith('moonlit_checkout_'))
+        .forEach(k => sessionStorage.removeItem(k));
+    } catch (e) {}
+    url.searchParams.delete('payment');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+
+  const storageKey = 'moonlit_checkout_' + code;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
+    if (saved && /^[0-9a-f-]{36}$/i.test(saved.key)
+        && Number.isFinite(saved.createdAt)
+        && Date.now() - saved.createdAt < 10 * 60 * 1000) {
+      return saved.key;
+    }
+    const key = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, JSON.stringify({ key, createdAt: Date.now() }));
+    return key;
+  } catch (e) {
+    if (!checkoutFallbackKeys.has(code)) checkoutFallbackKeys.set(code, crypto.randomUUID());
+    return checkoutFallbackKeys.get(code);
+  }
+}
 async function buyProduct(code) {
-  const { data, error } = await sb.functions.invoke('yookassa-create', { body: { product: code } });
+  const idempotencyKey = checkoutIdempotencyKey(code);
+  const { data, error } = await sb.functions.invoke('yookassa-create', {
+    body: { product: code, idempotency_key: idempotencyKey }
+  });
   if (error || !data?.confirmation_url) {
     // Показываем причину от сервера, чтобы её было видно при проверке
     let reason = data?.error || error?.message || 'нет ссылки на оплату';
