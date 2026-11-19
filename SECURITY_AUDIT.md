@@ -37,11 +37,11 @@ The previous trigger/RPC implementations counted current rows without serializin
 
 Previously, each invocation generated a fresh provider `Idempotence-Key`. Retrying the same checkout through a new invocation could therefore create a second payment.
 
-**Change applied:** a private durable checkout-intent table stores a client idempotency UUID and a stable provider idempotency UUID. The reservation RPC applies the existing per-user rate limit only once per new intent, rejects key reuse for a different product, and returns the previously stored payment URL when available. The completion RPC atomically records the pending payment and links it to the intent. If a request is interrupted after YooKassa creates the payment but before the database records it, a retry with the same key reuses the same provider key. Unresolved intents older than 20 hours are refused rather than blindly retried beyond the provider's idempotency window.
+**Change applied:** a private durable checkout-intent table stores a client idempotency UUID and a stable provider idempotency UUID. The reservation RPC applies the existing per-user rate limit only once per new intent, rejects key reuse for a different product, and returns the previously stored payment URL when available. The intent table has RLS enabled and no anon/authenticated table grants. The completion RPC atomically records the pending payment and links it to the intent. If a request is interrupted after YooKassa creates the payment but before the database records it, a retry with the same key reuses the same provider key. Unresolved intents older than 20 hours are refused rather than blindly retried beyond the provider's idempotency window.
 
 The frontend now keeps a per-product attempt key in session storage for up to 10 minutes and clears it after returning from the provider. The Edge Function retains compatibility with older clients by generating a key when none is supplied.
 
-**Production migration:** `durable_yookassa_checkout_idempotency`  
+**Production migrations:** `durable_yookassa_checkout_idempotency`, `enable_rls_on_private_checkout_intents`  
 **Applied:** 2026-11-19  
 **Edge Function:** `yookassa-create` deployed as version 12, JWT verification remains enabled.  
 **Verified:** private intent table exists; both RPCs have empty search_path, are executable only by service_role (not anon/authenticated), and the deployed Edge Function source uses the reserve/complete RPCs and reuses the stored provider key.
