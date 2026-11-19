@@ -3505,6 +3505,7 @@ async function removeAlias(n) {
   renderAliases();
 }
 function openShop() { document.getElementById('shopModal').style.display = 'flex'; }
+const checkoutFallbackKeys = new Map();
 function checkoutIdempotencyKey(code) {
   // Returning from the provider ends the previous checkout attempt. Remove its
   // key so a deliberate new purchase creates a fresh payment intent.
@@ -3530,7 +3531,8 @@ function checkoutIdempotencyKey(code) {
     sessionStorage.setItem(storageKey, JSON.stringify({ key, createdAt: Date.now() }));
     return key;
   } catch (e) {
-    return crypto.randomUUID();
+    if (!checkoutFallbackKeys.has(code)) checkoutFallbackKeys.set(code, crypto.randomUUID());
+    return checkoutFallbackKeys.get(code);
   }
 }
 async function buyProduct(code) {
