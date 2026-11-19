@@ -2,7 +2,7 @@
 
 Date: 2026-11-19
 
-## Confirmed issue addressed in this PR
+## Confirmed issue fixed in production
 
 ### Group invitation privacy and capacity were enforced only by the frontend
 
@@ -16,16 +16,13 @@ The SECURITY DEFINER RPC checked that the caller was a member of a group, then i
 
 Because the function is directly callable through PostgREST RPC by authenticated users, a caller could bypass the UI and invite a user who had disabled group invitations, or exceed the client-side membership cap.
 
-**Change:** the migration moves both checks into the SECURITY DEFINER function. It locks the conversation row while counting members so concurrent additions to the same group cannot race past the limit. Existing member additions remain idempotent. Channel membership behavior is intentionally unchanged.
+**Change applied:** the database function now enforces both checks. It locks the conversation row while counting members so concurrent additions to the same group cannot race past the limit. Existing member additions remain idempotent. Channel membership behavior is intentionally unchanged.
 
-**Validation performed:** reviewed the deployed function definition, the `conversation_members` RLS policies, the `profiles.hide_groups` column, the `is_plus(uuid)` helper, and the corresponding frontend checks in `index.html`.
+**Production migration:** `enforce_group_invite_privacy_and_member_limits`  
+**Applied:** 2026-11-19  
+**Post-apply verification:** queried `pg_get_functiondef('public.add_conversation_member(uuid,uuid)')` and confirmed the deployed definition contains authentication, group membership, hide_groups, member-limit, and row-lock checks. Confirmed the migration is recorded in Supabase migration history.
 
-**Still required before production application:**
-- apply the migration in a non-production Supabase branch or staging database;
-- test a standard account at 19/20 members and confirm the 21st member is rejected;
-- test a Plus account at 49/50 members and confirm the 51st member is rejected;
-- verify an invite to a user with `hide_groups = true` is rejected;
-- verify ordinary group additions, duplicate additions, and channel behavior remain unchanged.
+**Not yet integration-tested:** standard 19→20 / 20→21, Plus 49→50 / 50→51, target hide_groups=true rejection, duplicate no-op, and channel behavior. These require authenticated test accounts and representative test groups; no live user/group data was modified for testing.
 
 ## Other reviewed areas (not claimed as fully audited)
 
@@ -37,4 +34,4 @@ Because the function is directly callable through PostgREST RPC by authenticated
 
 ## Deployment status
 
-This PR contains a migration proposal only. It has not been applied to the production database, and merging this PR would not itself prove that the migration or website has been deployed.
+The group-invitation database hardening is applied to the Supabase production database and verified by reading back the deployed function definition. This does not imply that the GitHub PR was merged or that a website deployment occurred.
