@@ -1351,24 +1351,31 @@ body::after {
 .call-time { font-size: 12px; opacity: .6; white-space: nowrap; }
 .call-back { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--input-bg); color: var(--fg); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 @media (min-width: 641px) {
-  /* Десктоп: окно звонков полностью закрывает колонку, не оставляя под ним второй список */
+  /* Десктоп: история звонков занимает главную рабочую область справа от боковой панели */
   #callsModal {
-    inset: 0 auto 0 0 !important;
-    width: min(100vw, 360px) !important;
+    position: fixed !important;
+    inset: 98px 10px 10px 380px !important;
+    width: auto !important;
     overflow: hidden !important;
+    z-index: 300 !important;
   }
   #callsModal .modal.calls-page {
+    width: 100% !important;
+    max-width: none !important;
     height: 100% !important;
     min-height: 0 !important;
+    max-height: none !important;
     overflow: hidden !important;
+    border: 1px solid var(--border, rgba(255,255,255,.1)) !important;
+    border-radius: 22px !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
-  /* Нижняя навигация остаётся поверх страницы звонков */
-  .tab-bar {
-    position: fixed !important;
-    left: 10px !important;
-    bottom: 10px !important;
-    width: 340px !important;
-    z-index: 401 !important;
+  #callsBody {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding-bottom: 24px !important;
   }
   .calls-filters {
     scrollbar-width: none;
